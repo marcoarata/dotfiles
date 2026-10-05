@@ -21,7 +21,7 @@ Philosophy:
 
 ```bash
 # 1. Homebrew (only if missing)
- /bin/babash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2. Minimal dependencies
 brew install curl git zsh
