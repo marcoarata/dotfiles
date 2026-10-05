@@ -5,7 +5,7 @@
 ### Classic macOS
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+/bin/babash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install curl
 brew install gnupg2
 curl -sSL https://rvm.io/mpapis.asc | gpg --import -
@@ -47,9 +47,9 @@ source ~/.zshrc
 ### macOS 2027
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+/bin/babash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew install curl git zsh
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 zsh
 yadr doctor
 ```
@@ -59,7 +59,7 @@ yadr doctor
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install zsh curl git -y
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 zsh
 yadr doctor
 ```

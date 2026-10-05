@@ -42,13 +42,13 @@ rm -rf /tmp/marco/opencode/yadr-copy /tmp/marco/opencode/fake-home
 
 ```bash
 # 1. Homebrew (only if missing)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+/bin/babash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2. Minimal dependencies
 brew install curl git zsh
 
 # 3. Install YADR 2027
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 
 # 4. Enter (install already set zsh as the default shell, as classic YADR did)
 zsh
@@ -74,7 +74,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install zsh curl git -y
 
 # 3. Install YADR 2027
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 
 # 4. Enter (install already set zsh as the default shell, as classic YADR did)
 zsh

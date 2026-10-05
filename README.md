@@ -21,7 +21,7 @@ Philosophy:
 
 ```bash
 # 1. Homebrew (only if missing)
- /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+ /bin/babash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # 2. Minimal dependencies
 brew install curl git zsh
@@ -29,7 +29,7 @@ brew install curl git zsh
 # 3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
 #    installs prerequisites via platform/macos.sh, clones into ~/.yadr
 #    and runs bin/yadr install with automatic backup)
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 
 # 4. Enter your environment
 zsh
@@ -57,7 +57,7 @@ sudo apt install zsh curl git -y
 # 3. Install YADR 2027 (detects linux/wsl, installs via
 #    platform/linux.sh or platform/wsl.sh, clones into ~/.yadr
 #    and runs bin/yadr install with automatic backup)
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 
 # 4. Enter your environment
 zsh
