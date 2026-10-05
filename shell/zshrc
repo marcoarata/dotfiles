@@ -1,0 +1,113 @@
+# YADR 2027 — shell/zshrc
+# Main Zsh. No frameworks (no OMZ/P10k/Starship). Sober and fast.
+
+# --- XDG base ---
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+# --- Editor ---
+export EDITOR="nvim"
+export VISUAL="nvim"
+export PAGER="${PAGER:-less}"
+
+# --- YADR shell location ---
+# ${(%):-%x} = this file's path even when sourced via symlink.
+_YADR_SHELL_DIR="${${(%):-%x}:A:h}"
+export YADR_SHELL_DIR="$_YADR_SHELL_DIR"
+export YADR_DOTFILES="${YADR_DOTFILES:-${_YADR_SHELL_DIR:A:h}}"
+
+# --- Sane PATH (no duplicates) ---
+typeset -U path PATH
+path=(
+  "$HOME/.local/bin"
+  "$HOME/.local/share/mise/shims"
+  $path
+)
+export PATH
+
+# --- Large history ---
+HISTFILE="${XDG_STATE_HOME}/zsh/history"
+mkdir -p "${HISTFILE:h}" 2>/dev/null
+HISTSIZE=100000
+SAVEHIST=100000
+setopt EXTENDED_HISTORY       # timestamp + duration
+setopt HIST_EXPIRE_DUPS_FIRST
+setopt HIST_IGNORE_DUPS
+setopt HIST_IGNORE_ALL_DUPS
+setopt HIST_IGNORE_SPACE
+setopt HIST_FIND_NO_DUPS
+setopt HIST_SAVE_NO_DUPS
+setopt HIST_VERIFY
+setopt SHARE_HISTORY
+setopt APPEND_HISTORY
+setopt INC_APPEND_HISTORY
+
+# --- General options ---
+setopt AUTO_CD                # `docs` == `cd docs`
+setopt AUTO_PUSHD
+setopt PUSHD_IGNORE_DUPS
+setopt CORRECT                # suggest command correction
+unsetopt FLOW_CONTROL         # frees Ctrl-S / Ctrl-Q
+setopt PROMPT_SUBST           # required for dynamic prompt
+setopt INTERACTIVE_COMMENTS
+
+# --- Native completion (no plugins) ---
+autoload -Uz compinit
+# -d: dump outside $HOME. Fresh dump (<24h) -> -C (skips security
+# scan, much faster); else full compinit regenerates it.
+_comp_dump="${XDG_CACHE_HOME}/zsh/zcompdump-${ZSH_VERSION}"
+mkdir -p "${_comp_dump:h}" 2>/dev/null
+if [[ -f "$_comp_dump" ]] && find "$_comp_dump" -mtime -1 2>/dev/null | grep -q .; then
+  compinit -C -d "$_comp_dump"
+else
+  compinit -d "$_comp_dump"
+fi
+unset _comp_dump
+zstyle ':completion:*' menu select                    # navigate with arrows
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|=*' 'l:|=* r:|=*'  # sober fuzzy
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS:-}"  # ls colors
+zstyle ':completion:*' rehash true
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path "${XDG_CACHE_HOME}/zsh/zcompcache"
+setopt COMPLETE_IN_WORD
+setopt ALWAYS_TO_END
+
+# --- Core modules (order matters: aliases < keybindings < runtime < prompt) ---
+[[ -f "$_YADR_SHELL_DIR/aliases.zsh" ]]    && source "$_YADR_SHELL_DIR/aliases.zsh"
+[[ -f "$_YADR_SHELL_DIR/keybindings.zsh" ]] && source "$_YADR_SHELL_DIR/keybindings.zsh"
+[[ -f "$_YADR_SHELL_DIR/runtime.zsh" ]]     && source "$_YADR_SHELL_DIR/runtime.zsh"
+[[ -f "$_YADR_SHELL_DIR/damoekri.zsh" ]]    && source "$_YADR_SHELL_DIR/damoekri.zsh"
+
+# --- Optional plugins: highlighting + autosuggestions (guarded) ---
+# Must load AFTER compinit and custom widgets.
+[[ -f "$_YADR_SHELL_DIR/plugins.zsh" ]]     && source "$_YADR_SHELL_DIR/plugins.zsh"
+
+# --- Optional integrations (all guarded, never fail) ---
+# mise: main runtime manager
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh 2>/dev/null)" || true
+fi
+# zoxide: smart `z` (alias lives in aliases.zsh)
+if command -v zoxide >/dev/null 2>&1; then
+  eval "$(zoxide init zsh --cmd z 2>/dev/null)" || true
+fi
+# fzf: keybindings + completion if present
+if command -v fzf >/dev/null 2>&1; then
+  [[ -f /usr/share/fzf/key-bindings.zsh ]] && source /usr/share/fzf/key-bindings.zsh 2>/dev/null || true
+  [[ -f /usr/share/fzf/completion.zsh ]]   && source /usr/share/fzf/completion.zsh 2>/dev/null || true
+  [[ -f "$HOME/.fzf.zsh" ]]                && source "$HOME/.fzf.zsh" 2>/dev/null || true
+  [[ -d "${XDG_CONFIG_HOME}/fzf" ]]        && [[ -f "${XDG_CONFIG_HOME}/fzf/fzf.zsh" ]] \
+    && source "${XDG_CONFIG_HOME}/fzf/fzf.zsh" 2>/dev/null || true
+fi
+# direnv: only if user runs it
+if command -v direnv >/dev/null 2>&1; then
+  eval "$(direnv hook zsh 2>/dev/null)" || true
+fi
+
+# --- Local overrides (unversioned) ---
+[[ -f "$XDG_CONFIG_HOME/zsh/local.zsh" ]] && source "$XDG_CONFIG_HOME/zsh/local.zsh" || true
+[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local" || true
+
+return 0 2>/dev/null || true

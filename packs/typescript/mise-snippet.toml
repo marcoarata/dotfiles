@@ -1,0 +1,7 @@
+# Snippet mise para proyectos TypeScript — pegar en ./mise.toml
+[tools]
+node = "24"
+# pnpm = "10"  # descomentar si el proyecto usa pnpm
+
+[settings]
+idiomatic_version_file_enable_tools = ["node", "npm", "pnpm"]

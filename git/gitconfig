@@ -1,0 +1,107 @@
+# YADR Git profile — conciso
+# Usuario real en ~/.gitconfig.user (no commitear datos personales).
+# Ejemplo ~/.gitconfig.user:
+#   [user]
+#     name = Tu Nombre
+#     email = tu@email.com
+
+[user]
+  #placeholder — override via include
+  name = YADR User
+  email = user@example.com
+
+[include]
+  path = ~/.gitconfig.user
+
+[core]
+  editor = nvim
+  excludesfile = ~/.gitignore_global
+  autocrlf = input
+  safecrlf = true
+
+[diff]
+  mnemonicprefix = true
+  patience = true
+  algorithm = patience
+[diff "bin"]
+  textconv = hexdump -v -C
+
+[rerere]
+  enabled = true
+  autoupdate = true
+
+[push]
+  default = simple
+  autoSetupRemote = true
+  followTags = true
+
+[pull]
+  rebase = true
+
+[rebase]
+  autoStash = true
+
+[fetch]
+  prune = true
+
+[color]
+  ui = auto
+[color "branch"]
+  current = yellow reverse
+  local = yellow
+  remote = green
+[color "diff"]
+  meta = yellow bold
+  frag = magenta bold
+  old = red bold
+  new = green bold
+
+# YADR aliases (classic skwp + 2027; `git <sub>` used by shell/aliases.zsh)
+[alias]
+  gl = log --graph --pretty='%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+  gb = branch
+  gt = tag
+  gnb = checkout -b
+  gcp = cherry-pick
+  guns = reset HEAD --
+  gunc = reset --soft HEAD~1
+  gdmb = "!f() { git branch --merged | grep -Ev '^\\*|main|master|develop' | sed 's/^ *//' | while IFS= read -r b; do git branch -d \"$b\"; done; }; f"
+  recent-branches = branch --sort=-committerdate --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:green)(%(committerdate:relative))%(color:reset) %(authorname) %(objectname:short)'
+  simple = log --oneline --decorate
+  unstage = reset HEAD --
+  uncommit = reset --soft HEAD~1
+  st = status -sb
+  co = checkout
+  ci = commit
+  # --- rest of the classic set (portable) ---
+  a = add
+  chunkyadd = add --patch
+  snapshot = !git stash save "snapshot: $(date)" && git stash apply "stash@{0}"
+  snapshots = !git stash list --grep snapshot
+  contributors = shortlog --summary --numbered --email
+  b = branch -v
+  c = commit -m
+  ca = commit -am
+  amend = commit --amend
+  nb = checkout -b
+  cp = cherry-pick -x
+  d = diff
+  dc = diff --cached
+  last = diff HEAD^
+  l = log --graph --date=short
+  changes = log --pretty=format:\"%h %cr %cn %Cgreen%s%Creset\" --name-status
+  short = log --pretty=format:\"%h %cr %cn %Cgreen%s%Creset\"
+  shortnocolor = log --pretty=format:\"%h %cr %cn %s\"
+  pl = pull
+  ps = push
+  rc = rebase --continue
+  rs = rebase --skip
+  r = remote -v
+  filelog = log -u
+  ss = stash
+  sl = stash list
+  sa = stash apply
+  sd = stash drop
+  s = status
+  stat = status
+  t = tag -n

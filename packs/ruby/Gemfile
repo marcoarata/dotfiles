@@ -1,0 +1,4 @@
+# Minimal YADR Ruby base
+source "https://rubygems.org"
+gem "rspec"
+gem "pry"

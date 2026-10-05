@@ -1,0 +1,25 @@
+# runtime/mise.toml — YADR global base
+# Version policy: explicit pinned Node LTS (currently 24).
+# On a new LTS release: bump this pin + `yadr runtime use node@<new>`
+# + note in docs/migration.md. Never a floating `lts` in core.
+# Per-project override: create ./mise.toml in the repo.
+# mise merges global + local; local wins. Example:
+#   [tools]
+#   node = "24"
+#   python = "3.12"
+
+[tools]
+node = "24"
+# pnpm floats to latest by policy (package manager, not runtime);
+# projects pin their own (packageManager / local mise.toml).
+pnpm = "latest"
+# Current stable Python (python.org, oct-2026: 3.14.x; 3.15 in pre-release).
+# The shim installs on first use so `python --version` stays global,
+# same as node; system /usr/bin/python3 is left untouched.
+python = "3.14"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node", "npm", "pnpm"]
+# Reads .nvmrc / package.json engines / .node-version automatically.
+# To pin pnpm per project: [tools] pnpm = "9"
+yes = true

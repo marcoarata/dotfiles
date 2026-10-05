@@ -1,0 +1,4 @@
+# Fixture: TS project with PINNED versions for hermetic tests.
+[tools]
+node = "24"
+pnpm = "10"

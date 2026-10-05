@@ -1,0 +1,817 @@
+#!/usr/bin/env bash
+# YADR 2027 — bin/yadr
+# CLI: install update doctor diff backup runtime version benchmark
+# Non-destructive without confirmation. Abstracts runtimes via `runtime` (mise inside,
+# never exposed as public API).
+set -euo pipefail
+
+# YADR_HOME: resolves symlinks of the binary ITSELF (yadr also lives in
+# ~/.local/bin/yadr → $YADR_HOME/bin/yadr). cd -P solo no basta: el symlink
+# es el fichero, no un dir del path; hay que seguirlo con readlink.
+_SRC="${BASH_SOURCE[0]}"
+while [[ -L "$_SRC" ]]; do
+  _D="$(cd -- "$(dirname -- "$_SRC")" && pwd -P)"
+  _SRC="$(readlink "$_SRC")"
+  [[ "$_SRC" != /* ]] && _SRC="$_D/$_SRC"
+done
+BIN_DIR="$(cd -- "$(dirname -- "$_SRC")" && pwd -P)"
+YADR_HOME="$(cd -- "${BIN_DIR}/.." && pwd -P)"
+unset _SRC _D
+# platform/*.sh instala CLI en ~/.local/bin (mise, zoxide); el doctor y los
+# subcommands must see them even if the interactive PATH doesn't include them yet.
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) PATH="$HOME/.local/bin:$PATH" ;;
+esac
+case ":$PATH:" in
+  *":$HOME/.local/share/mise/shims:"*) ;;
+  *) PATH="$HOME/.local/share/mise/shims:$PATH" ;;
+esac
+export PATH
+VERSION_FILE="${YADR_HOME}/VERSION"
+BACKUP_ROOT="${HOME}/.local/state/yadr/backups"
+STATE_DIR="${HOME}/.local/state/yadr"
+
+# --- colores (solo tty) ---
+if [[ -t 1 ]]; then
+  BOLD=$'\033[1m'; DIM=$'\033[2m'; RED=$'\033[31m'; GREEN=$'\033[32m'
+  YELLOW=$'\033[33m'; BLUE=$'\033[34m'; RESET=$'\033[0m'
+else
+  BOLD=''; DIM=''; RED=''; GREEN=''; YELLOW=''; BLUE=''; RESET=''
+fi
+
+OK="${GREEN}✓${RESET}"; WARN="${YELLOW}⚠${RESET}"; FAIL="${RED}✗${RESET}"
+info()  { printf '%s %s\n' "${BLUE}»${RESET}" "$*"; }
+ok()    { printf '%s %s\n' "$OK" "$*"; }
+warn()  { printf '%s %s\n' "$WARN" "$*"; }
+err()   { printf '%s %s\n' "$FAIL" "$*" >&2; }
+die()   { err "$*"; exit 1; }
+have()  { command -v "$1" >/dev/null 2>&1; }
+
+# --- portabilidad macOS (BSD) / bash 3.2 ---
+# cp -a no existe en macOS: cp -Rp preserva modo/fechas y symlinks.
+cp_preserve() { cp -Rp "$@" 2>/dev/null; }
+# Nanosegundos portables: date +%N no existe en macOS.
+now_ns() {
+  local t
+  t="$(date +%s%N 2>/dev/null)"
+  if [[ "$t" == *%* || -z "$t" ]]; then
+    if command -v python3 >/dev/null 2>&1; then python3 -c 'import time;print(time.time_ns())'
+    else printf '%s000000000' "$(date +%s)"; fi
+  else printf '%s' "$t"; fi
+}
+# timeout(1) no existe en macOS base: usa gtimeout si hay, si no ejecuta directo.
+run_timeout() {
+  local secs="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then gtimeout "$secs" "$@"
+  else "$@"; fi
+}
+
+version_str() { [[ -f "$VERSION_FILE" ]] && tr -d ' \t\n' <"$VERSION_FILE" || echo "0.0.0-unknown"; }
+
+confirm() {
+  # confirm "pregunta" — respeta --yes global. Retorna 0 si acepta.
+  local prompt="$1"
+  [[ "${YADR_YES:-0}" == "1" ]] && return 0
+  printf '%s [y/N]: ' "$prompt" >&2
+  local ans=""; IFS= read -r ans || true
+  [[ "$ans" == "y" || "$ans" == "Y" || "$ans" == "yes" ]]
+}
+
+# --- pares gestionados: "origen_relativo:destino_absoluto" ---
+# Si el origen no existe en el repo (p. ej. checkout parcial), se reporta y salta.
+managed_pairs() {
+  cat <<EOF
+bin/yadr:${HOME}/.local/bin/yadr
+shell/zshrc:${HOME}/.zshrc
+shell/aliases.zsh:${HOME}/.config/yadr/aliases.zsh
+shell/damoekri.zsh:${HOME}/.config/yadr/damoekri.zsh
+shell/keybindings.zsh:${HOME}/.config/yadr/keybindings.zsh
+shell/runtime.zsh:${HOME}/.config/yadr/runtime.zsh
+git/gitconfig:${HOME}/.gitconfig
+tmux/tmux.conf:${HOME}/.tmux.conf
+nvim:${HOME}/.config/nvim
+runtime/mise.toml:${HOME}/.config/mise/config.toml
+EOF
+}
+
+timestamp() { date +%Y%m%d-%H%M%S; }
+
+# backup_one <src> <destdir>: copies with anti-collision name. Echoes dest.
+backup_one() {
+  local src="$1" destdir="$2"
+  [[ -e "$src" || -L "$src" ]] || return 1
+  mkdir -p "$destdir" 2>/dev/null || return 1
+  local rel; rel="$(basename "$src")"
+  if [[ -e "${destdir}/${rel}" || -L "${destdir}/${rel}" ]]; then
+    rel="$(printf '%s' "$src" | tr '/' '_')"
+  fi
+  cp_preserve "$src" "${destdir}/${rel}" || return 1
+  printf '%s' "${destdir}/${rel}"
+}
+
+do_backup() {
+  # do_backup [subdir]: backs up managed pairs. Optional subdir
+  # to tag (migrate/legacy use their own via backup_one).
+  local ts dest n=0
+  ts="$(timestamp)"; dest="${BACKUP_ROOT}/${1:+$1-}${ts}"
+  mkdir -p "$dest"
+  while IFS=: read -r _rel dst; do
+    [[ -z "$dst" ]] && continue
+    local got
+    if got="$(backup_one "$dst" "$dest")"; then
+      n=$((n+1)); info "backup: ${dst} → ${got}"
+    fi
+  done < <(managed_pairs)
+  echo "$dest" > "${STATE_DIR}/last-backup" 2>/dev/null || true
+  if [[ "$n" -eq 0 ]]; then info "nada que respaldar (HOME limpio). Dir: ${dest}"; else ok "backup en ${dest} (${n} entradas)"; fi
+}
+
+detect_rogue_checkouts() {
+  # Un solo checkout sancionado: $YADR_HOME. Copias versionadas a mano
+  # (~/yadr2027v4.0, ~/dotfiles-old…) + symlinks cruzados generan los
+  # "estados fantasma": nvim carga config de otro checkout y nada es
+  # reproducible. Esto lo detecta antes de que muerda.
+  local found=0 d target
+  for d in "${HOME}"/yadr* "${HOME}"/dotfiles*; do
+    [[ -e "$d" || -L "$d" ]] || continue
+    [[ "$d" == "${YADR_HOME}" ]] && continue
+    [[ "$d" == "${YADR_HOME}/"* ]] && continue
+    warn "checkout paralelo detectado: ${d} (sancionado: ${YADR_HOME})"
+    found=1
+  done
+  for link in "${HOME}/.config/nvim" "${HOME}/.zshrc" "${HOME}/.gitconfig" "${HOME}/.tmux.conf"; do
+    if [[ -L "$link" ]]; then
+      target="$(readlink "$link")"
+      [[ "$target" == /* ]] || target="${HOME}/${target}"
+      case "$target" in
+        "${YADR_HOME}/"*) ;;
+        *) warn "symlink ajeno: ${link} → ${target} (se conserva; YADR usa ${YADR_HOME})"; found=1 ;;
+      esac
+    fi
+  done
+  if [[ "$found" == "1" ]]; then
+    warn "hay checkouts/symlinks fuera de ${YADR_HOME}: usa un solo clon; el resto confunde a nvim/lazy."
+  fi
+  return 0
+}
+
+do_diff() {
+  local changed=0 total=0
+  while IFS=: read -r rel dst; do
+    [[ -z "$rel" ]] && continue
+    total=$((total+1))
+    local src="${YADR_HOME}/${rel}"
+    printf '\n%s%s%s\n' "$BOLD" "${rel} → ${dst}" "$RESET"
+    if [[ ! -e "$src" && ! -L "$src" ]]; then
+      warn "  (origen no existe en el checkout — se omite)"
+      continue
+    fi
+    if [[ ! -e "$dst" && ! -L "$dst" ]]; then
+      warn "  would create ${dst} (new)"
+      changed=$((changed+1)); continue
+    fi
+    if [[ -d "$src" && -d "$dst" && ! -L "$src" && ! -L "$dst" ]]; then
+      if diff -r -q "$src" "$dst" >/dev/null 2>&1; then ok "  sin cambios"; else changed=$((changed+1)); diff -r -u "$src" "$dst" 2>/dev/null | head -n 80 || true; fi
+    elif [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
+      if cmp -s "$src" "$dst"; then ok "  sin cambios"; else changed=$((changed+1)); diff -u "$dst" "$src" | head -n 80 || true; fi
+    else
+      # symlink u otro tipo: compara destino del enlace
+      local slink dlink
+      slink="$(readlink "$src" 2>/dev/null || echo "?")"; dlink="$(readlink "$dst" 2>/dev/null || echo "?")"
+      if [[ "$dlink" == "$src" ]]; then ok "  unchanged (symlink → repo)"; else changed=$((changed+1)); warn "  would change: now '${dlink}', would become '${src}'"; fi
+    fi
+  done < <(managed_pairs)
+  printf '\n%s\n' "${DIM}diff: ${changed} con cambios. Nada modificado (solo lectura).${RESET}"
+}
+
+detect_platform_script() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then echo "${YADR_HOME}/platform/macos.sh"
+  elif grep -qi microsoft /proc/version 2>/dev/null; then echo "${YADR_HOME}/platform/wsl.sh"
+  else echo "${YADR_HOME}/platform/linux.sh"
+  fi
+}
+
+handle_legacy_yadr() {
+  # YADR antiguo: ~/.yadr + Rakefile. Default: parallel (convivencia segura).
+  [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || return 0
+  [[ "${YADR_HOME}" == "${HOME}/.yadr" ]] && return 0  # estamos dentro del viejo
+  warn "Classic YADR detected in ~/.yadr (with Rakefile)."
+  info "options: [p]arallel (default, coexists) · [m]igrate (imports and retires) · [c]ancel"
+  local ans=""
+  if [[ "${YADR_YES:-0}" == "1" ]]; then ans="p"; else printf 'Choose [p/m/c] (Enter = parallel): ' >&2; IFS= read -r ans || true; ans="${ans:-p}"; fi
+  case "$ans" in
+    m|M|migrate)
+      info "migrating: backing up the old + importing customs…"
+      local b="${BACKUP_ROOT}/legacy-$(timestamp)"
+      mkdir -p "$b"
+      backup_one "${HOME}/.yadr" "$b" >/dev/null || true
+      local f
+      for f in .vimrc.before .vimrc.after .gitconfig.user .tmux.conf.user; do
+        backup_one "${HOME}/${f}" "$b" >/dev/null || true
+      done
+      ok "classic backed up in ${b}. Your ~/.yadr stays intact (rename it when you want)."
+      ;;
+    c|C|cancel) info "cancelled by user."; exit 0 ;;
+    *) info "parallel mode: YADR 2027 installs in ${YADR_HOME}; your ~/.yadr untouched." ;;
+  esac
+}
+
+link_one() {
+  local src="$1" dst="$2"
+  mkdir -p "$(dirname "$dst")"
+  if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then ok "  already linked: ${dst}"; return 0; fi
+  ln -sfn "$src" "$dst"
+  ok "  linked: ${dst} → ${src}"
+}
+
+ensure_login_shell() {
+  # Faithful to classic YADR (Rakefile install_prezto): sets zsh as login shell
+  # with no extra prompt. Without TTY (CI/headless) skipped with notice.
+  local zsh_path
+  zsh_path="$(command -v zsh 2>/dev/null || true)"
+  [[ -n "$zsh_path" ]] || { warn "no zsh installed; skipping login shell."; return 0; }
+  if [[ "${SHELL:-}" == *zsh* ]]; then
+    info "zsh is already your default shell (${SHELL}). Restart your session to load changes."
+    return 0
+  fi
+  info "setting zsh as default shell…"
+  if ! grep -qxF "$zsh_path" /etc/shells 2>/dev/null; then
+    info "adding ${zsh_path} to /etc/shells (only step with sudo)…"
+    echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null \
+      || { warn "no se pudo actualizar /etc/shells. Manual: echo ${zsh_path} | sudo tee -a /etc/shells && chsh -s ${zsh_path}"; return 0; }
+  fi
+  if [[ -t 0 ]]; then
+    chsh -s "$zsh_path" \
+      || warn "chsh failed. Manual: chsh -s ${zsh_path}"
+  else
+    warn "no TTY: chsh needs your password. Manual: chsh -s ${zsh_path}"
+  fi
+}
+
+success_msg() {
+  cat <<'EOF'
+
+   _     _           _
+  | |   | |         | |
+  | |___| |_____  __| | ____
+  |_____  (____ |/ _  |/ ___)
+   _____| / ___ ( (_| | |
+  (_______\_____|\____|_|
+
+EOF
+  ok "YADR 2027 installed. Reboot to load zsh by default (or run 'exec zsh' to try now; and restart vim)."
+}
+
+RUNTIMES_CORE=()
+runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the user.
+  case "$1" in
+    core)       echo "" ;;
+    node|typescript) echo "node pnpm" ;;
+    ruby)       echo "ruby" ;;
+    python)     echo "python" ;;
+    rust)       echo "rust" ;;
+    development) echo "node pnpm python rust ruby" ;;
+    macos-extras) echo "" ;;
+    lazygit) echo "" ;;
+    *) echo "" ;;
+  esac
+}
+
+ensure_nvim_plugins() {
+  # Restores plugins exactly to the lockfile (Lazy! restore downgrades
+  # any plugin ahead of its pin; fixes stale/broken checkouts).
+  have nvim || return 0
+  [[ -d "${HOME}/.local/share/nvim/lazy/lazy.nvim" ]] || return 0
+  # Leftover interrupted clones (*.cloning) block reinstalls.
+  local stale
+  for stale in "${HOME}"/.local/share/nvim/lazy/*.cloning; do
+    [[ -e "$stale" ]] || continue
+    warn "cleaning interrupted clone: $(basename "$stale")"
+    rm -rf "$stale"
+  done
+  info "restoring Neovim plugins to lockfile (Lazy! restore)…"
+  if run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 4; then
+    ok "plugins match the lock."
+  else
+    warn "restore incomplete; open nvim and run :Lazy restore."
+  fi
+  # Cleans orphans (plugins no longer in the spec: lualine, devicons…).
+  # Without them, Telescope and others cannot re-enable Nerd icons on their own.
+  info "cleaning orphan plugins (Lazy! clean)…"
+  if run_timeout 300 nvim --headless "+Lazy! clean" +qa 2>&1 | tail -n 4; then
+    ok "no orphans."
+  else
+    warn "clean incomplete; open nvim and run :Lazy clean."
+  fi
+}
+
+ensure_lsp_servers() {
+  # Pack typescript: lazy plugins + 5 contract servers via Mason.
+  # (Replaces mason-lspconfig ensure_installed, removed.)
+  # Mandatory order: lazy first (mason.nvim only exists after opening nvim
+  # once), Mason after. All visible: nothing to /dev/null.
+  have nvim || { warn "no nvim; skipping LSP servers."; return 0; }
+  info "syncing Neovim plugins to lockfile (restore; slow the first time)…"
+  if run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 5; then
+    ok "plugins synced."
+  else
+    warn "Lazy restore failed or took >10min; open nvim and run :Lazy restore."
+    return 0
+  fi
+  [[ -d "${HOME}/.local/share/nvim/lazy/mason.nvim" ]] || { warn "mason still absent after sync; open nvim and retry yadr install typescript."; return 0; }
+  info "installing LSP servers (mason, may take a while)…"
+  if run_timeout 900 nvim --headless -c "MasonInstall typescript-language-server bash-language-server lua-language-server json-lsp marksman" -c "qa" 2>&1 | tail -n 8; then
+    ok "LSP servers ready."
+  else
+    warn "some server failed; open nvim and run :Mason to complete."
+  fi
+}
+
+do_install() {
+  local profile="${1:-core}"
+  case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit) ;; *) die "perfil desconocido: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit)" ;; esac
+  handle_legacy_yadr
+  detect_rogue_checkouts
+  info "YADR 2027 $(version_str) — install [${profile}] en ${YADR_HOME}"
+  # Guarda el login shell previo una sola vez (uninstall lo restaura exacto).
+  if [[ ! -f "${STATE_DIR}/prev-shell" ]]; then
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    printf '%s' "${SHELL:-unknown}" > "${STATE_DIR}/prev-shell" 2>/dev/null || true
+  fi
+  if [[ "$profile" == "macos-extras" ]]; then
+    [[ "$(uname -s)" == "Darwin" ]] || die "macos-extras solo en macOS."
+    confirm "Apply optional macOS defaults (platform/macos-extras.sh)?" || { info "cancelled."; return 0; }
+    bash "${YADR_HOME}/platform/macos-extras.sh" || warn "extras returned an error."
+    ok "macos-extras applied (optional, outside core)."
+    return 0
+  fi
+  if [[ "$profile" == "lazygit" ]]; then
+    info "installing lazygit (per-OS logic in platform/lazygit.sh)…"
+    bash "${YADR_HOME}/platform/lazygit.sh" && ok "lazygit ready." || warn "lazygit failed (see above)."
+    return 0
+  fi
+  local plat; plat="$(detect_platform_script)"
+  if [[ -f "$plat" ]]; then info "platform: ${plat}"; bash "$plat" || warn "platform script errored; continuing with symlinks."
+  else warn "platform script not found: ${plat}; continuing."
+  fi
+  # Profile runtimes via `runtime` abstraction (mise inside)
+  local tools; tools="$(runtime_tool_for "$profile")"
+  if [[ -n "$tools" ]]; then
+    info "profile ${profile}: ensuring runtimes (${tools})…"
+    for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
+  fi
+  # Neovim plugins matching lockfile (all profiles with nvim).
+  ensure_nvim_plugins || true
+  # Pack TypeScript: contract LSP servers.
+  if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
+    ensure_lsp_servers || true
+  fi
+  info "change preview (diff):"
+  do_diff
+  confirm "Apply symlinks (with prior automatic backup)?" || { info "install cancelled; nothing modified."; return 0; }
+  do_backup
+  local n=0 skipped=0
+  while IFS=: read -r rel dst; do
+    [[ -z "$rel" ]] && continue
+    local src="${YADR_HOME}/${rel}"
+    if [[ ! -e "$src" && ! -L "$src" ]]; then warn "  skipping ${rel} (not in checkout)"; skipped=$((skipped+1)); continue; fi
+    link_one "$src" "$dst"; n=$((n+1))
+  done < <(managed_pairs)
+  ensure_login_shell
+  success_msg
+  info "install complete: ${n} links, ${skipped} pending from repo. Run 'yadr doctor' to verify."
+}
+
+do_migrate() {
+  # Imports classic YADR customization into YADR 2027. Idempotent.
+  # Untouched repo: files go to ~/.config/yadr/migrated/ + backup.
+  # Usage: yadr migrate [--dry-run]
+  local dry=0
+  [[ "${1:-}" == "--dry-run" ]] && dry=1
+  local dest="${BACKUP_ROOT}/migrate-$(timestamp)"
+  local migdir="${HOME}/.config/yadr/migrated"
+  info "Classic YADR → 2027 (dry-run=${dry})"
+  [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || info "no classic ~/.yadr; migrating loose files if any."
+  local found=0
+  local f src rel
+  for f in .vimrc.before:.config/yadr/migrated/vimrc.before .vimrc.after:.config/yadr/migrated/vimrc.after .vundles.local:.config/yadr/migrated/vundles.local .gitconfig.user:"(already included via include, kept)" .tmux.conf.user:"(already included via source, kept)" .secrets:.config/yadr/migrated/secrets; do
+    src="${HOME}/${f%%:*}"; rel="${f##*:}"
+    [[ -e "$src" ]] || continue
+    found=$((found+1))
+    if [[ "$dry" == "1" ]]; then
+      info "  would migrate: ${src} → ${rel}"
+    else
+      mkdir -p "$migdir" 2>/dev/null || true
+      backup_one "$src" "$dest" >/dev/null || true
+      case "$rel" in \(*) info "  keeping: ${src} ${rel}" ;;
+        *) mkdir -p "$(dirname "${HOME}/${rel}")"; cp_preserve "$src" "${HOME}/${rel}" && info "  migrated: ${src} → ${HOME}/${rel}" ;;
+      esac
+    fi
+  done
+  [[ "$found" -eq 0 ]] && info "nothing classic to migrate."
+  [[ "$dry" == "1" ]] && info "dry-run: nothing modified." || ok "migrate complete (backup in ${dest})."
+}
+
+do_pack_list() {
+  info "packs disponibles (packs/<nombre>/):"
+  local d name desc
+  for d in "${YADR_HOME}"/packs/*/; do
+    [[ -d "$d" ]] || continue
+    name="$(basename "$d")"
+    desc="$(grep -m1 -E '^# ' "$d/README.md" 2>/dev/null | sed 's/^# //')"
+    printf '  %-12s %s\n' "$name" "${desc:-pack YADR}"
+  done
+}
+
+do_pack_add() { # do_pack_add <pack> — equivale al perfil install correspondiente
+  local pack="${1:?uso: yadr pack add <nombre>  (ver: yadr pack list)}"
+  [[ -d "${YADR_HOME}/packs/${pack}" ]] || die "pack desconocido: ${pack} (ver: yadr pack list)"
+  local profile="$pack"
+  case "$pack" in javascript) profile="node" ;; esac
+  info "pack '${pack}' → install [${profile}]"
+  do_install "$profile"
+}
+
+do_uninstall() {
+  # Revierte install: quita SOLO symlinks que apuntan a $YADR_HOME, restaura
+  # last-backup y revierte el login shell. Uso: yadr uninstall [--dry-run] [--purge]
+  # --purge also deletes clone, state, nvim plugins and toolchains (data, confirmation).
+  # Sin TTY no se ejecuta nada (como el chsh del install).
+  local dry=0 purge=0
+  local a
+  for a in "$@"; do
+    [[ -z "$a" ]] && continue
+    case "$a" in --dry-run) dry=1 ;; --purge) purge=1 ;; *) die "uninstall: flag desconocido '$a' (--dry-run|--purge)" ;; esac
+  done
+  info "YADR 2027 $(version_str) — uninstall (dry-run=${dry} purge=${purge})"
+  # 1. Inventory: which YADR symlinks would go.
+  local linked=() foreign=()
+  local rel dst
+  while IFS=: read -r rel dst; do
+    [[ -z "$rel" ]] && continue
+    if [[ -L "$dst" ]]; then
+      local target; target="$(readlink "$dst")"
+      if [[ "$target" == "${YADR_HOME}/"* ]]; then linked+=("$dst"); else foreign+=("$dst (apunta a ${target}, se conserva)"); fi
+    elif [[ -e "$dst" ]]; then
+      foreign+=("$dst (fichero real, se conserva)")
+    fi
+  done < <(managed_pairs)
+  local last=""; [[ -f "${STATE_DIR}/last-backup" ]] && last="$(cat "${STATE_DIR}/last-backup" 2>/dev/null)"
+  local prev=""; [[ -f "${STATE_DIR}/prev-shell" ]] && prev="$(cat "${STATE_DIR}/prev-shell" 2>/dev/null)"
+  printf '\n%sWould remove %d symlinks:%s\n' "$BOLD" "${#linked[@]}" "$RESET"
+  printf '  %s\n' "${linked[@]:-(ninguno)}"
+  if [[ ${#foreign[@]} -gt 0 ]]; then printf '%sKept (not YADR):%s\n' "$DIM" "$RESET"; printf '  %s\n' "${foreign[@]}"; fi
+  [[ -n "$last" && -d "$last" ]] && info "Would restore backup: ${last}" || warn "No prior backup to restore."
+  if [[ "${SHELL:-}" == *zsh* && -n "$prev" && "$prev" != *zsh* ]]; then
+    info "Would revert login shell to: ${prev}"
+  fi
+  if [[ "$dry" == "1" ]]; then info "dry-run: nada modificado."; return 0; fi
+  confirm "Uninstall YADR 2027 and restore your previous config?" || { info "uninstall cancelled; nothing modified."; return 0; }
+  # 2. Quitar symlinks + restaurar backup.
+  local d
+  for d in "${linked[@]}"; do rm -f "$d" && info "  removed: ${d}"; done
+  if [[ -n "$last" && -d "$last" ]]; then
+    while IFS=: read -r _rel dst; do
+      [[ -z "$dst" ]] && continue
+      local base cand
+      base="$(basename "$dst")"; cand="${last}/${base}"
+      [[ -e "$cand" || -L "$cand" ]] || cand="${last}/$(printf '%s' "$dst" | tr '/' '_')"
+      if [[ -e "$cand" || -L "$cand" ]]; then
+        mkdir -p "$(dirname "$dst")" 2>/dev/null || true
+        cp_preserve "$cand" "$dst" && info "  restored: ${dst}" || warn "  could not restore ${dst}"
+      fi
+    done < <(managed_pairs)
+  fi
+  # Empty YADR dirs (only if left empty).
+  rmdir "${HOME}/.config/yadr" 2>/dev/null || true
+  # 3. Login shell previo.
+  if [[ "${SHELL:-}" == *zsh* && -n "$prev" && "$prev" != *zsh* && "$prev" != "unknown" ]]; then
+    if [[ -t 0 ]]; then
+      chsh -s "$prev" && ok "login shell restored to ${prev}." || warn "chsh failed. Manual: chsh -s ${prev}"
+    else
+      warn "no TTY: cannot ask your password. Manual: chsh -s ${prev}"
+    fi
+  fi
+  # 4. Purga opcional (datos: clon, estado, plugins nvim y toolchains).
+  local do_purge=0
+  if [[ "$purge" == "1" ]]; then
+    if confirm "Also delete clone, backups, Neovim plugins and mise toolchains? (no way back)"; then
+      do_purge=1
+    else
+      info "purge skipped."
+    fi
+  fi
+  if [[ "$do_purge" == "1" ]]; then
+    # ~/.local/bin: only what YADR installed (provides-* markers); never
+    # pre-existing user binaries.
+    [[ -f "${STATE_DIR}/provides-nvim-upstream" ]] && rm -rf "${HOME}/.local/nvim-upstream" "${HOME}/.local/bin/nvim" 2>/dev/null || true
+    [[ -f "${STATE_DIR}/provides-mise" ]] && rm -f "${HOME}/.local/bin/mise" 2>/dev/null || true
+    [[ -f "${STATE_DIR}/provides-zoxide" ]] && rm -f "${HOME}/.local/bin/zoxide" 2>/dev/null || true
+    [[ -f "${STATE_DIR}/provides-lazygit" ]] && rm -f "${HOME}/.local/bin/lazygit" 2>/dev/null || true
+    rm -rf "${YADR_HOME}" "${STATE_DIR}" "${HOME}/.local/share/nvim" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim" \
+      "${HOME}/.local/share/mise" "${HOME}/.local/share/zoxide" 2>/dev/null || true
+    ok "purge complete."
+  else
+    info "Kept (your data): ${YADR_HOME} ${STATE_DIR} nvim-plugins mise-toolchains."
+  fi
+  info "System packages (if platform/ installed them): remove by hand, e.g. sudo apt remove zsh tmux neovim ripgrep fd-find fzf zsh-syntax-highlighting zsh-autosuggestions."
+  ok "uninstall complete. Restart your terminal."
+}
+
+do_update() {
+  info "updating YADR 2027…"
+  if [[ -d "${YADR_HOME}/.git" ]]; then
+    confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
+    do_backup
+    git -C "$YADR_HOME" pull --ff-only || warn "pull failed (conflicts or offline). Fix by hand."
+    ok "repo updated."
+    ensure_nvim_plugins || true
+  else
+    warn "no .git in ${YADR_HOME}; nothing to update (local checkout)."
+  fi
+  if have mise; then mise upgrade 2>/dev/null || mise up 2>/dev/null || warn "mise upgrade failed."; fi
+}
+
+# --- doctor ---
+DOCTOR_FAIL=0; DOCTOR_WARN=0
+dc_ok()   { ok "$1"; }
+dc_warn() { warn "$1${2:+ — hint: $2}"; DOCTOR_WARN=$((DOCTOR_WARN+1)); }
+dc_fail() { err "$1${2:+ — hint: $2}"; DOCTOR_FAIL=$((DOCTOR_FAIL+1)); }
+dc_cmd() { # dc_cmd nombre comando hint
+  if have "$2"; then dc_ok "$1 ($($2 --version 2>/dev/null | head -n1 || echo en PATH))"; else dc_fail "$1 ausente" "$3"; fi
+}
+
+do_doctor() {
+  DOCTOR_FAIL=0; DOCTOR_WARN=0
+  printf '%sYADR doctor %s%s\n' "$BOLD" "$(version_str)" "$RESET"
+  detect_rogue_checkouts
+  dc_cmd "zsh" zsh "sudo apt install zsh / brew install zsh; chsh -s \$(command -v zsh)"
+  dc_cmd "git" git "sudo apt install git / brew install git"
+  dc_cmd "tmux" tmux "sudo apt install tmux / brew install tmux"
+  if have nvim; then
+    local _nv _nvmaj _nvmin
+    _nv="$(nvim --version 2>/dev/null | head -n1)"
+    _nvmaj="$(printf '%s' "$_nv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)"
+    _nvmin="$(printf '%s' "$_nv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f2)"
+    if [[ "${_nvmaj:-0}" -gt 0 || "${_nvmin:-0}" -ge 11 ]] 2>/dev/null; then dc_ok "nvim (${_nv})";
+    else dc_fail "nvim ${_nv} <0.11 (suelo YADR)" "yadr install core (platform instala upstream ≥0.11 en ~/.local/bin)"; fi
+  else dc_fail "nvim ausente" "sudo apt install neovim / brew install neovim"; fi
+  dc_cmd "rg (ripgrep)" rg "sudo apt install ripgrep / brew install ripgrep"
+  if have fd || have fdfind; then dc_ok "fd ($(command -v fd || command -v fdfind))"; else dc_fail "fd ausente" "sudo apt install fd-find (+ln -s fdfind→fd) / brew install fd"; fi
+  dc_cmd "zoxide" zoxide "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash / brew install zoxide"
+  dc_cmd "mise (runtime backend)" mise "curl -fsSL https://mise.run | sh / brew install mise"
+  # runtimes via abstraction
+  for t in node npm pnpm; do
+    if have "$t"; then dc_ok "$t ($($t --version 2>/dev/null | head -n1))"; else dc_warn "$t missing" "yadr install node (Node LTS + npm/pnpm via mise)"; fi
+  done
+  if have python; then dc_ok "python ($(python --version 2>&1 | head -n1))"; else dc_warn "python missing" "yadr install python (installs Python 3.14 via mise)"; fi
+  if have lazygit; then dc_ok "lazygit ($(lazygit --version 2>/dev/null | head -n1))"; else dc_warn "lazygit ausente" "yadr install lazygit"; fi
+  # lsp: server en PATH o instalados por Mason (~/.local/share/nvim/mason/bin)
+  if have rust-analyzer || have typescript-language-server || have pyright || have lua-language-server || have gopls || have clangd; then
+    dc_ok "lsp (server en PATH)"
+  elif [[ -n "$(ls "${HOME}/.local/share/nvim/mason/bin" 2>/dev/null)" ]]; then
+    dc_ok "lsp (servers Mason: $(ls "${HOME}/.local/share/nvim/mason/bin" 2>/dev/null | tr '\n' ' '))"
+  else dc_warn "lsp without servers" "yadr install typescript (installs the 5 servers via Mason)"; fi
+  # treesitter: parsers o CLI.
+  if have tree-sitter; then dc_ok "treesitter (cli)"
+  elif [[ -n "$(ls "${HOME}/.local/share/nvim/lazy/nvim-treesitter"/parser 2>/dev/null)" ]]; then dc_ok "treesitter (parsers nvim)"
+  else dc_warn "treesitter sin parsers" "abre nvim y ejecuta :TSUpdate, o instala tree-sitter-cli"; fi
+  # Solarized: paleta referenciada en configs del repo o del HOME.
+  if [[ -n "$(grep -rli "solarized" "${YADR_HOME}/nvim" "${YADR_HOME}/tmux" "${YADR_HOME}/shell" "${HOME}/.config/nvim" "${HOME}/.tmux.conf" 2>/dev/null)" ]]; then
+    dc_ok "Solarized (referenciado en configs)"
+  else dc_warn "Solarized no detectado" "reinstala: yadr install core (paleta en nvim/tmux/shell)"; fi
+  # Damoekri: prompt presente
+  if [[ -f "${YADR_HOME}/shell/damoekri.zsh" ]] || grep -q "damoekri" "${HOME}/.zshrc" 2>/dev/null; then
+    dc_ok "Damoekri (prompt presente)"
+  else dc_warn "Damoekri no detectado" "reinstala: yadr install core (prompt en shell/damoekri.zsh)"; fi
+  # Nerd Font (instalada por platform/; sin ella nvim degrada iconos).
+  # Sin `| grep -q` ni `| head`: con pipefail, el SIGPIPE por cierre
+  # anticipado del lector falsea el resultado. Se captura y se testea.
+  if command -v fc-list >/dev/null 2>&1 && [[ -n "$(fc-list 2>/dev/null | grep -i nerd)" ]]; then
+    dc_ok "Nerd Font presente (fc-list)"
+  else dc_warn "Nerd Font no detectada" "yadr install core la instala (terminal/fonts); sin fuente, los iconos degradan a texto"; fi
+  # plugins Neovim vs lockfile (detecta checkouts avanzados/atrasados).
+  if [[ -f "${YADR_HOME}/nvim/lazy-lock.json" && -d "${HOME}/.local/share/nvim/lazy" ]]; then
+    local _div="" _d _name _want _got
+    for _d in "${HOME}"/.local/share/nvim/lazy/*/; do
+      [[ -d "${_d}/.git" ]] || continue
+      _name="$(basename "$_d")"
+      _want="$(grep -o "\"${_name}\": { \"branch\": \"[^\"]*\", \"commit\": \"[0-9a-f]*\"" "${YADR_HOME}/nvim/lazy-lock.json" 2>/dev/null | grep -oE '[0-9a-f]{40}' || true)"
+      [[ -z "$_want" ]] && continue
+      _got="$(git -C "$_d" rev-parse HEAD 2>/dev/null || true)"
+      [[ "$_got" == "$_want"* ]] || _div="${_div} ${_name}"
+    done
+    if [[ -z "$_div" ]]; then dc_ok "nvim plugins (lockfile OK)";
+    else dc_warn "plugins fuera del lock:${_div}" "yadr install core (restaura) o nvim +Lazy! restore"; fi
+  else dc_warn "plugins neovim sin instalar" "abre nvim una vez o ejecuta yadr install core"; fi
+  # nvim: arranque headless sin errores (caza E5113/configs rotas como gitsigns).
+  # Only with installed config; else the plugins check already warned.
+  if have nvim && [[ -L "${HOME}/.config/nvim" ]]; then
+    local _nerr
+    _nerr="$(run_timeout 120 nvim --headless "+qa" 2>&1 | grep -iE "error|failed to|not installed|not found| Press ENTER" | head -n 5 || true)"
+    if [[ -z "$_nerr" ]]; then dc_ok "nvim arranque limpio";
+    else dc_fail "nvim arranca con errores" "revisa arriba; prueba: yadr install core"; printf '%s\n' "$_nerr" >&2; fi
+  fi
+  # gitsigns opt-in (informa, no modifica).
+  if [[ -f "$(gitsigns_marker)" ]]; then dc_ok "gitsigns activo (opt-in)";
+  else info "gitsigns off (default; enable: yadr gitsigns on)"; fi
+  # yadr CLI on PATH (self-check: the binary itself must resolve).
+  local _yv; _yv="$(command -v yadr 2>/dev/null || true)"
+  if [[ "$_yv" == "${YADR_HOME}/bin/yadr" ]] || [[ "$_yv" == "${HOME}/.local/bin/yadr" ]]; then
+    dc_ok "yadr CLI en PATH (${_yv})"
+  else dc_fail "yadr CLI not on PATH" "run: yadr install (links ~/.local/bin/yadr) and add ~/.local/bin to PATH"; fi
+  printf '\n%s\n' "${DIM}resumen: ${DOCTOR_FAIL} errores, ${DOCTOR_WARN} avisos${RESET}"
+  [[ "$DOCTOR_FAIL" -gt 0 ]] && return 1 || return 0
+}
+
+# --- runtime (abstrae mise; nunca se expone mise como API) ---
+runtime_backend() { have mise && echo "mise" || echo "none"; }
+cmd_runtime_current() {
+  if [[ "$(runtime_backend)" == "none" ]]; then warn "sin backend de runtimes (instala mise: curl -fsSL https://mise.run | sh)"; return 1; fi
+  mise current 2>/dev/null || mise ls 2>/dev/null || warn "sin runtimes activos. Prueba: yadr runtime use node"
+}
+cmd_runtime_list() {
+  if [[ "$(runtime_backend)" == "none" ]]; then warn "sin backend de runtimes."; return 1; fi
+  mise ls 2>/dev/null || warn "mise ls failed."
+}
+cmd_runtime_use() { # cmd_runtime_use tool[@version]
+  local spec="${1:?uso: yadr runtime use <tool[@version]>  (p.ej. node, node@24, python@3.12)}"
+  if [[ "$(runtime_backend)" == "none" ]]; then err "sin backend (mise ausente). Hint: curl -fsSL https://mise.run | sh"; return 1; fi
+  # Without explicit version: `mise install` honors the runtime/mise.toml pin
+  # and NEVER rewrites the repo (mise use -g would mutate the pinned version).
+  if [[ "$spec" != *"@"* ]]; then
+    info "installing '${spec}' per runtime/mise.toml pin…"
+    mise install "$spec" || { err "'mise install ${spec}' failed."; return 1; }
+    ok "runtime '${spec}' listo (pin respetado)."
+    return 0
+  fi
+  info "activando runtime '${spec}'…"
+  mise use -g "$spec" || { err "'mise use -g ${spec}' failed."; return 1; }
+  ok "runtime '${spec}' activo globalmente."
+}
+cmd_runtime_doctor() {
+  if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend ausente" "curl -fsSL https://mise.run | sh"; return 1; fi
+  ok "backend: mise ($(mise --version 2>/dev/null))"
+  mise doctor 2>/dev/null || mise dr 2>/dev/null || warn "mise doctor unavailable in this version."
+}
+
+# --- gitsigns opt-in (desactivado por defecto) ---
+gitsigns_marker() { printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}/yadr/gitsigns.enabled"; }
+cmd_gitsigns() { # on|off|status
+  local sub="${1:-status}" marker
+  marker="$(gitsigns_marker)"
+  case "$sub" in
+    on) mkdir -p "$(dirname "$marker")"; touch "$marker" && ok "gitsigns activado (opt-in). Reabre nvim." ;;
+    off) rm -f "$marker" && ok "gitsigns desactivado (default)." ;;
+    status|"") [[ -f "$marker" ]] && info "gitsigns: activado" || info "gitsigns: desactivado (default)" ;;
+    *) usage; die "gitsigns: subcomando desconocido '${sub}' (on|off|status)" ;;
+  esac
+}
+
+do_benchmark() {
+  local target="${1:-shell}"
+  case "$target" in
+    shell)
+      # Mide el arranque del ZSHRC DE YADR (no el ~/.zshrc del usuario) con
+      # HOME aislado: nada toca tu ~ real.
+      # Threshold <500ms. Measured references: ~150ms on workstation,
+      # ~425ms en VM quickemu de 2vCPU lentos (el coste es zsh+compinit base,
+      # no YADR: plugins y runtime van con guard y aportan <50ms juntos).
+      have zsh || { warn "zsh ausente; mido con bash."; }
+      local bench_home bench_zd
+      bench_home="$(mktemp -d)"; bench_zd="$(mktemp -d)"
+      printf 'source "%s/shell/zshrc"\n' "$YADR_HOME" > "${bench_zd}/.zshrc"
+      info "benchmark shell YADR (5 arranques, HOME aislado)…"
+      local i t0 t1 sum=0 n=5
+      i=1; while [[ "$i" -le "$n" ]]; do
+        t0=$(now_ns)
+        HOME="$bench_home" ZDOTDIR="$bench_zd" zsh -i -c exit >/dev/null 2>&1 || true
+        t1=$(now_ns); sum=$((sum + (t1 - t0)))
+        i=$((i + 1))
+      done
+      printf 'media arranque YADR zshrc: %d ms (umbral <500ms)\n' $((sum / n / 1000000))
+      rm -rf "$bench_home" "$bench_zd"
+      ;;
+    nvim)
+      have nvim || die "nvim ausente."
+      local f; f="$(mktemp)"
+      nvim --headless --startuptime "$f" -c q >/dev/null 2>&1 || true
+      tail -n 3 "$f"; rm -f "$f"
+      ;;
+    cd)
+      # Overhead del cambio de directorio (runtime auto-switch: mise/fnm hooks).
+      # Threshold: mean <30ms on local machine; re-measured in VM.
+      have zsh || die "zsh ausente (el hook de runtime vive en zsh)."
+      local d1 d2; d1="$(mktemp -d)"; d2="$(mktemp -d)"
+      info "benchmark cd (20 idas y vueltas ${d1} ↔ ${d2})…"
+      local t0 t1 sum=0 n=20 i
+      t0=$(now_ns)
+      i=1; while [[ "$i" -le "$n" ]]; do
+        zsh -f -c "cd '$d1' >/dev/null 2>&1; cd '$d2' >/dev/null 2>&1" || true
+        i=$((i + 1))
+      done
+      t1=$(now_ns); sum=$((t1 - t0))
+      printf 'media por ciclo cd+cd: %d ms (umbral: <30ms)\n' $((sum / n / 1000000))
+      rmdir "$d1" "$d2" 2>/dev/null || true
+      ;;
+    prompt)
+      # Coste del prompt Damoekri fuera y dentro de un repo git.
+      # Mide renders dentro de UN solo zsh (sin contar su arranque).
+      # Umbral Fase A: <50ms por render fuera de git, <120ms dentro.
+      have zsh || die "zsh ausente."
+      local gdir; gdir="$(mktemp -d)"
+      info "benchmark prompt (50 renders fuera/dentro de git, un solo zsh)…"
+      zsh -f -c "
+        source '${YADR_HOME}/shell/runtime.zsh' >/dev/null 2>&1
+        source '${YADR_HOME}/shell/damoekri.zsh' >/dev/null 2>&1
+        t0=\${EPOCHREALTIME//./}; t0=\$((t0/1000))
+        for _ in {1..50}; do yadr_git_info >/dev/null 2>&1; _yadr_runtime_segment >/dev/null 2>&1; done
+        t1=\${EPOCHREALTIME//./}; t1=\$((t1/1000)); printf 'fuera de git: %d ms/render (umbral <50ms)\n' \$(((t1 - t0) / 50))
+      " || warn "benchmark outside git failed."
+      git init -q "$gdir" 2>/dev/null || true
+      zsh -f -c "
+        cd '$gdir' >/dev/null 2>&1
+        source '${YADR_HOME}/shell/runtime.zsh' >/dev/null 2>&1
+        source '${YADR_HOME}/shell/damoekri.zsh' >/dev/null 2>&1
+        t0=\${EPOCHREALTIME//./}; t0=\$((t0/1000))
+        for _ in {1..50}; do yadr_git_info >/dev/null 2>&1; _yadr_runtime_segment >/dev/null 2>&1; done
+        t1=\${EPOCHREALTIME//./}; t1=\$((t1/1000)); printf 'dentro de git: %d ms/render (umbral <120ms)\n' \$(((t1 - t0) / 50))
+      " || warn "benchmark inside git failed."
+      rm -rf "$gdir"
+      ;;
+    *) die "benchmark desconocido: $target (shell|nvim|cd|prompt)" ;;
+  esac
+}
+
+usage() {
+  cat <<EOF
+${BOLD}YADR 2027 $(version_str)${RESET} — ${DIM}${YADR_HOME}${RESET}
+uso: yadr <comando> [args]
+
+  install [perfil]   instala (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras, default core)
+  update             git pull + runtime upgrades (with backup and confirmation)
+  doctor             checks ✓/⚠/✗ del entorno con hints
+  diff               shows what would change, modifies nothing
+  backup             copia dotfiles actuales a ~/.local/state/yadr/backups/<timestamp>/
+  uninstall [--dry-run] [--purge]  revierte install y restaura tu backup
+  migrate [--dry-run] imports classic YADR customization (idempotent)
+  pack list          lista packs opcionales instalables
+  pack add <nombre>  instala un pack (equivale a su perfil install)
+  gitsigns [on|off|status]  opt-in de signos Git en Neovim (default: off)
+  runtime current    runtimes activos
+  runtime list       runtimes instalados
+  runtime use t@v   activa runtime global (p.ej. node@24)
+  runtime doctor     salud del backend de runtimes
+  version            prints version
+  benchmark shell|nvim|cd|prompt  mide arranque (shell/nvim) o coste cd/prompt
+
+opciones: --yes/-y (omitir confirmaciones), --help/-h
+EOF
+}
+
+# --- parse global flags ---
+ARGS=()
+for a in "$@"; do
+  case "$a" in --yes|-y) YADR_YES=1 ;; --help|-h) usage; exit 0 ;; *) ARGS+=("$a") ;; esac
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  install)   do_install "${1:-core}" ;;
+  update)    do_update ;;
+  doctor)    do_doctor ;;
+  diff)      do_diff ;;
+  backup)    do_backup ;;
+  uninstall) do_uninstall "$@" ;;
+  migrate)   do_migrate "${1:-}" ;;
+  pack)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      list) do_pack_list ;;
+      add)  do_pack_add "${1:-}" ;;
+      *) usage; die "pack: subcomando desconocido '${sub}' (list|add)" ;;
+    esac ;;
+  gitsigns)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      on|off) cmd_gitsigns "$sub" ;;
+      status|"") cmd_gitsigns status ;;
+      *) usage; die "gitsigns: subcomando desconocido '${sub}' (on|off|status)" ;;
+    esac ;;
+  runtime)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      current) cmd_runtime_current ;;
+      list)    cmd_runtime_list ;;
+      use)     cmd_runtime_use "${1:-}" ;;
+      doctor)  cmd_runtime_doctor ;;
+      *) usage; die "runtime: subcomando desconocido '${sub}' (current|list|use|doctor)" ;;
+    esac ;;
+  version)   version_str; echo ;;
+  benchmark) do_benchmark "${1:-shell}" ;;
+  ""|--help|-h|help) usage ;;
+  *) usage; die "comando desconocido: $cmd" ;;
+esac

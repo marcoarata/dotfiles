@@ -1,0 +1,39 @@
+# YADR 2027 — .gitignore
+# NOTA: lazy-lock (nvim lazy-lock.json) SÍ se versiona -> no ignorar.
+
+# design working notes (not part of the project)
+yadr2027-dotfiles.txt
+
+# automatic yadr install/migrate backups
+*.yadr-backup-*
+*.bak
+*~
+*.orig
+*.rej
+
+# node / packs
+node_modules/
+dist/
+.npm/
+.pnpm-store/
+
+# locales: overrides personales nunca versionados
+.yadr.local
+.config/yadr/local/
+custom/local/
+
+# secrets (classic .secrets model -> local/)
+.secrets
+*.key
+*.pem
+
+# editores / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.netrwhist
+
+# caches
+.cache/
+*.log
