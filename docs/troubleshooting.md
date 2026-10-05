@@ -28,6 +28,10 @@ the file directly (YADR configures Neovim, not Vim).
 
 ## LSP not starting (Neovim)
 
+- Old system binary (e.g. apt 0.6.1 on Ubuntu 22.04): outside YADR zsh, the
+  system `nvim` rules. Our config fails fast with the fix (`exec zsh` to use
+  upstream `~/.local/bin/nvim`, or `yadr install core`) instead of E5113.
+
 - `:checkhealth` (lsp section) and `:=vim.lsp.get_clients()`.
 - `yadr doctor` checks `node`, `rg`, `fd` and warns if servers are missing.
 - Install servers via `:Mason`, or `yadr install typescript` (installs them via Mason headless).
