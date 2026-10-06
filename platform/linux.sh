@@ -62,6 +62,58 @@ ensure_nvim() {
   "${HOME}/.local/bin/nvim" --version >/dev/null 2>&1 && log "neovim ready: $("${HOME}/.local/bin/nvim" --version 2>/dev/null | head -n1)." || warn "nvim installed but does not start."
 }
 
+# ensure_vim: guarantees `vim` resolves to a YADR-managed Neovim >=0.11,
+# but NEVER hijacks a genuine Vim. Creates ~/.local/bin/vim only when:
+#   1. YADR installed upstream nvim (marker provides-nvim-upstream), AND
+#   2. system `vim` resolves into an nvim <0.11 (e.g. Ubuntu vim->nvim link),
+#      or no `vim` command exists at all.
+# Genuine Vim (or an already-modern nvim) is always left alone.
+ensure_vim() {
+  [[ -f "${HOME}/.local/state/yadr/provides-nvim-upstream" ]] || return 0
+  [[ -x "${HOME}/.local/nvim-upstream/bin/nvim" ]] || return 0
+  local vimbin=""
+  vimbin="$(command -v vim 2>/dev/null || true)"
+  case "$vimbin" in
+    */*) ;;
+    *) vimbin="" ;;
+  esac
+  if [[ -n "$vimbin" ]]; then
+    # Follow chains like /usr/bin/vim -> /usr/bin/nvim (plain readlink: portable).
+    local target="$vimbin" seen=0 link
+    while [[ -L "$target" && "$seen" -lt 10 ]]; do
+      link="$(readlink "$target")"
+      [[ "$link" != /* ]] && link="$(dirname "$target")/$link"
+      target="$link"; seen=$((seen+1))
+    done
+    if [[ "$target" != *nvim* ]]; then
+      log "vim is genuine Vim ($target); leaving it alone."
+      return 0
+    fi
+    local ver maj min
+    ver="$("$target" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
+    maj="${ver%%.*}"; min="${ver##*.}"
+    if [[ "$maj" -gt 0 || "$min" -ge 11 ]] 2>/dev/null; then
+      log "vim already resolves to Neovim $ver; leaving it alone."
+      return 0
+    fi
+    log "vim resolves to old Neovim ($ver); shimming to upstream…"
+  else
+    log "no vim command; providing one via upstream Neovim…"
+  fi
+  mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
+  ln -sfn "${HOME}/.local/nvim-upstream/bin/nvim" "${HOME}/.local/bin/vim" || { warn "vim shim failed."; return 1; }
+  touch "${HOME}/.local/state/yadr/provides-vim" 2>/dev/null || true
+  local vver vmaj vmmin
+  vver="$("${HOME}/.local/bin/vim" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
+  vmaj="${vver%%.*}"; vmmin="${vver##*.}"
+  if [[ "$vmaj" -gt 0 || "$vmmin" -ge 11 ]] 2>/dev/null; then
+    log "vim -> upstream Neovim ($vver) ready."
+  else
+    warn "vim shim verification failed."
+    return 1
+  fi
+}
+
 main() {
   [[ "$(uname -s)" == "Linux" ]] || { warn "not Linux ($(uname -s)). Aborting."; return 1; }
   if have apt-get; then
@@ -82,6 +134,7 @@ main() {
   install_mise || true
   install_zoxide || true
   ensure_nvim || true
+  ensure_vim || true
   install_fonts || true
   # eza/bat/delta/lazygit/gh: prefer mise or manual per distro; not forced here
   # to keep headless/SSH minimums intact.

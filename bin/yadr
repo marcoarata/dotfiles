@@ -507,6 +507,7 @@ do_uninstall() {
     # ~/.local/bin: only what YADR installed (provides-* markers); never
     # pre-existing user binaries.
     [[ -f "${STATE_DIR}/provides-nvim-upstream" ]] && rm -rf "${HOME}/.local/nvim-upstream" "${HOME}/.local/bin/nvim" 2>/dev/null || true
+    [[ -f "${STATE_DIR}/provides-vim" ]] && rm -f "${HOME}/.local/bin/vim" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-mise" ]] && rm -f "${HOME}/.local/bin/mise" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-zoxide" ]] && rm -f "${HOME}/.local/bin/zoxide" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-lazygit" ]] && rm -f "${HOME}/.local/bin/lazygit" 2>/dev/null || true
@@ -558,6 +559,21 @@ do_doctor() {
     if [[ "${_nvmaj:-0}" -gt 0 || "${_nvmin:-0}" -ge 11 ]] 2>/dev/null; then dc_ok "nvim (${_nv})";
     else dc_fail "nvim ${_nv} <0.11 (suelo YADR)" "yadr install core (platform instala upstream ≥0.11 en ~/.local/bin)"; fi
   else dc_fail "nvim ausente" "sudo apt install neovim / brew install neovim"; fi
+  # vim must resolve to Neovim >=0.11 or to genuine Vim — never to old nvim.
+  if have vim; then
+    local _vv
+    _vv="$(vim --version 2>/dev/null | head -n1)"
+    case "$_vv" in
+      NVIM*)
+        local _vmaj _vmmin
+        _vmaj="$(printf '%s' "$_vv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)"
+        _vmmin="$(printf '%s' "$_vv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f2)"
+        if [[ "${_vmaj:-0}" -gt 0 || "${_vmmin:-0}" -ge 11 ]] 2>/dev/null; then dc_ok "vim → Neovim (${_vv})";
+        else dc_fail "vim resolves to old Neovim (${_vv})" "yadr install core (creates ~/.local/bin/vim shim)"; fi
+        ;;
+      *) dc_ok "vim genuine (${_vv:-Vim})" ;;
+    esac
+  else dc_warn "vim ausente" "yadr install core (provides vim via upstream Neovim)"; fi
   dc_cmd "rg (ripgrep)" rg "sudo apt install ripgrep / brew install ripgrep"
   if have fd || have fdfind; then dc_ok "fd ($(command -v fd || command -v fdfind))"; else dc_fail "fd ausente" "sudo apt install fd-find (+ln -s fdfind→fd) / brew install fd"; fi
   dc_cmd "zoxide" zoxide "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash / brew install zoxide"
