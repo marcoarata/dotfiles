@@ -40,7 +40,7 @@ return {
     -- en config ya es tarde y cae en defaults. Orden garantizado por lazy.
     init = function()
       vim.g.lightline = {
-        colorscheme = "solarized",
+        colorscheme = "yadr",
         active = {
           left = {
             { "mode", "paste" },

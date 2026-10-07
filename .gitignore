@@ -37,3 +37,6 @@ Thumbs.db
 # caches
 .cache/
 *.log
+
+# evidencia temporal local (nunca se sube)
+/caso vim/
