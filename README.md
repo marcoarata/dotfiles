@@ -2,6 +2,10 @@
 
 Yet Another Development Runtime. The classic YADR experience with modern technology.
 
+<p align="center">
+  <img src="docs/yadr2027.png" width="720" alt="YADR 2027">
+</p>
+
 ## Overview
 
 YADR 2027 keeps the classic YADR experience contract — Zsh + Vim everywhere + mnemonic aliases + tmux + fluid Git + Damoekri prompt — and replaces the aged implementation (RVM + Rake + Vundle + fasd + ag + hub) with a modern stack with no mandatory Ruby.
