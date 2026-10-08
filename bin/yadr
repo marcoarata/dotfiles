@@ -51,14 +51,16 @@ have()  { command -v "$1" >/dev/null 2>&1; }
 # --- portabilidad macOS (BSD) / bash 3.2 ---
 # cp -a no existe en macOS: cp -Rp preserva modo/fechas y symlinks.
 cp_preserve() { cp -Rp "$@" 2>/dev/null; }
-# Nanosegundos portables: date +%N no existe en macOS.
+# Portable nanoseconds: BSD date has no %N (prints "...N" literally, which
+# breaks arithmetic). Case-match filters %, N and any non-digit output.
 now_ns() {
   local t
   t="$(date +%s%N 2>/dev/null)"
-  if [[ "$t" == *%* || -z "$t" ]]; then
-    if command -v python3 >/dev/null 2>&1; then python3 -c 'import time;print(time.time_ns())'
-    else printf '%s000000000' "$(date +%s)"; fi
-  else printf '%s' "$t"; fi
+  case "$t" in
+    ''|*%*|*N*|*[^0-9]*) if command -v python3 >/dev/null 2>&1; then python3 -c 'import time;print(time.time_ns())'
+      else printf '%s000000000' "$(date +%s)"; fi ;;
+    *) printf '%s' "$t" ;;
+  esac
 }
 # timeout(1) no existe en macOS base: usa gtimeout si hay, si no ejecuta directo.
 run_timeout() {
@@ -578,6 +580,16 @@ do_doctor() {
   if have fd || have fdfind; then dc_ok "fd ($(command -v fd || command -v fdfind))"; else dc_fail "fd ausente" "sudo apt install fd-find (+ln -s fdfind→fd) / brew install fd"; fi
   dc_cmd "zoxide" zoxide "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash / brew install zoxide"
   dc_cmd "mise (runtime backend)" mise "curl -fsSL https://mise.run | sh / brew install mise"
+  # zsh plugins (advisory only: shell degrades gracefully without them, but
+  # silent degradation is a bug — see Intel Mac Tier 3 report).
+  for _plug in "zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" "zsh-autosuggestions/zsh-autosuggestions.zsh"; do
+    _found=""
+    for _base in "${XDG_DATA_HOME:-$HOME/.local/share}/yadr-plugins" /opt/local/share /usr/share "$(brew --prefix 2>/dev/null)/share"; do
+      if [[ -n "$_base" && -f "${_base}/${_plug}" ]]; then _found="${_base}/${_plug}"; break; fi
+    done
+    if [[ -n "$_found" ]]; then dc_ok "${_plug%%/*} (${_found})";
+    else dc_warn "${_plug%%/*} not found" "yadr install core, or clone into ~/.local/share/yadr-plugins/"; fi
+  done
   # runtimes via abstraction
   for t in node npm pnpm; do
     if have "$t"; then dc_ok "$t ($($t --version 2>/dev/null | head -n1))"; else dc_warn "$t missing" "yadr install node (Node LTS + npm/pnpm via mise)"; fi

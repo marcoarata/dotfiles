@@ -5,8 +5,10 @@
 #
 # Lookup order (first match wins):
 #   1. $YADR_ZSH_SYNTAX_HL / $YADR_ZSH_AUTOSUGGEST (explicit, useful in tests)
-#   2. $XDG_DATA_HOME/yadr-plugins/... (manual clone)
-#   3. apt: /usr/share/...  4. brew: $(brew --prefix)/share/...
+#   2. $XDG_DATA_HOME/yadr-plugins/... (manual clone, no sudo)
+#   3. apt: /usr/share/...
+#   4. MacPorts: /opt/local/share/... (macOS Intel Tier 3)
+#   5. brew: $(brew --prefix)/share/...
 # Install: platform/linux.sh and platform/macos.sh already include them.
 
 _yadr_brew_share() {
@@ -21,6 +23,7 @@ _yadr_plugin_first() {
   for f in "$explicit" \
            "${XDG_DATA_HOME:-$HOME/.local/share}/yadr-plugins/${subdir}/${file}" \
            "/usr/share/${subdir}/${file}" \
+           "/opt/local/share/${subdir}/${file}" \
            "${brew_share:+$brew_share/${subdir}/${file}}"; do
     if [[ -n "$f" && -f "$f" ]]; then
       source "$f" 2>/dev/null || true

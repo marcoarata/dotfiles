@@ -3,6 +3,7 @@
 
 # design working notes (not part of the project)
 yadr2027-dotfiles.txt
+progreso_respaldo.json
 
 # automatic yadr install/migrate backups
 *.yadr-backup-*

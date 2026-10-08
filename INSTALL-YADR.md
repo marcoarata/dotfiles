@@ -64,6 +64,14 @@ zsh
 yadr doctor
 ```
 
+> macOS Intel (Tier 3 since Homebrew 7.0.0, Sep 2026): Homebrew no longer
+> builds bottles for Intel and its installer is Apple Silicon only.
+> YADR detects Intel (`uname -m != arm64`) and installs via MacPorts first
+> (`platform/macos.sh` → `PORT_PACKAGES`, `delta`→`git-delta`), with XDG
+> clones for zsh plugins as no-sudo fallback.
+> Install MacPorts from https://www.macports.org first, then run the same
+> bootstrap. Field report: `docs/homebrew-intel.md`.
+
 ## 2) Linux — Debian/Ubuntu, server, WSL (once a GitHub repo exists)
 
 ```bash

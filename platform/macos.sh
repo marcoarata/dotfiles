@@ -5,6 +5,9 @@ set -euo pipefail
 
 PACKAGES=(git zsh tmux neovim ripgrep fd zoxide mise fzf gh delta eza bat lazygit zsh-syntax-highlighting zsh-autosuggestions unzip)
 
+# MacPorts names differ for some packages (Intel Tier 3 path).
+PORT_PACKAGES=(git zsh tmux neovim ripgrep fd zoxide mise fzf gh git-delta eza bat lazygit unzip)
+
 log()  { printf '[yadr:macos] %s\n' "$*"; }
 warn() { printf '[yadr:macos] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
@@ -45,10 +48,55 @@ install_fonts_macos() {
   log "font installed in ~/Library/Fonts."
 }
 
-main() {
-  [[ "$(uname -s)" == "Darwin" ]] || { warn "not macOS ($(uname -s)). Aborting."; return 1; }
-  have curl || { warn "curl is required."; return 1; }
-  ensure_brew || return 1
+install_via_macports() {
+  # Intel fallback: Homebrew Tier 3 has no bottles; MacPorts does.
+  have port || { warn "MacPorts (port) not found: https://www.macports.org"; return 1; }
+  log "installing via MacPorts…"
+  sudo port -N selfupdate 2>/dev/null || warn "port selfupdate failed; continuing anyway."
+  local p
+  for p in "${PORT_PACKAGES[@]}"; do
+    sudo port -N install "$p" 2>/dev/null || warn "port $p failed."
+  done
+}
+
+clone_xdg_plugin() {
+  # Last resort without sudo: upstream repos straight into XDG (plugins.zsh lookup #2).
+  local repo="$1" subdir="$2" file="$3"
+  local dest="${XDG_DATA_HOME:-$HOME/.local/share}/yadr-plugins/${subdir}"
+  [[ -f "${dest}/${file}" ]] && return 0
+  have git || { warn "no git for XDG clone."; return 1; }
+  mkdir -p "$dest" 2>/dev/null || return 1
+  log "cloning ${repo} → ${dest} (no sudo)…"
+  git clone --depth 1 "https://github.com/${repo}.git" "$dest" 2>/dev/null || { warn "clone ${repo} failed."; return 1; }
+}
+
+ensure_zsh_plugins_macos() {
+  # zsh-syntax-highlighting/autosuggestions are not in MacPorts: XDG clones.
+  clone_xdg_plugin "zsh-users/zsh-syntax-highlighting" "zsh-syntax-highlighting" "zsh-syntax-highlighting.zsh" || true
+  clone_xdg_plugin "zsh-users/zsh-autosuggestions" "zsh-autosuggestions" "zsh-autosuggestions.zsh" || true
+}
+
+ensure_vim_macos() {
+  # ~/.local/bin/vim -> best available nvim. Never touches /usr/bin/vim.
+  # Genuine Apple Vim stays intact unless the user picks the shim via PATH.
+  local nvim_bin=""
+  nvim_bin="$(command -v nvim 2>/dev/null || true)"
+  [[ -n "$nvim_bin" ]] || { warn "no nvim; skipping vim shim."; return 0; }
+  local ver maj min
+  ver="$("$nvim_bin" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
+  maj="${ver%%.*}"; min="${ver##*.}"
+  if [[ "$maj" -gt 0 || "$min" -ge 11 ]] 2>/dev/null; then
+    mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
+    ln -sfn "$nvim_bin" "${HOME}/.local/bin/vim"
+    mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
+    touch "${HOME}/.local/state/yadr/provides-vim" 2>/dev/null || true
+    log "vim -> ${nvim_bin} (shim; purge removes it)."
+  else
+    warn "nvim $ver <0.11; skipping vim shim."
+  fi
+}
+
+brew_install() {
   log "brew update…"
   brew update || warn "brew update failed (offline?). Continuing."
   log "installing: ${PACKAGES[*]}"
@@ -57,6 +105,34 @@ main() {
   if [[ -x "$(brew --prefix)/opt/fzf/install" ]]; then
     "$(brew --prefix)/opt/fzf/install" --key-bindings --completion --no-update-rc --no-bash --no-fish 2>/dev/null || true
   fi
+}
+
+is_arm64() { [[ "$(uname -m)" == "arm64" ]]; }
+
+main() {
+  [[ "$(uname -s)" == "Darwin" ]] || { warn "not macOS ($(uname -s)). Aborting."; return 1; }
+  have curl || { warn "curl is required."; return 1; }
+  if is_arm64; then
+    # Apple Silicon: Homebrew with bottles, always first. Never MacPorts silently.
+    ensure_brew || return 1
+    brew_install || true
+  else
+    # Intel: Homebrew is Tier 3 (no bottles, may compile). MacPorts first.
+    log "Intel Mac: preferring MacPorts (Homebrew Tier 3)…"
+    if have port; then
+      install_via_macports || true
+    else
+      warn "MacPorts not found. Recommended on Intel Macs: https://www.macports.org"
+      if ensure_brew; then
+        warn "trying Homebrew anyway (best effort, may build from source)…"
+        brew_install || true
+      else
+        warn "continuing without a package manager."
+      fi
+    fi
+    ensure_zsh_plugins_macos || true
+  fi
+  ensure_vim_macos || true
   install_fonts_macos || true
   cat <<'NOTE'
 [yadr:macos] Nerd font auto-installed (see terminal/fonts/).

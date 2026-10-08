@@ -50,6 +50,36 @@ the file directly (YADR configures Neovim, not Vim).
 - `platform/` installs JetBrainsMono Nerd Font (see `terminal/fonts/`); select it
   in your terminal for the prompt and vim Powerline separators.
 
+### iTerm2: keep Monaco, fix glyphs (recipe from Intel field report)
+
+- Keep `Monaco 15` as base, add `JetBrainsMonoNFM-Regular 15` (Mono, not
+  Propo) as Non-ASCII fallback, same point size, `Use Non-ASCII = 1`.
+- Test line must render complete: `   ± ✓ →`.
+- See `docs/homebrew-intel.md` R7 for the verified profile.
+
+## macOS Intel / Homebrew Tier 3 (Homebrew 7.0.0, Sep 2026)
+
+- Homebrew no longer builds bottles for Intel and its installer is Apple
+  Silicon only. YADR detects Intel (`uname -m != arm64`) and installs via
+  MacPorts first (`platform/macos.sh` → `PORT_PACKAGES`).
+- Package name mapping: `delta` (brew) → `git-delta` (MacPorts).
+- `zsh-syntax-highlighting` / `zsh-autosuggestions` are not in MacPorts:
+  YADR clones them into `~/.local/share/yadr-plugins/` (no sudo), which
+  `shell/plugins.zsh` already checks before brew paths.
+- `fzf` from MacPorts lives under `/opt/local/share/fzf/`; `shell/zshrc`
+  sources those paths plus the modern `fzf --zsh` hook, all guarded.
+- `vim` on macOS resolves to genuine Apple Vim (`/usr/bin/vim`):
+  YADR creates `~/.local/bin/vim → nvim` with a `provides-vim` marker
+  (removed by `yadr uninstall --purge`). Genuine Vim is never touched.
+- Full field report with verification: `docs/homebrew-intel.md`.
+
+## Support matrix
+
+- macOS Apple Silicon: Homebrew (bottles), primary path.
+- macOS Intel: MacPorts first, Homebrew best-effort (Tier 3, may build
+  from source), XDG clones as no-sudo fallback.
+- Linux (Debian/Ubuntu), server, WSL: apt/dnf/pacman via `platform/`.
+
 ## Headless SSH / minimal server
 
 - Use Core: `yadr install core` (no runtimes; mise/Node only with `yadr install node`).

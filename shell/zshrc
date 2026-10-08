@@ -93,10 +93,15 @@ fi
 if command -v zoxide >/dev/null 2>&1; then
   eval "$(zoxide init zsh --cmd z 2>/dev/null)" || true
 fi
-# fzf: keybindings + completion if present
+# fzf: keybindings + completion if present (distro paths, MacPorts, modern hook)
 if command -v fzf >/dev/null 2>&1; then
   [[ -f /usr/share/fzf/key-bindings.zsh ]] && source /usr/share/fzf/key-bindings.zsh 2>/dev/null || true
   [[ -f /usr/share/fzf/completion.zsh ]]   && source /usr/share/fzf/completion.zsh 2>/dev/null || true
+  [[ -f /opt/local/share/fzf/shell/key-bindings.zsh ]] && source /opt/local/share/fzf/shell/key-bindings.zsh 2>/dev/null || true
+  [[ -f /opt/local/share/fzf/shell/completion.zsh ]]   && source /opt/local/share/fzf/shell/completion.zsh 2>/dev/null || true
+  [[ -f /opt/local/share/fzf/key-bindings.zsh ]] && source /opt/local/share/fzf/key-bindings.zsh 2>/dev/null || true
+  [[ -f /opt/local/share/fzf/completion.zsh ]]   && source /opt/local/share/fzf/completion.zsh 2>/dev/null || true
+  eval "$(fzf --zsh 2>/dev/null)" || true
   [[ -f "$HOME/.fzf.zsh" ]]                && source "$HOME/.fzf.zsh" 2>/dev/null || true
   [[ -d "${XDG_CONFIG_HOME}/fzf" ]]        && [[ -f "${XDG_CONFIG_HOME}/fzf/fzf.zsh" ]] \
     && source "${XDG_CONFIG_HOME}/fzf/fzf.zsh" 2>/dev/null || true
