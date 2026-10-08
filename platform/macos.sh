@@ -76,6 +76,31 @@ ensure_zsh_plugins_macos() {
   clone_xdg_plugin "zsh-users/zsh-autosuggestions" "zsh-autosuggestions" "zsh-autosuggestions.zsh" || true
 }
 
+choose_solarized_bg() {
+  # macOS background menu: 1 light (solid) / 2 dark (solid) / 3 none.
+  # Enter / invalid / no TTY / --yes / env override missing -> none.
+  # Stored in ~/.config/yadr/solarized-bg (read by nvim on every start);
+  # YADR_SOLARIZED_BG env (light|dark|none) wins without prompting.
+  local dest="${HOME}/.config/yadr/solarized-bg" choice=""
+  if [[ -n "${YADR_SOLARIZED_BG:-}" ]]; then
+    case "${YADR_SOLARIZED_BG}" in light|dark|none) choice="${YADR_SOLARIZED_BG}" ;;
+      *) warn "YADR_SOLARIZED_BG='${YADR_SOLARIZED_BG}' invalid (light|dark|none); using none."; choice="none" ;;
+    esac
+  elif [[ "${YADR_YES:-0}" == "1" || ! -t 0 ]]; then
+    choice="none"
+  else
+    printf '\n[yadr:macos] Solarized background:\n  1) light (solid)\n  2) dark (solid)\n  3) none — transparent (default)\n'
+    printf 'Choose [1/2/3] (Enter = none): '
+    local ans=""; IFS= read -r ans || ans=""
+    case "$ans" in 1) choice="light" ;; 2) choice="dark" ;; 3|"") choice="none" ;;
+      *) warn "invalid choice; using none."; choice="none" ;;
+    esac
+  fi
+  mkdir -p "$(dirname "$dest")" 2>/dev/null || true
+  printf '%s\n' "$choice" > "$dest" 2>/dev/null || true
+  log "solarized bg: ${choice} (stored in ${dest})."
+}
+
 ensure_vim_macos() {
   # ~/.local/bin/vim -> best available nvim. Never touches /usr/bin/vim.
   # Genuine Apple Vim stays intact unless the user picks the shim via PATH.
@@ -133,6 +158,7 @@ main() {
     ensure_zsh_plugins_macos || true
   fi
   ensure_vim_macos || true
+  choose_solarized_bg || true
   install_fonts_macos || true
   cat <<'NOTE'
 [yadr:macos] Nerd font auto-installed (see terminal/fonts/).

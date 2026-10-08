@@ -18,7 +18,10 @@ opt.expandtab = true
 opt.smartindent = true
 opt.autoindent = true
 
--- Solarized truecolor
+-- Solarized truecolor.
+-- Pre-plugin default only: plugins/colorscheme.lua decides the final
+-- background from YADR_SOLARIZED_BG / ~/.config/yadr/solarized-bg
+-- (default transparent on macOS and Linux; solid only opt-in).
 opt.termguicolors = true
 vim.o.background = "dark"
 
@@ -50,7 +53,9 @@ opt.list = true
 opt.listchars = { tab = "▸ ", trail = "·", nbsp = "␣" }
 opt.showmode = false
 opt.showcmd = true
-opt.laststatus = 3
+-- Per-window statusline: lightline.vim does not support laststatus=3
+-- (global statusline); with 3 its groups paint the wrong window/colors.
+opt.laststatus = 2
 opt.cmdheight = 1
 
 -- Splits

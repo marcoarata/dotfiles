@@ -10,3 +10,19 @@ Solarized palettes for terminals (faithful to classic YADR `iTerm2/`).
 
 Palette credit: https://ethanschoonover.com/solarized/
 (also in `CREDITS.md`).
+
+## Background: transparent (`none`) by default
+
+Neovim ships transparent on macOS **and** Linux: after `solarized8`
+loads, `Normal/NonText/LineNr/SignColumn` are cleared to `guibg=NONE`
+(`nvim/lua/yadr/plugins/colorscheme.lua`). Solid `dark`/`light` only
+on explicit choice.
+
+- macOS `install` asks: `1) light (solid) / 2) dark (solid) /
+  3) none — transparent (default)`. `Enter`, invalid answer, no TTY
+  (`curl | sh`, CI) or `--yes` all mean `none`.
+- Choice is stored in `~/.config/yadr/solarized-bg` (read on every
+  nvim start). `YADR_SOLARIZED_BG=light|dark|none` env wins without
+  prompting; legacy `YADR_SOLID_BG=1` forces solid dark.
+- Linux/WSL never prompt: always `none` unless you create that file
+  or export the env var.

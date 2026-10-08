@@ -49,6 +49,10 @@ the file directly (YADR configures Neovim, not Vim).
   **zero Nerd icons** (so you never see boxes or hex codes on macOS or Linux).
 - `platform/` installs JetBrainsMono Nerd Font (see `terminal/fonts/`); select it
   in your terminal for the prompt and vim Powerline separators.
+- Neovim background is transparent (`none`) by default on macOS and
+  Linux (terminal shows through); solid Solarized only via the macOS
+  install menu (`1 light / 2 dark / 3 none`, default `none`) or
+  `YADR_SOLARIZED_BG`. Details: `terminal/solarized/README.md`.
 
 ### iTerm2: keep Monaco, fix glyphs (recipe from Intel field report)
 

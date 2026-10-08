@@ -26,11 +26,43 @@ return {
     lazy = false,
     priority = 1000,
     config = function()
-      vim.o.background = "dark"
+      -- Background choice: YADR_SOLARIZED_BG env wins, else the file written
+      -- by platform/macos.sh (1 light / 2 dark / 3 none menu), else none.
+      -- Default on macOS AND Linux is transparent (terminal shows through);
+      -- solid dark/light only on explicit choice (or YADR_SOLID_BG=1 legacy).
+      local bg = vim.env.YADR_SOLARIZED_BG or ""
+      if bg == "" then
+        local f = io.open(vim.fn.expand("~/.config/yadr/solarized-bg"), "r")
+        if f then
+          bg = f:read("*l") or ""
+          f:close()
+        end
+      end
+      bg = tostring(bg):lower():match("^%s*(.-)%s*$")
+      if bg ~= "light" and bg ~= "dark" and bg ~= "none" then
+        bg = "none"
+      end
+      vim.o.background = (bg == "light") and "light" or "dark"
       vim.o.termguicolors = true
       -- pcall: on first start the plugin is still installing
       -- (lazy lo instala y el segundo arranque ya es limpio).
       pcall(vim.cmd.colorscheme, "solarized8")
+      if bg ~= "none" or vim.env.YADR_SOLID_BG == "1" then
+        return -- explicit solid: nothing to clear
+      end
+      local groups = { "Normal", "NonText", "LineNr", "SignColumn" }
+      local function clear_bg()
+        for _, g in ipairs(groups) do
+          pcall(vim.cmd, "highlight " .. g .. " guibg=NONE ctermbg=NONE")
+        end
+      end
+      clear_bg()
+      vim.api.nvim_create_augroup("YadrTransparentBg", { clear = true })
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        group = "YadrTransparentBg",
+        pattern = "*",
+        callback = clear_bg,
+      })
     end,
   },
   {
