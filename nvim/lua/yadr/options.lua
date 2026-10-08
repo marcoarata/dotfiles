@@ -53,6 +53,9 @@ opt.list = true
 opt.listchars = { tab = "▸ ", trail = "·", nbsp = "␣" }
 opt.showmode = false
 opt.showcmd = true
+-- Classic file-info message ("f" 29L, 958B): Neovim defaults add
+-- shortmess+=F which suppresses it; classic Vim/YADR shows it on :read/:edit.
+vim.opt.shortmess:remove("F")
 -- Per-window statusline: lightline.vim does not support laststatus=3
 -- (global statusline); with 3 its groups paint the wrong window/colors.
 opt.laststatus = 2
