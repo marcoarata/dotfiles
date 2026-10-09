@@ -114,7 +114,7 @@ One-page quick install: `INSTALL-YADR.md`.
 ## `yadr` commands
 
 ```bash
-yadr install [profile]  # symlinks + backup + deps (core|node|typescript|ruby|python|rust|development|macos-extras)
+yadr install [profile]  # symlinks + backup + deps (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras)
 yadr update            # git pull + mise upgrade (with backup and confirmation)
 yadr doctor            # checks with repair hints
 yadr diff              # shows what would change, without modifying anything
@@ -122,6 +122,8 @@ yadr backup            # copies to ~/.local/state/yadr/backups/<timestamp>/
 yadr uninstall [--dry-run] [--purge]  # removes symlinks, restores your backup and reverts login shell
 yadr migrate [--dry-run]  # imports .vimrc.before/.after, .vundles.local... (idempotent)
 yadr pack list|add <name>  # optional packs (javascript/typescript/ruby/python/rust)
+yadr theme [list|use <nombre>|current]  # fondo Solarized (light|dark|none, default none)
+yadr gitsigns [on|off|status]  # signos Git en Neovim (default: off)
 yadr runtime current|list|use|doctor  # runtime abstraction (mise underneath)
 yadr version           # shows version
 yadr benchmark shell|nvim|cd|prompt   # measures startup and cd/prompt cost
