@@ -1,9 +1,9 @@
 -- YADR 2027 :: colorscheme (Solarized) + classic-faithful statusline.
--- lightline.vim (el plugin del YADR original): dibuja `⮀ … ⮂` central,
+-- lightline.vim (the original YADR plugin): draws the central `⮀ … ⮂`,
 -- texto plano, cero iconos Nerd en macOS y Linux.
 -- (Function goes before return: in a Lua chunk nothing may follow it.)
--- Rama git para lightline. OJO: lightline (vimscript) solo ve funciones
--- Vimscript, no globales Lua: se define como comando Vim que delega en Lua.
+-- Git branch for lightline. NOTE: lightline (vimscript) only sees
+-- Vimscript functions, not Lua globals: defined as a Vim command delegating to Lua.
 -- Plain name, no glyphs: classic-faithful on any terminal.
 vim.cmd([[
 function! YadrLightlineBranch() abort
@@ -45,7 +45,7 @@ return {
       vim.o.background = (bg == "light") and "light" or "dark"
       vim.o.termguicolors = true
       -- pcall: on first start the plugin is still installing
-      -- (lazy lo instala y el segundo arranque ya es limpio).
+      -- (lazy installs it and the second start is already clean).
       pcall(vim.cmd.colorscheme, "solarized8")
       -- lightline paints every statusline cell explicitly, but nvim merges
       -- the StatusLine row attribute into the row: solarized8 (like classic
@@ -78,8 +78,8 @@ return {
   {
     "itchyny/lightline.vim",
     lazy = false,
-    -- init (NO config): lightline lee g:lightline al cargarse; si se fija
-    -- en config ya es tarde y cae en defaults. Orden garantizado por lazy.
+    -- init (NOT config): lightline reads g:lightline when loading; setting it
+    -- in config is too late and it falls back to defaults. Order guaranteed by lazy.
     init = function()
       vim.g.lightline = {
         colorscheme = "yadr",

@@ -36,7 +36,7 @@ load_aliases() {
 }
 
 @test "damoekri prompt file exists and has no ruby hard-dependency" {
-  [ -f "$YADR_ROOT/shell/damoekri.zsh" ] || fail "shell/damoekri.zsh ausente"
+  [ -f "$YADR_ROOT/shell/damoekri.zsh" ] || fail "shell/damoekri.zsh missing"
   # Must not invoke rvm/rbenv/nvm/fnm/mise directly: only via yadr_runtime_context.
   run grep -E "rvm-prompt|rbenv|mise current|fnm current" "$YADR_ROOT/shell/damoekri.zsh"
   # grep match (0) = bad, unless it is a comment; no match (1) = good.
@@ -98,7 +98,7 @@ load_aliases() {
 }
 
 @test "plugins.zsh loads cleanly without any plugin installed" {
-  [ -f "$YADR_ROOT/shell/plugins.zsh" ] || fail "shell/plugins.zsh ausente"
+  [ -f "$YADR_ROOT/shell/plugins.zsh" ] || fail "shell/plugins.zsh missing"
   run zsh -f -c "
     unset YADR_ZSH_SYNTAX_HL YADR_ZSH_AUTOSUGGEST
     XDG_DATA_HOME='$BATS_TMPDIR/empty-xdg' source '$YADR_ROOT/shell/plugins.zsh'
@@ -121,7 +121,7 @@ load_aliases() {
 }
 
 @test "zshrc sources plugins module after compinit" {
-  [ -f "$YADR_ROOT/shell/zshrc" ] || fail "shell/zshrc ausente"
+  [ -f "$YADR_ROOT/shell/zshrc" ] || fail "shell/zshrc missing"
   run bash -c "grep -n 'plugins.zsh' '$YADR_ROOT/shell/zshrc' | head -1"
   [ "$status" -eq 0 ]
 }
@@ -168,7 +168,7 @@ load_aliases() {
   run zsh -f -c "
     source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null
     for a in ga gap gco gd gdc gds gs gst gsp gf gfp gpl gps gnb grs gcln gsm gb gl gt g cl cls cdb lsg less tf gz ka9 psa ve ze yup grb; do
-      whence -w \$a >/dev/null 2>&1 || { echo \"falta alias: \$a\"; exit 1; }
+      whence -w \$a >/dev/null 2>&1 || { echo \"missing alias: \$a\"; exit 1; }
     done
     echo ok"
   [ "$status" -eq 0 ]
@@ -179,7 +179,7 @@ load_aliases() {
   run bash -c "
     cfg='$YADR_ROOT/git/gitconfig'
     for s in a b c ca amend nb cp d dc l s st t unstage uncommit rc rs r pl ps ss sl sa sd co ci filelog; do
-      grep -qE \"^[[:space:]]*\$s[[:space:]]*=\" \"\$cfg\" || { echo \"falta git alias: \$s\"; exit 1; }
+      grep -qE \"^[[:space:]]*\$s[[:space:]]*=\" \"\$cfg\" || { echo \"missing git alias: \$s\"; exit 1; }
     done
     echo ok"
   [ "$status" -eq 0 ]

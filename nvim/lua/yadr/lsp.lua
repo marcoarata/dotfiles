@@ -1,4 +1,4 @@
--- YADR 2027 :: LSP (mason instala, vim.lsp nativo configura/activa)
+-- YADR 2027 :: LSP (mason installs, native vim.lsp configures/activates)
 -- Neovim 0.11 floor: native vim.lsp.config + vim.lsp.enable API.
 -- (The require('lspconfig').X.setup framework is deprecated in lspconfig 2.x
 -- and will be removed in 3.0; hence no nvim-lspconfig nor mason-lspconfig.
@@ -39,7 +39,7 @@ vim.diagnostic.config({
 })
 
 -- Mason (guard: works even if plugin not installed yet at first bootstrap).
--- UI con iconos ASCII (nada Nerd): instalado +, pendiente ~, ausente -.
+-- UI with ASCII icons (no Nerd): installed +, pending ~, missing -.
 local mason_ok, mason = pcall(require, "mason")
 if mason_ok then
   mason.setup({
@@ -55,12 +55,12 @@ end
 
 -- Native registry (also works if mason already installed the servers).
 -- Explicit configs: no require('lspconfig') (deprecated in 2.x, gone in 3.0).
--- mason.nvim sigue como instalador (:Mason); mason-lspconfig no se usa.
+-- mason.nvim stays as the installer (:Mason); mason-lspconfig is not used.
 if vim.fn.has("nvim-0.11") == 1 then
   local mason_bin = vim.fn.stdpath("data") .. "/mason/bin/"
-  -- Todos los servidores se registran siempre (como lspconfig upstream):
-  -- si falta su runtime (p.ej. node fuera del zsh YADR), el mensaje de
-  -- spawn lo indica. Abrir desde el zsh YADR = todo activo.
+  -- All servers always register (like upstream lspconfig):
+  -- when its runtime is missing (e.g. node outside the YADR zsh), the spawn
+  -- message says so. Opening from the YADR zsh = everything active.
   vim.lsp.config("lua_ls", {
     capabilities = capabilities,
     cmd = { mason_bin .. "lua-language-server" },

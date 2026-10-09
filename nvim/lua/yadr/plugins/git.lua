@@ -4,9 +4,9 @@ return {
   {
     "lewis6991/gitsigns.nvim",
     event = { "BufReadPre", "BufNewFile" },
-    -- OPT-IN (off por defecto): se activa con `yadr gitsigns on`, que crea
+    -- OPT-IN (off by default): enabled with `yadr gitsigns on`, which creates
     -- ~/.config/yadr/gitsigns.enabled. YADR_GITSIGNS=1 forces it per session
-    -- sin persistir. Pin al commit verificado (schema compatible con abajo).
+    -- without persisting. Pinned to the verified commit (schema matches below).
     enabled = vim.env.YADR_GITSIGNS == "1"
       or vim.fn.filereadable(
         (vim.env.XDG_CONFIG_HOME ~= nil and vim.env.XDG_CONFIG_HOME ~= "" and vim.env.XDG_CONFIG_HOME or vim.fn.expand("~/.config"))

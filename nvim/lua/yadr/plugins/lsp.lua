@@ -1,6 +1,6 @@
 -- YADR 2027 :: LSP / completion / format / lint
 -- Without nvim-lspconfig: explicit configs via native vim.lsp (the plugin
--- dispara el aviso de framework deprecado incluso usando la API nueva).
+-- triggers the deprecated-framework notice even when using the new API).
 return {
   { "williamboman/mason.nvim" },
   { "hrsh7th/nvim-cmp", event = "InsertEnter" },
@@ -72,7 +72,7 @@ return {
     "mfussenegger/nvim-lint",
     event = { "BufReadPre", "BufNewFile" },
     config = function()
-      -- Solo linters con binario presente: evita "ENOENT" en primer arranque.
+      -- Only linters with a binary present: avoids "ENOENT" on first start.
       local by_ft = {}
       local wanted = {
         javascript = { "eslint_d" },

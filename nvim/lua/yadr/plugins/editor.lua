@@ -24,8 +24,8 @@ return {
     "folke/which-key.nvim",
     event = "VeryLazy",
     config = function()
-      -- Sin iconos Nerd: texto plano en el popup (breadcrumb/separador ASCII,
-      -- sin iconos por tecla ni por mapping).
+      -- No Nerd icons: plain text in the popup (breadcrumb/ASCII separator,
+      -- no per-key or per-mapping icons).
       require("which-key").setup({
         icons = {
           breadcrumb = "»",

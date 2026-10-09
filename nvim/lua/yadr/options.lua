@@ -6,7 +6,7 @@ vim.g.maplocalleader = ","
 local opt = vim.opt
 
 -- Line numbers: absolute, fixed, no highlight (classic YADR).
--- Sin relativenumber ni cursorline: la columna es estrecha y estable.
+-- No relativenumber or cursorline: the column stays narrow and stable.
 opt.number = true
 opt.relativenumber = false
 

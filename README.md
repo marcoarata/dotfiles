@@ -122,8 +122,8 @@ yadr backup            # copies to ~/.local/state/yadr/backups/<timestamp>/
 yadr uninstall [--dry-run] [--purge]  # removes symlinks, restores your backup and reverts login shell
 yadr migrate [--dry-run]  # imports .vimrc.before/.after, .vundles.local... (idempotent)
 yadr pack list|add <name>  # optional packs (javascript/typescript/ruby/python/rust)
-yadr theme [list|use <nombre>|current]  # fondo Solarized (light|dark|none, default none)
-yadr gitsigns [on|off|status]  # signos Git en Neovim (default: off)
+yadr theme [list|use <name>|current]  # Solarized background (light|dark|none, default none)
+yadr gitsigns [on|off|status]  # Git signs in Neovim (default: off)
 yadr runtime current|list|use|doctor  # runtime abstraction (mise underneath)
 yadr version           # shows version
 yadr benchmark shell|nvim|cd|prompt   # measures startup and cd/prompt cost
