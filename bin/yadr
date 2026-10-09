@@ -658,17 +658,17 @@ do_doctor() {
   else dc_warn "treesitter without parsers" "open nvim and run :TSUpdate, or install tree-sitter-cli"; fi
   # Solarized: palette referenced in repo or HOME configs.
   if [[ -n "$(grep -rli "solarized" "${YADR_HOME}/nvim" "${YADR_HOME}/tmux" "${YADR_HOME}/shell" "${HOME}/.config/nvim" "${HOME}/.tmux.conf" 2>/dev/null)" ]]; then
-    dc_ok "Solarized (referenciado en configs)"
+    dc_ok "Solarized (referenced in configs)"
   else dc_warn "Solarized no detectado" "reinstala: yadr install core (paleta en nvim/tmux/shell)"; fi
-  # Damoekri: prompt presente
+  # Damoekri: prompt present
   if [[ -f "${YADR_HOME}/shell/damoekri.zsh" ]] || grep -q "damoekri" "${HOME}/.zshrc" 2>/dev/null; then
-    dc_ok "Damoekri (prompt presente)"
+    dc_ok "Damoekri (prompt present)"
   else dc_warn "Damoekri no detectado" "reinstala: yadr install core (prompt en shell/damoekri.zsh)"; fi
   # Nerd Font (installed by platform/; without it nvim degrades icons).
   # No `| grep -q` or `| head`: with pipefail, early-reader SIGPIPE
   # skews the result. Capture and test instead.
   if command -v fc-list >/dev/null 2>&1 && [[ -n "$(fc-list 2>/dev/null | grep -i nerd)" ]]; then
-    dc_ok "Nerd Font presente (fc-list)"
+    dc_ok "Nerd Font present (fc-list)"
   else dc_warn "Nerd Font missing" "yadr install core installs it (terminal/fonts); without a font, icons degrade to text"; fi
   # plugins Neovim vs lockfile (detecta checkouts avanzados/atrasados).
   if [[ -f "${YADR_HOME}/nvim/lazy-lock.json" && -d "${HOME}/.local/share/nvim/lazy" ]]; then
