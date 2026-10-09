@@ -27,11 +27,14 @@
 " itchyny/lightline.vim flatten():
 "   flat = [first.gui, second.gui, first.cterm, second.cterm]
 "   :hi group gets guifg=first guibg=second.
-" So [ [fg...], [bg...] ]. If a host renders this file inverted (dark mode
-" block, yellow-on-black filename), it is NOT loading this file
-" (stale checkout/symlink or lightline without :Lazy restore). Check:
+" So [ [fg...], [bg...] ]. Past inversion reports traced to the
+" StatusLine row flag, not this file: solarized8 sets reverse on
+" StatusLine/StatusLineNC and nvim merges it into every statusline cell
+" (SGR 7 in bytes). colorscheme.lua clears it. If a host still renders
+" this file inverted, check:
 "   :echo g:lightline#colorscheme#yadr#palette.normal.left[0]
-" must show [['#686868', ...], ...] flattened to ['#686868', '#95A4A6', ...].
+" (must show [['#686868', ...], ...] flattened to ['#686868', '#95A4A6', ...])
+" and :verbose hi StatusLine (must show no reverse).
 " =============================================================================
 
 " Named slots. Text on colored blocks is dark warm gray #686868 (single ink:

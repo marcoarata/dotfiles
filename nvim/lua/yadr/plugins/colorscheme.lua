@@ -47,14 +47,31 @@ return {
       -- pcall: on first start the plugin is still installing
       -- (lazy lo instala y el segundo arranque ya es limpio).
       pcall(vim.cmd.colorscheme, "solarized8")
+      -- lightline paints every statusline cell explicitly, but nvim merges
+      -- the StatusLine row attribute into the row: solarized8 (like classic
+      -- Vim) sets reverse on StatusLine/StatusLineNC, which flips fg/bg of
+      -- the whole bar on terminals honoring SGR 7. Drop reverse (keep fg/bg)
+      -- in every background mode; verified at byte level (no 0;7 in cells).
+      local function unreverse_statusline()
+        pcall(vim.cmd, "highlight StatusLine term=NONE cterm=NONE gui=NONE")
+        pcall(vim.cmd, "highlight StatusLineNC term=NONE cterm=NONE gui=NONE")
+      end
+      unreverse_statusline()
+      vim.api.nvim_create_augroup("YadrStatuslineFix", { clear = true })
+      vim.api.nvim_create_autocmd("ColorScheme", {
+        group = "YadrStatuslineFix",
+        pattern = "*",
+        callback = unreverse_statusline,
+      })
       if bg ~= "none" or vim.env.YADR_SOLID_BG == "1" then
-        return -- explicit solid: nothing to clear
+        return -- explicit solid: nothing else to clear
       end
       local groups = { "Normal", "NonText", "LineNr", "SignColumn" }
       local function clear_bg()
         for _, g in ipairs(groups) do
           pcall(vim.cmd, "highlight " .. g .. " guibg=NONE ctermbg=NONE")
         end
+        unreverse_statusline()
       end
       clear_bg()
       vim.api.nvim_create_augroup("YadrTransparentBg", { clear = true })
