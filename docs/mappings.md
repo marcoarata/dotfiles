@@ -44,7 +44,7 @@ Prompt: `dir »` (green ») + git on the left, runtime on the right.
 | Classic | 2027 | Status |
 |---|---|---|
 | `,z` / `,x` | previous / next buffer | ✅ |
-| `,f` / `,F` | definition (LSP) / vertical | ✅ ctags→LSP (+Universal Ctags pending) |
+| `,f` / `,F` | definition (LSP) / vertical | ✅ ctags→LSP (`,f` preserved; ctags not bundled) |
 | `,gf` | file under cursor | ✅ native |
 | `,gg` / `,gd` / `,gcf` | project grep / definition / current file (rg) | ✅ ag→rg |
 | `,t` | Telescope `find_files` | ✅ CtrlP→Telescope (txt default) |

@@ -11,7 +11,7 @@ setup() {
 
 # Helper: source shell/aliases.zsh when present, else skip
 load_aliases() {
-  [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "shell/aliases.zsh missing (pendiente)"
+  [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "shell/aliases.zsh not in checkout"
   # Simulate missing modern tools
   PATH="/usr/bin:/bin" HOME="$TEST_HOME" zsh -f -c "source '$YADR_ROOT/shell/aliases.zsh'; echo loaded" 2>/dev/null \
     || bash -c "echo fallback-ok"
@@ -23,13 +23,13 @@ load_aliases() {
 }
 
 @test "ls fallback works without eza" {
-  if [ ! -f "$YADR_ROOT/shell/aliases.zsh" ]; then skip "aliases.zsh pendiente"; fi
+  if [ ! -f "$YADR_ROOT/shell/aliases.zsh" ]; then skip "aliases.zsh not in checkout"; fi
   run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null; command ls --version >/dev/null 2>&1 || command ls >/dev/null 2>&1; echo ok"
   [ "$status" -eq 0 ]
 }
 
 @test "z function degrades to cd without zoxide" {
-  [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "aliases.zsh pendiente"
+  [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "aliases.zsh not in checkout"
   # Without zoxide in PATH, the z alias/function must neither exist nor break; cd stays available.
   run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null; if whence -w z >/dev/null 2>&1; then z --help >/dev/null 2>&1; echo z-ok; else command cd / >/dev/null 2>&1 && echo no-z-ok; fi"
   [ "$status" -eq 0 ]
@@ -158,7 +158,7 @@ load_aliases() {
 }
 
 @test "runtime layer guards mise absence" {
-  [ -f "$YADR_ROOT/shell/runtime.zsh" ] || skip "runtime.zsh pendiente"
+  [ -f "$YADR_ROOT/shell/runtime.zsh" ] || skip "runtime.zsh not in checkout"
   run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/runtime.zsh'; echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
@@ -187,7 +187,7 @@ load_aliases() {
 }
 
 @test "git user config include pattern preserved" {
-  [ -f "$YADR_ROOT/git/gitconfig" ] || skip "git/gitconfig pendiente"
+  [ -f "$YADR_ROOT/git/gitconfig" ] || skip "git/gitconfig not in checkout"
   run grep -q "gitconfig.user" "$YADR_ROOT/git/gitconfig"
   [ "$status" -eq 0 ]
 }

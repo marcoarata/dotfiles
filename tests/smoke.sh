@@ -23,7 +23,17 @@ check_file shell/keybindings.zsh
 check_file shell/runtime.zsh
 check_file shell/damoekri.zsh
 check_file shell/plugins.zsh
+check_file nvim/init.lua
+check_file nvim/autoload/lightline/colorscheme/yadr.vim
+check_file nvim/lua/yadr/options.lua
+check_file nvim/lua/yadr/plugins/colorscheme.lua
+check_file platform/macos.sh
+check_file platform/linux.sh
+check_file platform/wsl.sh
+check_file platform/lazygit.sh
 check_file platform/macos-extras.sh
+check_file terminal/solarized/README.md
+check_file docs/homebrew-intel.md
 check_file bin/yadr
 check_file bootstrap.sh
 check_file tests/shell.bats

@@ -1,12 +1,12 @@
 # ADR-002 — Runtime Manager: mise vs fnm vs nvm
 
-- Status: proposed (Phase A). `mise` is the experimental reference
+- Status: proposed. `mise` is the experimental reference
   implementation; `fnm` is the benchmark alternative; `nvm` is a conceptual
   fallback (historical RVM<->nvm analogy, not a technical decision).
 - Context: YADR only exposes `yadr runtime current|list|use|doctor`. The
   backend is swappable without touching Damoekri/Zsh/Neovim. Node LTS is the
   reference runtime; Ruby/Python/Rust are optional packs.
-- Pending benchmark (Phase B, host + ephemeral VM, same fixture
+- Pending benchmark (host + ephemeral VM, same fixture
   `tests/fixtures/typescript-project`):
   1. Shell startup with each manager enabled/disabled (`yadr benchmark shell`).
   2. `cd` overhead with auto-switch (`yadr benchmark cd`, <30ms threshold).

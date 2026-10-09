@@ -56,29 +56,22 @@ return {
         pcall(vim.cmd, "highlight StatusLine term=NONE cterm=NONE gui=NONE")
         pcall(vim.cmd, "highlight StatusLineNC term=NONE cterm=NONE gui=NONE")
       end
-      unreverse_statusline()
-      vim.api.nvim_create_augroup("YadrStatuslineFix", { clear = true })
-      vim.api.nvim_create_autocmd("ColorScheme", {
-        group = "YadrStatuslineFix",
-        pattern = "*",
-        callback = unreverse_statusline,
-      })
-      if bg ~= "none" or vim.env.YADR_SOLID_BG == "1" then
-        return -- explicit solid: nothing else to clear
-      end
       local groups = { "Normal", "NonText", "LineNr", "SignColumn" }
-      local function clear_bg()
-        for _, g in ipairs(groups) do
-          pcall(vim.cmd, "highlight " .. g .. " guibg=NONE ctermbg=NONE")
-        end
+      local transparent = not (bg ~= "none" or vim.env.YADR_SOLID_BG == "1")
+      local function refresh_highlights()
         unreverse_statusline()
+        if transparent then
+          for _, g in ipairs(groups) do
+            pcall(vim.cmd, "highlight " .. g .. " guibg=NONE ctermbg=NONE")
+          end
+        end
       end
-      clear_bg()
-      vim.api.nvim_create_augroup("YadrTransparentBg", { clear = true })
+      refresh_highlights()
+      vim.api.nvim_create_augroup("YadrHighlights", { clear = true })
       vim.api.nvim_create_autocmd("ColorScheme", {
-        group = "YadrTransparentBg",
+        group = "YadrHighlights",
         pattern = "*",
-        callback = clear_bg,
+        callback = refresh_highlights,
       })
     end,
   },

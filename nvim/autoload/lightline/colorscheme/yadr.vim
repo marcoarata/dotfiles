@@ -4,10 +4,6 @@
 " percent, black middle, blue fileinfo + lineinfo). Entry format (lightline
 " convention): [ [guifg, ctermfg], [guibg, ctermbg] ].
 " =============================================================================
-
-" =============================================================================
-" Filename: autoload/lightline/colorscheme/yadr.vim
-" YADR 2027 :: statusline palette.
 "
 " Per-mode blocks (label + color tell the mode apart):
 "   NORMAL/COMMAND gray #95A4A6 | INSERT green #33CC63 | VISUAL violet #8D43B3,
