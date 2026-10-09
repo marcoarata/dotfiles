@@ -100,9 +100,13 @@ yadr doctor
 
 ```bash
 exec zsh
-yadr doctor   # check zsh/git/tmux/nvim/rg/fd/zoxide/mise/node/...
+yadr doctor   # 1st run slow once (installs nvim plugins); 2nd run instant
 yadr diff     # read-only, changes nothing
 ```
+
+Post-install order (no guessing): `doctor` twice, then only the profiles
+you need — `yadr install node|python|typescript|ruby|rust|lazygit`,
+`yadr theme [list|use light|dark|none]`. Full flow: `INSTALL-YADR.md`.
 
 Equivalence details: `docs/migration.md`.
 One-page quick install: `INSTALL-YADR.md`.

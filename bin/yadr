@@ -266,6 +266,16 @@ EOF
   ok "YADR 2027 installed. Reboot to load zsh by default (or run 'exec zsh' to try now; and restart vim)."
 }
 
+next_steps() {
+  # Guía post-instalación (descubrible sin leer docs enteras).
+  printf '%s\n' "${DIM}siguientes pasos:${RESET}"
+  printf '  %s\n' \
+    "yadr doctor            # verifica todo (el 1er run instala plugins nvim: lento una vez)" \
+    "yadr install node|python|typescript|ruby|rust|lazygit  (o: yadr pack add <nombre>)" \
+    "yadr theme [list|use light|dark|none]   # fondo Solarized (default: none)" \
+    "yadr diff              # qué cambiaría, sin tocar nada"
+}
+
 RUNTIMES_CORE=()
 runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the user.
   case "$1" in
@@ -331,6 +341,23 @@ ensure_lsp_servers() {
   fi
 }
 
+links_uptodate() { # 0 si todos los pares gestionados ya están como deben (silencioso)
+  local rel dst src
+  while IFS=: read -r rel dst; do
+    [[ -z "$rel" ]] && continue
+    src="${YADR_HOME}/${rel}"
+    [[ -e "$src" || -L "$src" ]] || return 1
+    if [[ -d "$src" && -d "$dst" && ! -L "$src" && ! -L "$dst" ]]; then
+      diff -r -q "$src" "$dst" >/dev/null 2>&1 || return 1
+    elif [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
+      cmp -s "$src" "$dst" || return 1
+    else
+      [[ -L "$dst" ]] && [[ "$(readlink "$dst")" == "$src" ]] || return 1
+    fi
+  done < <(managed_pairs)
+  return 0
+}
+
 do_install() {
   local profile="${1:-core}"
   case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit) ;; *) die "perfil desconocido: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit)" ;; esac
@@ -354,6 +381,28 @@ do_install() {
     bash "${YADR_HOME}/platform/lazygit.sh" && ok "lazygit ready." || warn "lazygit failed (see above)."
     return 0
   fi
+  case "$profile" in node|typescript|ruby|python|rust|development)
+    # Fast path: core links already correct → only the profile payload
+    # (runtimes + editor), no platform rerun, no diff/confirm/backup/relink.
+    # Anything else (or links desactualizados) keeps the full safe flow.
+    if links_uptodate; then
+      info "core links up to date — fast path (sin plataforma, symlinks ni confirmaciones)."
+      local tools; tools="$(runtime_tool_for "$profile")"
+      if [[ -n "$tools" ]]; then
+        info "profile ${profile}: ensuring runtimes (${tools})…"
+        for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
+      fi
+      ensure_nvim_plugins || true
+      if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
+        ensure_lsp_servers || true
+      fi
+      ok "install [${profile}] complete (fast path). Run 'yadr doctor' to verify."
+      next_steps
+      return 0
+    fi
+    info "links desactualizados — install completo (con backup y confirmación)."
+    ;;
+  esac
   local plat; plat="$(detect_platform_script)"
   if [[ -f "$plat" ]]; then info "platform: ${plat}"; bash "$plat" || warn "platform script errored; continuing with symlinks."
   else warn "platform script not found: ${plat}; continuing."
@@ -384,6 +433,7 @@ do_install() {
   ensure_login_shell
   success_msg
   info "install complete: ${n} links, ${skipped} pending from repo. Run 'yadr doctor' to verify."
+  next_steps
 }
 
 do_migrate() {
@@ -650,7 +700,10 @@ do_doctor() {
   if [[ "$_yv" == "${YADR_HOME}/bin/yadr" ]] || [[ "$_yv" == "${HOME}/.local/bin/yadr" ]]; then
     dc_ok "yadr CLI en PATH (${_yv})"
   else dc_fail "yadr CLI not on PATH" "run: yadr install (links ~/.local/bin/yadr) and add ~/.local/bin to PATH"; fi
+  # theme actual (informativo; nvim lo lee al arrancar).
+  info "theme: $(theme_effective) (yadr theme use light|dark|none; rige al reabrir nvim)"
   printf '\n%s\n' "${DIM}resumen: ${DOCTOR_FAIL} errores, ${DOCTOR_WARN} avisos${RESET}"
+  next_steps
   [[ "$DOCTOR_FAIL" -gt 0 ]] && return 1 || return 0
 }
 
@@ -683,6 +736,75 @@ cmd_runtime_doctor() {
   if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend ausente" "curl -fsSL https://mise.run | sh"; return 1; fi
   ok "backend: mise ($(mise --version 2>/dev/null))"
   mise doctor 2>/dev/null || mise dr 2>/dev/null || warn "mise doctor unavailable in this version."
+}
+
+# --- theme (Solarized background; mismo fichero que escribe el menú macOS) ---
+theme_file() { printf '%s' "${HOME}/.config/yadr/solarized-bg"; }
+theme_normalize() { # light|solarized-light|dark|solarized-dark|none -> canónico o ""
+  case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
+    light|solarized-light) echo "light" ;;
+    dark|solarized-dark)   echo "dark" ;;
+    none)                  echo "none" ;;
+    *)                     echo "" ;;
+  esac
+}
+theme_effective() { # env gana (nvim honra la misma precedencia), luego archivo, luego none
+  local v=""
+  v="$(theme_normalize "${YADR_SOLARIZED_BG:-}")"
+  [[ -n "$v" ]] && { printf '%s' "$v"; return 0; }
+  if [[ -f "$(theme_file)" ]]; then
+    v="$(theme_normalize "$(head -n1 "$(theme_file)" 2>/dev/null || true)")"
+    [[ -n "$v" ]] && { printf '%s' "$v"; return 0; }
+  fi
+  printf 'none'
+}
+cmd_theme_list() {
+  local cur; cur="$(theme_effective)"
+  info "temas Solarized (rigen al reabrir nvim; default: none transparente):"
+  local t mark desc
+  for t in light dark none; do
+    mark=" "; [[ "$t" == "$cur" ]] && mark="*"
+    desc="(sólido)"; [[ "$t" == "none" ]] && desc="(default, transparente)"
+    printf '  %s %-5s %s\n' "$mark" "$t" "$desc"
+  done
+  info "uso: yadr theme use light|dark|none"
+}
+cmd_theme_use() { # cmd_theme_use <nombre>
+  local want; want="$(theme_normalize "${1:-}")"
+  [[ -n "$want" ]] || { usage; die "theme: nombre desconocido '${1:-}' (light|dark|solarized-light|solarized-dark|none)"; }
+  mkdir -p "$(dirname "$(theme_file)")" 2>/dev/null || true
+  printf '%s\n' "$want" > "$(theme_file)" || die "no se pudo guardar en $(theme_file)"
+  ok "theme: ${want} (guardado; rige al reabrir nvim)."
+}
+cmd_theme_current() {
+  local cur src="default"
+  cur="$(theme_effective)"
+  if [[ -n "${YADR_SOLARIZED_BG:-}" ]]; then src="env YADR_SOLARIZED_BG";
+  elif [[ -f "$(theme_file)" ]]; then src="$(theme_file)"; fi
+  info "theme actual: ${cur} (${src})"
+}
+cmd_theme() { # list|use <nombre>|current|<nombre>|(menú interactivo)
+  local sub="${1:-}"
+  case "$sub" in
+    list)    cmd_theme_list ;;
+    current) cmd_theme_current ;;
+    use)     cmd_theme_use "${2:-}" ;;
+    "") # sin args: menú con TTY (Enter = mantener), sin TTY muestra estado
+      if [[ ! -t 0 ]]; then cmd_theme_current; info "uso: yadr theme use light|dark|none"; return 0; fi
+      cmd_theme_list
+      printf 'Elige [1 light / 2 dark / 3 none] (Enter = mantener actual): ' >&2
+      local ans=""; IFS= read -r ans || ans=""
+      case "$ans" in
+        1) cmd_theme_use light ;;
+        2) cmd_theme_use dark ;;
+        3) cmd_theme_use none ;;
+        "") info "sin cambios (actual: $(theme_effective))." ;;
+        *) warn "opción no válida; sin cambios." ;;
+      esac ;;
+    *) # atajo directo: yadr theme dark
+      if [[ -n "$(theme_normalize "$sub")" ]]; then cmd_theme_use "$sub";
+      else usage; die "theme: subcomando desconocido '${sub}' (list|use|current|<nombre>)"; fi ;;
+  esac
 }
 
 # --- gitsigns opt-in (desactivado por defecto) ---
@@ -778,7 +900,7 @@ usage() {
 ${BOLD}YADR 2027 $(version_str)${RESET} — ${DIM}${YADR_HOME}${RESET}
 uso: yadr <comando> [args]
 
-  install [perfil]   instala (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras, default core)
+  install [perfil]   base + perfil (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras; sin perfil = core)
   update             git pull + runtime upgrades (with backup and confirmation)
   doctor             checks ✓/⚠/✗ del entorno con hints
   diff               shows what would change, modifies nothing
@@ -787,6 +909,7 @@ uso: yadr <comando> [args]
   migrate [--dry-run] imports classic YADR customization (idempotent)
   pack list          lista packs opcionales instalables
   pack add <nombre>  instala un pack (equivale a su perfil install)
+  theme [list|use <nombre>|current]  fondo Solarized (light|dark|none, default none)
   gitsigns [on|off|status]  opt-in de signos Git en Neovim (default: off)
   runtime current    runtimes activos
   runtime list       runtimes instalados
@@ -837,6 +960,12 @@ case "$cmd" in
       use)     cmd_runtime_use "${1:-}" ;;
       doctor)  cmd_runtime_doctor ;;
       *) usage; die "runtime: subcomando desconocido '${sub}' (current|list|use|doctor)" ;;
+    esac ;;
+  theme)
+    sub="${1:-}"; shift || true
+    case "$sub" in
+      use) cmd_theme use "${1:-}" ;;
+      *)   cmd_theme "$sub" ;;
     esac ;;
   version)   version_str; echo ;;
   benchmark) do_benchmark "${1:-shell}" ;;

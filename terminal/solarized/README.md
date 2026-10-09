@@ -26,3 +26,16 @@ on explicit choice.
   prompting; legacy `YADR_SOLID_BG=1` forces solid dark.
 - Linux/WSL never prompt: always `none` unless you create that file
   or export the env var.
+
+## Changing it later: `yadr theme`
+
+```bash
+yadr theme list              # shows light|dark|none, current marked with *
+yadr theme use dark          # (also: solarized-dark; light|solarized-light|none)
+yadr theme dark              # shorthand, same as use
+yadr theme current           # prints the effective choice + where it comes from
+yadr theme                   # interactive menu with TTY (Enter keeps current)
+```
+
+No sudo, instant, macOS and Linux. Takes effect when you reopen nvim
+(the file is read at startup; `YADR_SOLARIZED_BG` env still wins).

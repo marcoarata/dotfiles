@@ -98,27 +98,44 @@ zsh
 yadr doctor
 ```
 
-## 3) Verify
+## 3) Verify (run doctor TWICE)
 
 ```bash
 exec zsh
-yadr doctor   # pass / warn / fail with repair hints
+yadr doctor   # 1st run: slow ONCE (first nvim start installs lazy plugins)
+yadr doctor   # 2nd run: instant, shows the real state (✓ / ⚠ / ✗ + hints)
 yadr diff     # what would change, without modifying anything
 ```
 
-## 4) Optional (after core)
+> `doctor` does not configure anything itself. If the first run takes a
+> while, that is lazy.nvim installing plugins in the background (one time
+> only); the second run reports without background work.
+
+## 4) Profiles, in order (after core)
+
+`bootstrap` / `yadr install` already installed **core** (`install` with no
+profile means `core`). Then, only what you need:
 
 ```bash
-yadr install node        # Node 24 LTS + npm/pnpm via mise
-yadr install typescript  # TS + LSP + formatter (or: yadr pack add typescript)
-yadr install ruby        # legacy Ruby pack (optional, or: yadr pack add ruby)
-yadr install python
+yadr install node        # Node LTS + npm/pnpm via mise (fast when core links are ready)
+yadr install python      # Python via mise (fast path, same as above)
+yadr install lazygit     # direct + fastest (single script, no prompts)
+yadr install typescript  # TS + LSP servers via Mason (or: yadr pack add typescript)
+yadr install ruby        # legacy Ruby pack (optional)
 yadr install rust
 yadr pack list           # list available packs
+yadr theme list          # Solarized background: light|dark|none (default none)
 yadr migrate --dry-run   # import plan from classic YADR, without touching anything
 yadr install macos-extras  # macOS only: optional defaults, outside core
 yadr update              # update everything
 ```
+
+Why `lazygit` feels instant and the others ask questions: language profiles
+re-run the safe flow (platform deps + backup + symlinks + login shell with
+`yes/no` confirmations, `sudo` password for system packages) unless core
+links are already up to date — then they take the fast path with no prompts
+(same as `lazygit`). Nothing destructive runs without confirmation; use
+`--yes` (`yadr install node --yes`) to skip confirmations in scripts.
 
 ## 5) What is NO LONGER done
 

@@ -191,3 +191,41 @@ load_aliases() {
   run grep -q "gitconfig.user" "$YADR_ROOT/git/gitconfig"
   [ "$status" -eq 0 ]
 }
+
+@test "theme defaults to none on clean HOME" {
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme current
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"none"* ]]
+}
+
+@test "theme use persists canonical names (incl. solarized-* aliases)" {
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use solarized-dark
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_HOME/.config/yadr/solarized-bg")" = "dark" ]
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use light
+  [ "$status" -eq 0 ]
+  [ "$(cat "$TEST_HOME/.config/yadr/solarized-bg")" = "light" ]
+}
+
+@test "theme shorthand and list mark current" {
+  env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use dark >/dev/null
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme dark
+  [ "$status" -eq 0 ]
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme list
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dark"* ]]
+}
+
+@test "theme rejects unknown names without touching the file" {
+  env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use light >/dev/null
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use banana
+  [ "$status" -ne 0 ]
+  [ "$(cat "$TEST_HOME/.config/yadr/solarized-bg")" = "light" ]
+}
+
+@test "theme env override wins over file" {
+  env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme use dark >/dev/null
+  run env HOME="$TEST_HOME" YADR_SOLARIZED_BG=light bash "$YADR_ROOT/bin/yadr" theme current
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"light (env"* ]]
+}
