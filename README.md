@@ -23,30 +23,35 @@ Philosophy:
 
 ### 1) macOS
 
-```bash
 # 1. Homebrew (only if missing)
+
+```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-```bash
 # 2. Minimal dependencies
+
+```bash
 brew install curl git zsh
 ```
 
-```bash
 # 3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
 #    installs prerequisites via platform/macos.sh, clones into ~/.yadr
 #    and runs bin/yadr install with automatic backup)
+
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-```bash
 # 4. Enter your environment
+
+```bash
 zsh
 ```
 
-```bash
 # 5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)
+
+```bash
 yadr doctor
 ```
 
@@ -75,70 +80,37 @@ yadr doctor
 > fallback. Install MacPorts from https://www.macports.org first, then run
 > the same bootstrap. Field report: `docs/homebrew-intel.md`.
 
-### 3) Post-install (explicit order, same steps the CLI prints)
-
-```bash
-# 1. Enter a fresh shell (or reboot, then open a terminal)
-exec zsh
-```
-
-```bash
-# 2. First check (slow ONCE: downloads nvim plugins, toolchains, fonts)
-yadr doctor
-```
-
-```bash
-# 3. Check again (instant now; shows the real state)
-yadr doctor
-```
-
-```bash
-# 4. Install whatever is still missing, until 0 errors / 0 warnings
-yadr install node
-```
-
-```bash
-yadr install python
-```
-
-```bash
-yadr install lazygit
-```
-
-```bash
-yadr install typescript
-```
-
-```bash
-yadr theme list
-```
-
 ### 2) Linux — Debian/Ubuntu, server, WSL
 
-```bash
 # 1. System base
+
+```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
-```bash
 # 2. Minimal dependencies
+
+```bash
 sudo apt install zsh curl git -y
 ```
 
-```bash
 # 3. Install YADR 2027 (detects linux/wsl, installs via
 #    platform/linux.sh or platform/wsl.sh, clones into ~/.yadr
 #    and runs bin/yadr install with automatic backup)
+
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-```bash
 # 4. Enter your environment
+
+```bash
 zsh
 ```
 
-```bash
 # 5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)
+
+```bash
 yadr doctor
 ```
 
@@ -158,6 +130,48 @@ zsh
 
 ```bash
 yadr doctor
+```
+
+### 3) Post-install (explicit order, same steps the CLI prints)
+
+# 1. Enter a fresh shell (or reboot, then open a terminal)
+
+```bash
+exec zsh
+```
+
+# 2. First check (slow ONCE: downloads nvim plugins, toolchains, fonts)
+
+```bash
+yadr doctor
+```
+
+# 3. Check again (instant now; shows the real state)
+
+```bash
+yadr doctor
+```
+
+# 4. Install whatever is still missing, until 0 errors / 0 warnings
+
+```bash
+yadr install node
+```
+
+```bash
+yadr install python
+```
+
+```bash
+yadr install lazygit
+```
+
+```bash
+yadr install typescript
+```
+
+```bash
+yadr theme list
 ```
 
 ### What is NO LONGER done (differences from classic YADR)
