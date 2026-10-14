@@ -23,33 +23,33 @@ Philosophy:
 
 ### 1) macOS
 
-# 1. Homebrew (only if missing)
+**1. Homebrew (only if missing)**
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-# 2. Minimal dependencies
+**2. Minimal dependencies**
 
 ```bash
 brew install curl git zsh
 ```
 
-# 3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
-#    installs prerequisites via platform/macos.sh, clones into ~/.yadr
-#    and runs bin/yadr install with automatic backup)
+**3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,**
+**   installs prerequisites via platform/macos.sh, clones into ~/.yadr**
+**   and runs bin/yadr install with automatic backup)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-# 4. Enter your environment
+**4. Enter your environment**
 
 ```bash
 zsh
 ```
 
-# 5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)
+**5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)**
 
 ```bash
 yadr doctor
@@ -82,33 +82,33 @@ yadr doctor
 
 ### 2) Linux — Debian/Ubuntu, server, WSL
 
-# 1. System base
+**1. System base**
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
-# 2. Minimal dependencies
+**2. Minimal dependencies**
 
 ```bash
 sudo apt install zsh curl git -y
 ```
 
-# 3. Install YADR 2027 (detects linux/wsl, installs via
-#    platform/linux.sh or platform/wsl.sh, clones into ~/.yadr
-#    and runs bin/yadr install with automatic backup)
+**3. Install YADR 2027 (detects linux/wsl, installs via**
+**   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr**
+**   and runs bin/yadr install with automatic backup)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-# 4. Enter your environment
+**4. Enter your environment**
 
 ```bash
 zsh
 ```
 
-# 5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)
+**5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)**
 
 ```bash
 yadr doctor
@@ -134,25 +134,25 @@ yadr doctor
 
 ### 3) Post-install (explicit order, same steps the CLI prints)
 
-# 1. Enter a fresh shell (or reboot, then open a terminal)
+**1. Enter a fresh shell (or reboot, then open a terminal)**
 
 ```bash
 exec zsh
 ```
 
-# 2. First check (slow ONCE: downloads nvim plugins, toolchains, fonts)
+**2. First check (slow ONCE: downloads nvim plugins, toolchains, fonts)**
 
 ```bash
 yadr doctor
 ```
 
-# 3. Check again (instant now; shows the real state)
+**3. Check again (instant now; shows the real state)**
 
 ```bash
 yadr doctor
 ```
 
-# 4. Install whatever is still missing, until 0 errors / 0 warnings
+**4. Install whatever is still missing, until 0 errors / 0 warnings**
 
 ```bash
 yadr install node

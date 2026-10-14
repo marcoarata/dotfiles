@@ -6,7 +6,7 @@
 
 ## 0) Local copy — ephemeral VMs and testing without GitHub (recommended for now)
 
-# From the host (project at ./dotfiles/):
+**From the host (project at ./dotfiles/):**
 
 ```bash
 rsync -a --delete ./dotfiles/ /tmp/marco/opencode/yadr-copy/
@@ -41,31 +41,31 @@ rm -rf /tmp/marco/opencode/yadr-copy /tmp/marco/opencode/fake-home
 
 ## 1) macOS (once a GitHub repo exists)
 
-# 1. Homebrew (only if missing)
+**1. Homebrew (only if missing)**
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-# 2. Minimal dependencies
+**2. Minimal dependencies**
 
 ```bash
 brew install curl git zsh
 ```
 
-# 3. Install YADR 2027
+**3. Install YADR 2027**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-# 4. Enter (install already set zsh as the default shell, as classic YADR did)
+**4. Enter (install already set zsh as the default shell, as classic YADR did)**
 
 ```bash
 zsh
 ```
 
-# 5. Verify (1st run slow once, 2nd run instant — see section 3)
+**5. Verify (1st run slow once, 2nd run instant — see section 3)**
 
 ```bash
 yadr doctor
@@ -99,31 +99,31 @@ yadr doctor
 
 ## 2) Linux — Debian/Ubuntu, server, WSL (once a GitHub repo exists)
 
-# 1. Base
+**1. Base**
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
-# 2. Minimal dependencies
+**2. Minimal dependencies**
 
 ```bash
 sudo apt install zsh curl git -y
 ```
 
-# 3. Install YADR 2027
+**3. Install YADR 2027**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-# 4. Enter (install already set zsh as the default shell, as classic YADR did)
+**4. Enter (install already set zsh as the default shell, as classic YADR did)**
 
 ```bash
 zsh
 ```
 
-# 5. Verify (1st run slow once, 2nd run instant — see section 3)
+**5. Verify (1st run slow once, 2nd run instant — see section 3)**
 
 ```bash
 yadr doctor
@@ -153,13 +153,13 @@ yadr doctor
 exec zsh
 ```
 
-# 1st run: slow ONCE (first nvim start installs lazy plugins)
+**1st run: slow ONCE (first nvim start installs lazy plugins)**
 
 ```bash
 yadr doctor
 ```
 
-# 2nd run: instant, shows the real state (✓ / ⚠ / ✗ + hints)
+**2nd run: instant, shows the real state (✓ / ⚠ / ✗ + hints)**
 
 ```bash
 yadr doctor
