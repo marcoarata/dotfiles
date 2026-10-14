@@ -35,9 +35,9 @@ Philosophy:
 brew install curl git zsh
 ```
 
-**3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,**
-**   installs prerequisites via platform/macos.sh, clones into ~/.yadr**
-**   and runs bin/yadr install with automatic backup)**
+**3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
+   installs prerequisites via platform/macos.sh, clones into ~/.yadr
+   and runs bin/yadr install with automatic backup)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
@@ -94,9 +94,9 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install zsh curl git -y
 ```
 
-**3. Install YADR 2027 (detects linux/wsl, installs via**
-**   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr**
-**   and runs bin/yadr install with automatic backup)**
+**3. Install YADR 2027 (detects linux/wsl, installs via
+   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr
+   and runs bin/yadr install with automatic backup)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
