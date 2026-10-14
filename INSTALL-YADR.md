@@ -43,15 +43,25 @@ rm -rf /tmp/marco/opencode/yadr-copy /tmp/marco/opencode/fake-home
 ```bash
 # 1. Homebrew (only if missing)
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
 
+```bash
 # 2. Minimal dependencies
 brew install curl git zsh
+```
 
+```bash
 # 3. Install YADR 2027
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+```
 
+```bash
 # 4. Enter (install already set zsh as the default shell, as classic YADR did)
 zsh
+```
+
+```bash
+# 5. Verify (1st run slow once, 2nd run instant — see section 3)
 yadr doctor
 ```
 
@@ -59,8 +69,17 @@ Without `curl | sh` (auditable):
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+```
+
+```bash
 ~/.yadr/bootstrap.sh
+```
+
+```bash
 zsh
+```
+
+```bash
 yadr doctor
 ```
 
@@ -77,15 +96,25 @@ yadr doctor
 ```bash
 # 1. Base
 sudo apt update && sudo apt upgrade -y
+```
 
+```bash
 # 2. Minimal dependencies
 sudo apt install zsh curl git -y
+```
 
+```bash
 # 3. Install YADR 2027
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+```
 
+```bash
 # 4. Enter (install already set zsh as the default shell, as classic YADR did)
 zsh
+```
+
+```bash
+# 5. Verify (1st run slow once, 2nd run instant — see section 3)
 yadr doctor
 ```
 
@@ -93,8 +122,17 @@ Without `curl | sh`:
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+```
+
+```bash
 ~/.yadr/bootstrap.sh
+```
+
+```bash
 zsh
+```
+
+```bash
 yadr doctor
 ```
 
@@ -102,8 +140,19 @@ yadr doctor
 
 ```bash
 exec zsh
-yadr doctor   # 1st run: slow ONCE (first nvim start installs lazy plugins)
-yadr doctor   # 2nd run: instant, shows the real state (✓ / ⚠ / ✗ + hints)
+```
+
+```bash
+# 1st run: slow ONCE (first nvim start installs lazy plugins)
+yadr doctor
+```
+
+```bash
+# 2nd run: instant, shows the real state (✓ / ⚠ / ✗ + hints)
+yadr doctor
+```
+
+```bash
 yadr diff     # what would change, without modifying anything
 ```
 
@@ -118,15 +167,45 @@ profile means `core`). Then, only what you need:
 
 ```bash
 yadr install node        # Node LTS + npm/pnpm via mise (fast when core links are ready)
+```
+
+```bash
 yadr install python      # Python via mise (fast path, same as above)
+```
+
+```bash
 yadr install lazygit     # direct + fastest (single script, no prompts)
+```
+
+```bash
 yadr install typescript  # TS + LSP servers via Mason (or: yadr pack add typescript)
+```
+
+```bash
 yadr install ruby        # legacy Ruby pack (optional)
+```
+
+```bash
 yadr install rust
+```
+
+```bash
 yadr pack list           # list available packs
+```
+
+```bash
 yadr theme list          # Solarized background: light|dark|none (default none)
+```
+
+```bash
 yadr migrate --dry-run   # import plan from classic YADR, without touching anything
+```
+
+```bash
 yadr install macos-extras  # macOS only: optional defaults, outside core
+```
+
+```bash
 yadr update              # update everything
 ```
 

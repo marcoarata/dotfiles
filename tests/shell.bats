@@ -229,3 +229,33 @@ load_aliases() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"light (env"* ]]
 }
+
+yadr_funcs() {
+  # source bin/yadr function library without running its CLI dispatch
+  local f="$BATS_TMPDIR/yadr-funcs-$$.sh"
+  awk '/^# --- parse global flags ---/{exit} {print}' "$YADR_ROOT/bin/yadr" > "$f"
+  printf '%s' "$f"
+}
+
+@test "nerd font detected via macOS Library/Fonts without fc-list" {
+  mkdir -p "$TEST_HOME/Library/Fonts"
+  touch "$TEST_HOME/Library/Fonts/JetBrainsMonoNerd.ttf"
+  run bash -c "export HOME='$TEST_HOME' PATH='/usr/bin:/bin'; source '$(yadr_funcs)'; nerd_font_present && nerd_font_source"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"mac-fonts"* ]]
+}
+
+@test "nerd font detected via fc-list fallback" {
+  mkdir -p "$BATS_TMPDIR/fakebin"
+  printf '#!/usr/bin/env bash\necho "JetBrainsMono Nerd Font"\n' > "$BATS_TMPDIR/fakebin/fc-list"
+  chmod +x "$BATS_TMPDIR/fakebin/fc-list"
+  run bash -c "export HOME='$TEST_HOME' PATH='$BATS_TMPDIR/fakebin:/usr/bin:/bin'; source '$(yadr_funcs)'; nerd_font_present && nerd_font_source"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"fc-list"* ]]
+}
+
+@test "nerd font absent without dirs or fc-list tools" {
+  rm -rf "$TEST_HOME/Library/Fonts"
+  run bash -c "export HOME='$TEST_HOME' PATH='/usr/bin:/bin'; source '$(yadr_funcs)'; nerd_font_present"
+  [ "$status" -ne 0 ]
+}
