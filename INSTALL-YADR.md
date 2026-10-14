@@ -1,45 +1,8 @@
 # INSTALL-YADR.md — YADR 2027 quick install
 
 > Estimated time: 5-10 min. Does not install RVM, Ruby, or Rake.
->
-> No GitHub yet: use the **local copy** (section 0).
 
-## 0) Local copy — ephemeral VMs and testing without GitHub (recommended for now)
-
-**From the host (project at ./dotfiles/):**
-
-```bash
-rsync -a --delete ./dotfiles/ /tmp/marco/opencode/yadr-copy/
-# or: tar -C dotfiles -cf - . | ssh vm 'mkdir -p /tmp/yadr && tar -C /tmp/yadr -xf -'
-
-# Inside the machine (or same host with isolated HOME):
-YADR_HOME=/tmp/marco/opencode/yadr-copy ./bootstrap.sh --local
-# equivalent to: YADR_LOCAL=1 YADR_HOME=<copy> ./bootstrap.sh
-zsh
-yadr doctor
-```
-
-> Golden rule: **single checkout** (`~/yadr` or the `YADR_HOME` you use).
-> Hand-made versioned copies (`yadr2027v4.0`, `dotfiles-old`...) plus cross symlinks
-> produce ghost states that `doctor` detects and `install` cannot heal:
-> use `--purge` plus a fresh copy between test rounds.
-
-With isolated `HOME` (without touching your real `~`):
-
-```bash
-mkdir -p /tmp/marco/opencode/fake-home
-HOME=/tmp/marco/opencode/fake-home YADR_HOME=/tmp/marco/opencode/yadr-copy \
-  /tmp/marco/opencode/yadr-copy/bootstrap.sh --local --yes
-HOME=/tmp/marco/opencode/fake-home zsh
-```
-
-Cleanup (temp resources under `/tmp/marco/opencode`, nothing in your `~`):
-
-```bash
-rm -rf /tmp/marco/opencode/yadr-copy /tmp/marco/opencode/fake-home
-```
-
-## 1) macOS (once a GitHub repo exists)
+## 1) macOS
 
 **1. Homebrew (only if missing)**
 
@@ -97,7 +60,7 @@ yadr doctor
 > Install MacPorts from https://www.macports.org first, then run the same
 > bootstrap. Field report: `docs/homebrew-intel.md`.
 
-## 2) Linux — Debian/Ubuntu, server, WSL (once a GitHub repo exists)
+## 2) Linux — Debian/Ubuntu, server, WSL
 
 **1. Base**
 

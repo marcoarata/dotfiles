@@ -101,11 +101,8 @@ sh -c "`curl .../skwp/dotfiles.../install.sh`"
 2027: Ruby does not take part in bootstrap.
 
 ```bash
-# Without GitHub yet (local copy, current primary mode):
-rsync -a --delete ./dotfiles/ /tmp/marco/opencode/yadr-copy/
-YADR_HOME=/tmp/marco/opencode/yadr-copy ./bootstrap.sh --local
-# When repo exists:
-# git clone <dotfiles> ~/.yadr && ./bootstrap.sh   # or: yadr install
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr && ./bootstrap.sh   # or: yadr install
+# Advanced: test a local copy without GitHub: YADR_HOME=<copy> ./bootstrap.sh --local
 ```
 
 - `install.sh → rake install` is replaced by `bootstrap.sh → bin/yadr install`.
