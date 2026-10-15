@@ -17,6 +17,7 @@ check_file docs/migration.md
 check_file docs/troubleshooting.md
 check_file docs/adr-001-symlink-manager.md
 check_file docs/adr-002-runtime-manager.md
+check_file docs/e2e-report.md
 check_file shell/zshrc
 check_file shell/aliases.zsh
 check_file shell/keybindings.zsh
