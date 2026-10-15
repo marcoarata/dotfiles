@@ -39,6 +39,7 @@ check_file docs/homebrew-intel.md
 check_file bin/yadr
 check_file bootstrap.sh
 check_file tests/shell.bats
+check_file tests/lua-parse.lua
 check_file tests/fixtures/typescript-project/package.json
 check_file tests/fixtures/typescript-project/mise.toml
 check_file tests/fixtures/typescript-project/tsconfig.json
@@ -67,9 +68,32 @@ done
 # nvim headless (guard: only when nvim exists)
 if command -v nvim >/dev/null 2>&1; then
   nvim --headless "+q" >/dev/null 2>&1 && ok "nvim --headless" || fail "nvim --headless"
+  # every repo lua must parse with nvim's own Lua (no plugins, no network)
+  while IFS= read -r _lf; do
+    [[ -n "$_lf" ]] || continue
+    if nvim --headless --noplugin -u NONE -l "$ROOT/tests/lua-parse.lua" "$_lf" >/dev/null 2>&1; then
+      ok "lua parse ${_lf#"$ROOT"/}"
+    else
+      fail "lua parse ${_lf#"$ROOT"/}"
+    fi
+  done < <(find "$ROOT/nvim" -name '*.lua' | sort)
 else
   echo "skip - nvim not installed"
 fi
+
+# lazy-lock pins every declared plugin (lazy.nvim itself is the bootstrap)
+_tmp="$(mktemp -d)" || fail "mktemp for lock check"
+grep -rhoE '"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+"' "$ROOT/nvim" 2>/dev/null | cut -d/ -f2 | tr -d '"' | tr '[:upper:]' '[:lower:]' | sort -u > "$_tmp/spec.txt"
+grep -oE '^  "[^"]+"' "$ROOT/nvim/lazy-lock.json" 2>/dev/null | tr -d ' "' | tr '[:upper:]' '[:lower:]' | sort -u > "$_tmp/lock.txt"
+_missing="$(comm -23 "$_tmp/spec.txt" "$_tmp/lock.txt")"
+_extra="$(comm -13 "$_tmp/spec.txt" "$_tmp/lock.txt" | grep -v '^lazy.nvim$' || true)"
+if [[ -z "$_missing" && -z "$_extra" ]]; then
+  ok "lazy-lock pins every declared plugin"
+else
+  [[ -n "$_missing" ]] && fail "unpinned plugins: ${_missing//$'\n'/ }"
+  [[ -n "$_extra" ]] && fail "lock entries without spec: ${_extra//$'\n'/ }"
+fi
+rm -rf "$_tmp"
 
 echo "---"
 echo "pass=$PASS fail=$FAIL"
