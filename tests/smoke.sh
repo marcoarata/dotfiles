@@ -46,7 +46,8 @@ check_file tests/fixtures/typescript-project/pnpm-lock.yaml
 check_file tests/fixtures/typescript-project/src/index.ts
 
 # zsh syntax (only when zsh exists). Absolute glob: independent of CWD.
-for _abs in "$ROOT"/shell/*.zsh "$ROOT"/bootstrap.sh "$ROOT"/bin/yadr; do
+# shell/zshrc has no .zsh suffix: listed explicitly.
+for _abs in "$ROOT"/shell/*.zsh "$ROOT"/shell/zshrc "$ROOT"/bootstrap.sh "$ROOT"/bin/yadr; do
   [[ -f "$_abs" ]] || continue
   f="${_abs#"$ROOT"/}"
   if command -v zsh >/dev/null 2>&1; then
@@ -56,10 +57,12 @@ for _abs in "$ROOT"/shell/*.zsh "$ROOT"/bootstrap.sh "$ROOT"/bin/yadr; do
   fi
 done
 
-# bash syntax
-if [[ -f "$ROOT/tests/smoke.sh" ]]; then
-  bash -n "$ROOT/tests/smoke.sh" && ok "bash -n tests/smoke.sh" || fail "bash -n tests/smoke.sh"
-fi
+# bash syntax (every shipped bash file)
+for _abs in "$ROOT"/bin/yadr "$ROOT"/bin/lib/*.sh "$ROOT"/bootstrap.sh "$ROOT"/platform/*.sh "$ROOT"/tests/smoke.sh; do
+  [[ -f "$_abs" ]] || continue
+  f="${_abs#"$ROOT"/}"
+  bash -n "$_abs" && ok "bash -n $f" || fail "bash -n $f"
+done
 
 # nvim headless (guard: only when nvim exists)
 if command -v nvim >/dev/null 2>&1; then

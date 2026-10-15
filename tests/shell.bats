@@ -145,11 +145,16 @@ load_aliases() {
 }
 
 @test "runtime context shows global runtime outside projects (classic behavior)" {
+  # Hermetic: stub node so the test needs no host toolchain.
+  mkdir -p "$BATS_TMPDIR/fakenode"
+  printf '#!/usr/bin/env bash\necho "v22.9.9"\n' > "$BATS_TMPDIR/fakenode/node"
+  chmod +x "$BATS_TMPDIR/fakenode/node"
   run zsh -f -c "
+    PATH='$BATS_TMPDIR/fakenode:/usr/bin:/bin'
     source '$YADR_ROOT/shell/runtime.zsh'
-    cd /tmp || exit 1
+    cd '$TEST_HOME' || exit 1
     out=\$(yadr_runtime_context 2>/dev/null)
-    [ -n \"\$out\" ] || { echo 'empty outside project (no runtimes on this host?)'; exit 1; }
+    [ \"\$out\" = 'node-22.9.9' ] || { echo \"got: \$out\"; exit 1; }
     out2=\$(yadr_runtime_context 2>/dev/null)
     [ \"\$out\" = \"\$out2\" ] || { echo 'cache mismatch'; exit 1; }
     echo ok"
@@ -158,11 +163,16 @@ load_aliases() {
 }
 
 @test "runtime context is non-empty in fixture project" {
+  # Hermetic: stub node so the test needs no host toolchain.
+  mkdir -p "$BATS_TMPDIR/fakenode"
+  printf '#!/usr/bin/env bash\necho "v22.9.9"\n' > "$BATS_TMPDIR/fakenode/node"
+  chmod +x "$BATS_TMPDIR/fakenode/node"
   run zsh -f -c "
+    PATH='$BATS_TMPDIR/fakenode:/usr/bin:/bin'
     source '$YADR_ROOT/shell/runtime.zsh'
     cd '$YADR_ROOT/tests/fixtures/typescript-project' || exit 1
     out=\$(yadr_runtime_context 2>/dev/null)
-    [ -n \"\$out\" ] || { echo 'empty inside fixture project'; exit 1; }
+    [[ \"\$out\" == *'node-22.9.9'* ]] || { echo \"got: \$out\"; exit 1; }
     out2=\$(yadr_runtime_context 2>/dev/null)
     [ \"\$out\" = \"\$out2\" ] || { echo 'cache mismatch'; exit 1; }
     echo ok"
@@ -247,7 +257,7 @@ yadr_funcs() {
   # source bin/yadr dispatcher (helpers) + bin/lib modules without running CLI dispatch.
   # The dispatcher resolves lib/ from its own path, so pin YADR_LIB_DIR to the
   # repo (the generated copy lives in $BATS_TMPDIR, not in bin/).
-  local f="$BATS_TMPDIR/yadr-funcs-$$.sh"
+  local f="$BATS_TMPDIR/yadr-funcs-${BATS_TEST_NUMBER:-$$}.sh"
   printf 'export YADR_LIB_DIR="%s/bin/lib"\n' "$YADR_ROOT" > "$f"
   awk '/^# --- parse global flags ---/{exit} {print}' "$YADR_ROOT/bin/yadr" >> "$f"
   printf '%s' "$f"
@@ -310,7 +320,7 @@ yadr_funcs() {
 
 macos_funcs() {
   # source platform/macos.sh functions without running its main()
-  local f="$BATS_TMPDIR/macos-funcs-$$.sh"
+  local f="$BATS_TMPDIR/macos-funcs-${BATS_TEST_NUMBER:-$$}.sh"
   awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/macos.sh" > "$f"
   printf '%s' "$f"
 }
@@ -381,7 +391,7 @@ macos_funcs() {
 platform_funcs() {
   # source one platform script's functions without running its main()
   # usage: platform_funcs <script>  (sets PLATFORM_COMMON to the real common.sh)
-  local script="$1" f="$BATS_TMPDIR/platform-$PPID.sh"
+  local script="$1" f="$BATS_TMPDIR/platform-${BATS_TEST_NUMBER:-$PPID}.sh"
   awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/${script}" > "$f"
   printf '%s' "$f"
 }
