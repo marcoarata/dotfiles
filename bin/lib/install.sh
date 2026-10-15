@@ -136,6 +136,10 @@ runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the 
   esac
 }
 
+lazy_restore() { # one headless `Lazy! restore`; 0 on success (caller reports)
+  run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 5
+}
+
 ensure_nvim_plugins() {
   # Restores plugins exactly to the lockfile (Lazy! restore downgrades
   # any plugin ahead of its pin; fixes stale/broken checkouts).
@@ -149,7 +153,7 @@ ensure_nvim_plugins() {
     rm -rf "$stale"
   done
   info "restoring Neovim plugins to lockfile (Lazy! restore)…"
-  if run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 4; then
+  if lazy_restore; then
     ok "plugins match the lock."
   else
     warn "restore incomplete; open nvim and run :Lazy restore."
@@ -171,7 +175,7 @@ ensure_lsp_servers() {
   # once), Mason after. All visible: nothing to /dev/null.
   have nvim || { warn "no nvim; skipping LSP servers."; return 0; }
   info "syncing Neovim plugins to lockfile (restore; slow the first time)…"
-  if run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 5; then
+  if lazy_restore; then
     ok "plugins synced."
   else
     warn "Lazy restore failed or took >10min; open nvim and run :Lazy restore."
