@@ -1,25 +1,28 @@
 #!/usr/bin/env bats
 # shell.bats — aliases/runtime/damoekri must not break without modern tools.
-# Requires: bats-core. Every test must pass on a minimal machine.
+# Requires: bats-core, zsh, git. Every test must pass on a minimal machine.
+# TEST_HOME is wiped per test: no test may depend on another test's leftovers.
 
 setup() {
   export YADR_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-  # Isolate HOME to avoid touching real dotfiles
+  # Isolate HOME to avoid touching real dotfiles; fresh per test
   export TEST_HOME="$BATS_TMPDIR/yadr-home"
-  mkdir -p "$TEST_HOME"
+  rm -rf "$TEST_HOME"; mkdir -p "$TEST_HOME"
 }
 
-# Helper: source shell/aliases.zsh when present, else skip
+# Helper: source shell/aliases.zsh when present, else skip.
+# zsh itself is required (no silent fallback: a missing zsh must fail loudly).
 load_aliases() {
   [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "shell/aliases.zsh not in checkout"
+  command -v zsh >/dev/null 2>&1 || { echo "zsh required for shell tests" >&2; return 1; }
   # Simulate missing modern tools
-  PATH="/usr/bin:/bin" HOME="$TEST_HOME" zsh -f -c "source '$YADR_ROOT/shell/aliases.zsh'; echo loaded" 2>/dev/null \
-    || bash -c "echo fallback-ok"
+  PATH="/usr/bin:/bin" HOME="$TEST_HOME" zsh -f -c "source '$YADR_ROOT/shell/aliases.zsh'; echo loaded" 2>/dev/null
 }
 
 @test "aliases load without eza/bat/rg/fd/zoxide" {
   run load_aliases
   [ "$status" -eq 0 ]
+  [[ "$output" == *"loaded"* ]]
 }
 
 @test "ls fallback works without eza" {
@@ -28,11 +31,20 @@ load_aliases() {
   [ "$status" -eq 0 ]
 }
 
-@test "z function degrades to cd without zoxide" {
+@test "zsh has no repo-defined z without zoxide, cd still works" {
   [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "aliases.zsh not in checkout"
-  # Without zoxide in PATH, the z alias/function must neither exist nor break; cd stays available.
-  run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null; if whence -w z >/dev/null 2>&1; then z --help >/dev/null 2>&1; echo z-ok; else command cd / >/dev/null 2>&1 && echo no-z-ok; fi"
+  # Never executes `z` (a system-provided one must not fail the suite);
+  # fails only when the REPO defines z as alias/function without zoxide.
+  run zsh -f -c "
+    PATH=/usr/bin:/bin
+    source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null
+    kind=\$(whence -w z 2>/dev/null); [ -n "\$kind" ] || kind='z: none'
+    case \"\$kind\" in
+      *alias*|*function*) echo \"repo-defined z without zoxide: \$kind\"; exit 1 ;;
+    esac
+    cd / >/dev/null 2>&1 && echo \"no-z-ok (\$kind)\""
   [ "$status" -eq 0 ]
+  [[ "$output" == *"no-z-ok"* ]]
 }
 
 @test "damoekri prompt file exists and has no ruby hard-dependency" {
@@ -58,6 +70,7 @@ load_aliases() {
 
 @test "damoekri loads without runtime.zsh and renders empty git outside repos" {
   run zsh -f -c "
+    cd '$TEST_HOME' || exit 1
     source '$YADR_ROOT/shell/damoekri.zsh'
     out=\$(yadr_git_info 2>/dev/null)
     [ -z \"\$out\" ] || exit 1
