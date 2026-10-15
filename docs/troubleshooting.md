@@ -31,10 +31,10 @@ the file directly (YADR configures Neovim, not Vim).
 - Old system binary (e.g. apt 0.6.1 on Ubuntu 22.04): outside YADR zsh, the
   system `nvim` rules. Our config fails fast with the fix (`exec zsh` to use
   upstream `~/.local/bin/nvim`, or `yadr install core`) instead of E5113.
-- `vim` resolving into an old nvim (Ubuntu `vim → nvim` link) gets a
-  `~/.local/bin/vim` shim to upstream automatically (`provides-vim` marker;
-  removed by `yadr uninstall --purge`). Genuine Vim is never touched.
-  Check: `yadr doctor` reports what `vim` resolves to.
+- `vim` always resolves to YADR Neovim via a `~/.local/bin/vim` shim
+  (`provides-vim` marker; removed by `yadr uninstall --purge`).
+  Genuine system Vim is never touched or uninstalled — the shim simply
+  wins via PATH. Check: `yadr doctor` reports what `vim` resolves to.
 
 - `:checkhealth` (lsp section) and `:=vim.lsp.get_clients()`.
 - `yadr doctor` checks `node`, `rg`, `fd` and warns if servers are missing.
@@ -72,9 +72,10 @@ the file directly (YADR configures Neovim, not Vim).
   `shell/plugins.zsh` already checks before brew paths.
 - `fzf` from MacPorts lives under `/opt/local/share/fzf/`; `shell/zshrc`
   sources those paths plus the modern `fzf --zsh` hook, all guarded.
-- `vim` on macOS resolves to genuine Apple Vim (`/usr/bin/vim`):
-  YADR creates `~/.local/bin/vim → nvim` with a `provides-vim` marker
-  (removed by `yadr uninstall --purge`). Genuine Vim is never touched.
+- `vim` always resolves to YADR Neovim, including on macOS with genuine
+  Apple Vim (`/usr/bin/vim`): YADR creates `~/.local/bin/vim → nvim` with
+  a `provides-vim` marker (removed by `yadr uninstall --purge`).
+  Genuine Vim is never touched or uninstalled — the shim wins via PATH.
 - Full field report with verification: `docs/homebrew-intel.md`.
 
 ## Support matrix

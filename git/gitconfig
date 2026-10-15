@@ -1,14 +1,14 @@
-# YADR Git profile — conciso
-# Usuario real en ~/.gitconfig.user (no commitear datos personales).
-# Ejemplo ~/.gitconfig.user:
+# YADR Git profile
+# Real identity lives in ~/.gitconfig.user (never commit personal data).
+# Example ~/.gitconfig.user:
 #   [user]
-#     name = Tu Nombre
-#     email = tu@email.com
+#     name = Your Name
+#     email = you@example.com
 
 [user]
-  #placeholder — override via include
-  name = YADR User
-  email = user@example.com
+# Intentionally empty: define your identity in ~/.gitconfig.user so you
+# never commit or push as someone else by accident. Commits without an
+# identity fail loudly instead of being misattributed.
 
 [include]
   path = ~/.gitconfig.user

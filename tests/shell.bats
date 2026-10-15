@@ -259,3 +259,42 @@ yadr_funcs() {
   run bash -c "export HOME='$TEST_HOME' PATH='/usr/bin:/bin'; source '$(yadr_funcs)'; nerd_font_present"
   [ "$status" -ne 0 ]
 }
+
+platform_funcs() {
+  # source platform/linux.sh functions without running its main()
+  local f="$BATS_TMPDIR/platform-funcs-$$.sh"
+  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/linux.sh" > "$f"
+  printf '%s' "$f"
+}
+
+@test "ensure_vim shims even with genuine vim present" {
+  mkdir -p "$TEST_HOME/.local/nvim-upstream/bin" "$TEST_HOME/.local/state/yadr" "$BATS_TMPDIR/fakevim/bin"
+  printf '#!/usr/bin/env bash\necho "NVIM v0.12.5"\n' > "$TEST_HOME/.local/nvim-upstream/bin/nvim"
+  chmod +x "$TEST_HOME/.local/nvim-upstream/bin/nvim"
+  touch "$TEST_HOME/.local/state/yadr/provides-nvim-upstream"
+  printf '#!/usr/bin/env bash\necho "VIM - Vi IMproved 9.0"\n' > "$BATS_TMPDIR/fakevim/bin/vim"
+  chmod +x "$BATS_TMPDIR/fakevim/bin/vim"
+  run bash -c "export HOME='$TEST_HOME' PATH='$BATS_TMPDIR/fakevim/bin:/usr/bin:/bin'; source '$(platform_funcs)'; ensure_vim >/dev/null"
+  [ "$status" -eq 0 ]
+  [ "$(readlink "$TEST_HOME/.local/bin/vim")" = "$TEST_HOME/.local/nvim-upstream/bin/nvim" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-vim" ]
+}
+
+@test "doctor warns when git identity is missing, ok when present" {
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" doctor
+  [[ "$output" == *"git identity not configured"* ]]
+  printf '[user]\n\tname = Test User\n\temail = test@example.com\n' > "$TEST_HOME/.gitconfig.user"
+  cp "$YADR_ROOT/git/gitconfig" "$TEST_HOME/.gitconfig"
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" doctor
+  [[ "$output" == *"git identity configured"* ]]
+}
+
+@test "dirty_tree_list reports modifications, empty when clean" {
+  local repo="$BATS_TMPDIR/dirtyrepo-$$"
+  rm -rf "$repo"; mkdir -p "$repo"
+  ( cd "$repo" && git init -q . && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init && echo mod > f && git add f )
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; YADR_HOME='$repo'; dirty_tree_list"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"f"* ]]
+  rm -rf "$repo"
+}

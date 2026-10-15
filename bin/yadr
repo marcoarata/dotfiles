@@ -574,9 +574,20 @@ do_uninstall() {
   ok "uninstall complete. Restart your terminal."
 }
 
+dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty when clean/no-git
+  [[ -d "${YADR_HOME}/.git" ]] || return 0
+  git -C "$YADR_HOME" status --porcelain 2>/dev/null | head -n 5
+}
+
 do_update() {
   info "updating YADR 2027…"
   if [[ -d "${YADR_HOME}/.git" ]]; then
+    local _dirty; _dirty="$(dirty_tree_list)"
+    if [[ -n "$_dirty" ]]; then
+      warn "live checkout has local modifications (pull --ff-only may refuse):"
+      printf '%s\n' "$_dirty" >&2
+      info "stash, commit or discard them in ${YADR_HOME} first (often just nvim/lazy-lock.json from Lazy sync)."
+    fi
     confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
     do_backup
     git -C "$YADR_HOME" pull --ff-only || warn "pull failed (conflicts or offline). Fix by hand."
@@ -612,8 +623,22 @@ do_doctor() {
   DOCTOR_FAIL=0; DOCTOR_WARN=0
   printf '%sYADR doctor %s%s\n' "$BOLD" "$(version_str)" "$RESET"
   detect_rogue_checkouts
+  local _dirty; _dirty="$(dirty_tree_list)"
+  if [[ -n "$_dirty" ]]; then
+    dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (often just nvim/lazy-lock.json); updates may refuse to fast-forward"
+  fi
   dc_cmd "zsh" zsh "sudo apt install zsh / brew install zsh; chsh -s \$(command -v zsh)"
   dc_cmd "git" git "sudo apt install git / brew install git"
+  if have git; then
+    # git identity (advisory only: install never asks for it and doctor
+    # never fails over it). Empty until the user defines it in
+    # ~/.gitconfig.user (never --global, never inside the repo).
+    local _gname _gmail
+    _gname="$(git config --includes --global user.name 2>/dev/null || true)"
+    _gmail="$(git config --includes --global user.email 2>/dev/null || true)"
+    if [[ -n "$_gname" && -n "$_gmail" ]]; then dc_ok "git identity configured (${_gname})";
+    else dc_warn "git identity not configured" "add [user] name/email to ~/.gitconfig.user when you want to commit (optional)"; fi
+  fi
   dc_cmd "tmux" tmux "sudo apt install tmux / brew install tmux"
   if have nvim; then
     local _nv _nvmaj _nvmin
