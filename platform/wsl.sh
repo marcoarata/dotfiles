@@ -5,7 +5,6 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 log()  { printf '[yadr:wsl] %s\n' "$*"; }
-warn() { printf '[yadr:wsl] WARN: %s\n' "$*" >&2; }
 
 main() {
   log "WSL detected — applying Linux base then WSL tweaks."

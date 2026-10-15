@@ -12,6 +12,13 @@ log()  { printf '[yadr:macos] %s\n' "$*"; }
 warn() { printf '[yadr:macos] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Shared helpers (fonts download, version floor, purge markers).
+# PLATFORM_COMMON override exists only for tests.
+PLATFORM_COMMON="${PLATFORM_COMMON:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/common.sh}"
+# shellcheck disable=SC1090
+if [[ -f "$PLATFORM_COMMON" ]]; then source "$PLATFORM_COMMON" || { warn "cannot load platform/common.sh."; exit 1; }
+else warn "platform/common.sh missing; shared helpers unavailable."; fi
+
 ensure_brew() {
   if have brew; then return 0; fi
   log "Homebrew not found — installing..."
@@ -38,17 +45,8 @@ install_fonts_macos() {
     log "Nerd font already installed."
     return 0
   fi
-  have curl unzip || { warn "missing curl/unzip."; return 0; }
-  local tmp; tmp="$(mktemp -d)" || return 1
   log "downloading ${YADR_FONT_FAMILY} ${YADR_FONT_VERSION}..."
-  curl -fsSL "$YADR_FONT_URL" -o "$tmp/font.zip" || { warn "download failed."; rm -rf "$tmp"; return 1; }
-  if [[ -n "${YADR_FONT_SHA256:-}" ]]; then
-    [[ "$(shasum -a 256 "$tmp/font.zip" | awk '{print $1}')" == "$YADR_FONT_SHA256" ]] || { warn "sha256 mismatch."; rm -rf "$tmp"; return 1; }
-  fi
-  unzip -t "$tmp/font.zip" >/dev/null 2>&1 || { warn "corrupt zip."; rm -rf "$tmp"; return 1; }
-  mkdir -p "${HOME}/Library/Fonts" 2>/dev/null || true
-  unzip -o -j "$tmp/font.zip" '*.ttf' '*.otf' -d "${HOME}/Library/Fonts" >/dev/null 2>&1 || true
-  rm -rf "$tmp"
+  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${HOME}/Library/Fonts" '*.ttf' '*.otf' || return 0
   log "font installed in ~/Library/Fonts."
 }
 
@@ -111,17 +109,14 @@ ensure_vim_macos() {
   local nvim_bin=""
   nvim_bin="$(command -v nvim 2>/dev/null || true)"
   [[ -n "$nvim_bin" ]] || { warn "no nvim; skipping vim shim."; return 0; }
-  local ver maj min
-  ver="$("$nvim_bin" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
-  maj="${ver%%.*}"; min="${ver##*.}"
-  if [[ "$maj" -gt 0 || "$min" -ge 11 ]] 2>/dev/null; then
+  local ver
+  if ver="$(nvim_version_ok "$nvim_bin")"; then
     mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
     ln -sfn "$nvim_bin" "${HOME}/.local/bin/vim"
-    mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-    touch "${HOME}/.local/state/yadr/provides-vim" 2>/dev/null || true
+    yadr_marker vim
     log "vim -> ${nvim_bin} (shim; purge removes it)."
   else
-    warn "nvim $ver <0.11; skipping vim shim."
+    warn "nvim ${ver} <0.11; skipping vim shim."
   fi
 }
 

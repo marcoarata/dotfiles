@@ -8,6 +8,13 @@ warn() { printf '[yadr:linux] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 priv() { if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then "$@"; else sudo "$@"; fi; }
 
+# Shared helpers (fonts download, version floor, purge markers).
+# PLATFORM_COMMON override exists only for tests.
+PLATFORM_COMMON="${PLATFORM_COMMON:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/common.sh}"
+# shellcheck disable=SC1090
+if [[ -f "$PLATFORM_COMMON" ]]; then source "$PLATFORM_COMMON" || { warn "cannot load platform/common.sh."; exit 1; }
+else warn "platform/common.sh missing; shared helpers unavailable."; fi
+
 APT_PKGS=(git zsh tmux neovim ripgrep fd-find fzf curl build-essential zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 DNF_PKGS=(git zsh tmux neovim ripgrep fd-find fzf curl gcc make zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 PAC_PKGS=(git zsh tmux neovim ripgrep fd fzf curl base-devel zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
@@ -71,16 +78,14 @@ ensure_vim() {
   [[ -f "${HOME}/.local/state/yadr/provides-nvim-upstream" ]] || return 0
   local nvim_bin="${HOME}/.local/nvim-upstream/bin/nvim"
   [[ -x "$nvim_bin" ]] || return 0
-  local ver maj min
-  ver="$("$nvim_bin" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
-  maj="${ver%%.*}"; min="${ver##*.}"
-  if [[ "$maj" -gt 0 || "$min" -ge 11 ]] 2>/dev/null; then
+  local ver
+  if ver="$(nvim_version_ok "$nvim_bin")"; then
     mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
     ln -sfn "$nvim_bin" "${HOME}/.local/bin/vim" || { warn "vim shim failed."; return 1; }
-    touch "${HOME}/.local/state/yadr/provides-vim" 2>/dev/null || true
+    yadr_marker vim
     log "vim -> upstream Neovim ($ver) ready (shim; purge removes it)."
   else
-    warn "upstream nvim $ver <0.11; skipping vim shim."
+    warn "upstream nvim ${ver} <0.11; skipping vim shim."
     return 1
   fi
 }
@@ -126,22 +131,10 @@ install_fonts() {
     return 0
   fi
   have curl unzip fc-cache || { warn "missing curl/unzip/fontconfig; install the font manually (${YADR_FONT_URL})."; return 0; }
-  local tmp; tmp="$(mktemp -d)" || return 1
   log "downloading ${YADR_FONT_FAMILY} ${YADR_FONT_VERSION}..."
-  curl -fsSL "$YADR_FONT_URL" -o "$tmp/font.zip" || { warn "download failed."; rm -rf "$tmp"; return 1; }
-  if [[ -n "${YADR_FONT_SHA256:-}" ]]; then
-    local got; got="$(sha256sum "$tmp/font.zip" | awk '{print $1}')"
-    [[ "$got" == "$YADR_FONT_SHA256" ]] || { warn "sha256 mismatch; aborting font install."; rm -rf "$tmp"; return 1; }
-  else
-    warn "no pinned sha256: only verifying zip integrity."
-  fi
-  unzip -t "$tmp/font.zip" >/dev/null 2>&1 || { warn "corrupt zip."; rm -rf "$tmp"; return 1; }
-  mkdir -p "${HOME}/.local/share/fonts" 2>/dev/null || true
-  unzip -o -j "$tmp/font.zip" '*.ttf' '*.otf' -d "${HOME}/.local/share/fonts" >/dev/null 2>&1 || true
+  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${HOME}/.local/share/fonts" '*.ttf' '*.otf' || return 0
   fc-cache -f "${HOME}/.local/share/fonts" >/dev/null 2>&1 || true
-  rm -rf "$tmp"
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-font" 2>/dev/null || true
+  yadr_marker font
   [[ -n "$(fc-list 2>/dev/null | grep -i "$YADR_FONT_FAMILY")" ]] && log "font installed." || warn "installed but fc-list cannot see it (graphical session?)."
 }
 

@@ -381,3 +381,60 @@ macos_funcs() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
+
+platform_funcs() {
+  # source one platform script's functions without running its main()
+  # usage: platform_funcs <script>  (sets PLATFORM_COMMON to the real common.sh)
+  local script="$1" f="$BATS_TMPDIR/platform-$PPID.sh"
+  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/${script}" > "$f"
+  printf '%s' "$f"
+}
+
+@test "nvim_version_ok accepts >=0.11, rejects below and garbage" {
+  local stubs="$BATS_TMPDIR/nvstubs-$$"; mkdir -p "$stubs"
+  printf '#!/usr/bin/env bash\necho "NVIM v0.12.5"\n' > "$stubs/new"; chmod +x "$stubs/new"
+  printf '#!/usr/bin/env bash\necho "NVIM v0.9.1"\n' > "$stubs/old"; chmod +x "$stubs/old"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    [ \"\$(nvim_version_ok '$stubs/new')\" = '0.12' ] || exit 1
+    if nvim_version_ok '$stubs/old' >/dev/null 2>&1; then echo old-accepted; exit 1; fi
+    if nvim_version_ok /nonexistent >/dev/null 2>&1; then echo missing-accepted; exit 1; fi
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+  rm -rf "$stubs"
+}
+
+@test "yadr_marker records purge markers" {
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    yadr_marker font && echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-font" ]
+}
+
+@test "fetch_verified_zip extracts verified zips, rejects bad sha" {
+  local dest="$TEST_HOME/fonts"
+  python3 -c "import zipfile; z=zipfile.ZipFile('$TEST_HOME/a.zip','w'); z.writestr('f.ttf','x'); z.close()"
+  local sha; sha="$(sha256sum "$TEST_HOME/a.zip" | awk '{print $1}')"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$TEST_HOME/a.zip' '$sha' '$dest' '*.ttf' && echo fetched-ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"fetched-ok"* ]]
+  [ -f "$dest/f.ttf" ]
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$TEST_HOME/a.zip' 'deadbeef' '$TEST_HOME/other' '*.ttf'"
+  [ "$status" -ne 0 ]
+  [ ! -e "$TEST_HOME/other/f.ttf" ]
+}

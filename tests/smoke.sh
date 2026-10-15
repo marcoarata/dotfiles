@@ -31,6 +31,7 @@ check_file nvim/lua/yadr/plugins/colorscheme.lua
 check_file platform/macos.sh
 check_file platform/linux.sh
 check_file platform/wsl.sh
+check_file platform/common.sh
 check_file platform/lazygit.sh
 check_file platform/macos-extras.sh
 check_file terminal/solarized/README.md
