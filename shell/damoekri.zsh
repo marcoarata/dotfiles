@@ -1,12 +1,14 @@
 # YADR 2027 — shell/damoekri.zsh
 # Damoekri 2027 prompt: sober, Solarized, no Starship/P10k/OMZ.
-# PROMPT: cyan cwd + git branch/state. RPROMPT: runtime (yadr_runtime_context).
+# PROMPT: cyan cwd + green ». RPROMPT: git branch/state + runtime.
+# Layout mirrors classic damoekri (Prezto): git lives on the right.
 # Works without runtime and outside git repos.
 
 autoload -Uz colors && colors
 
 # --- Git: branch + status (no vcs_info for speed and full control) ---
-# Format: ` <branch> ✔|✗|↑↓` — blue branch, green clean, red dirty.
+# Format: `✔|✗ <branch> ↑↓` — mark first (green clean, red dirty), blue branch.
+# Rendered in RPROMPT next to the runtime, like classic damoekri.
 yadr_git_info() {
   command -v git >/dev/null 2>&1 || return 0
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
@@ -27,12 +29,13 @@ yadr_git_info() {
     ahead="${counts%% *}"; behind="${counts##* }"
   fi
 
-  info="%F{blue}‹${branch}%f"
+  info=""
   if [[ -n "$dirty" ]]; then
-    info+=" %F{red}✗%f"    # red dirty
+    info="%F{red}✗%f"    # dirty red
   else
-    info+=" %F{green}✔%f"  # green clean
+    info="%F{green}✔%f"  # clean green
   fi
+  info+=" %F{blue}${branch}%f"
   (( ahead > 0 ))  && info+=" %F{yellow}↑${ahead}%f"
   (( behind > 0 )) && info+=" %F{yellow}↓${behind}%f"
 
@@ -50,21 +53,23 @@ _yadr_runtime_segment() {
 
 setopt PROMPT_SUBST
 
-# PROMPT matching classic damoekri (Prezto): `dir »` on one line,
-# green »; git branch/status after directory.
-# RPROMPT: git goes left; runtime here (global outside
-# project, project-scoped inside). Empty only when no runtime exists.
+# PROMPT is static (`dir »`); git moved to RPROMPT like classic damoekri.
+# RPROMPT: `✔ main` + runtime (red by default, YADR_RUNTIME_COLOR
+# overridable). Global runtime outside projects, project-scoped inside.
+# Empty only when neither git nor runtime exists.
 _yadr_damoekri_precmd() {
-  local g
+  local g r
   g="$(yadr_git_info 2>/dev/null)"
-  PROMPT="%F{cyan}%~%f${g:+ $g} %F{green}»%f "
+  r="$(_yadr_runtime_segment 2>/dev/null)"
+  PROMPT="%F{cyan}%~%f %F{green}»%f "
+  RPROMPT="$g"
+  [[ -n "$g" && -n "$r" ]] && RPROMPT+=" "
+  [[ -n "$r" ]] && RPROMPT+="%F{${YADR_RUNTIME_COLOR:-red}}$r%f"
 }
 autoload -Uz add-zsh-hook 2>/dev/null || true
 add-zsh-hook precmd _yadr_damoekri_precmd 2>/dev/null || true
 PROMPT='%F{cyan}%~%f %F{green}»%f '
-# RPROMPT: red runtime by default (overridable: YADR_RUNTIME_COLOR).
-# Global: node version. In project: project node/python/ruby.
-RPROMPT='%F{${YADR_RUNTIME_COLOR:-red}}$(_yadr_runtime_segment)%f'
+RPROMPT=''
 
 # Sober secondary prompt.
 PROMPT2='%F{black}… %f'
