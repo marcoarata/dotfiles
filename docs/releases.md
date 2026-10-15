@@ -9,7 +9,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `:Mason` per `packs/`), then `git diff -- nvim/lazy-lock.json` must
    contain only intended bumps. Commit the lockfile.
 3. Green locally: `bash tests/smoke.sh`, `bats tests/shell.bats`,
-   `shellcheck -S warning` on `bin/yadr bootstrap.sh platform/*.sh`,
+   `shellcheck -S warning` on `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh`,
    `yadr doctor` 0/0 on a fresh isolated HOME.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);

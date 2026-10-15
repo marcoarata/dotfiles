@@ -40,7 +40,7 @@ detect_platform_script() {
 }
 
 handle_legacy_yadr() {
-  # YADR antiguo: ~/.yadr + Rakefile. Default: parallel (convivencia segura).
+  # Classic YADR: ~/.yadr + Rakefile. Default: parallel (safe coexistence).
   [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || return 0
   [[ "${YADR_HOME}" == "${HOME}/.yadr" ]] && return 0  # inside the old one
   warn "Classic YADR detected in ~/.yadr (with Rakefile)."

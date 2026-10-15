@@ -48,8 +48,8 @@ err()   { printf '%s %s\n' "$FAIL" "$*" >&2; }
 die()   { err "$*"; exit 1; }
 have()  { command -v "$1" >/dev/null 2>&1; }
 
-# --- portabilidad macOS (BSD) / bash 3.2 ---
-# cp -a no existe en macOS: cp -Rp preserva modo/fechas y symlinks.
+# --- macOS (BSD) portability / bash 3.2 ---
+# cp -a does not exist on macOS: cp -Rp preserves mode/dates and symlinks.
 cp_preserve() { cp -Rp "$@" 2>/dev/null; }
 # Portable nanoseconds: BSD date has no %N (prints "...N" literally, which
 # breaks arithmetic). Case-match filters %, N and any non-digit output.

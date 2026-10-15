@@ -137,7 +137,7 @@ do_uninstall() {
   fi
   # Empty YADR dirs (only if left empty).
   rmdir "${HOME}/.config/yadr" 2>/dev/null || true
-  # 3. Login shell previo.
+  # 3. Previous login shell.
   if [[ "${SHELL:-}" == *zsh* && -n "$prev" && "$prev" != *zsh* && "$prev" != "unknown" ]]; then
     if [[ -t 0 ]]; then
       chsh -s "$prev" && ok "login shell restored to ${prev}." || warn "chsh failed. Manual: chsh -s ${prev}"
@@ -145,7 +145,7 @@ do_uninstall() {
       warn "no TTY: cannot ask your password. Manual: chsh -s ${prev}"
     fi
   fi
-  # 4. Purga opcional (datos: clon, estado, plugins nvim y toolchains).
+  # 4. Optional purge (data: clone, state, nvim plugins and toolchains).
   local do_purge=0
   if [[ "$purge" == "1" ]]; then
     if confirm "Also delete clone, backups, and YADR-added plugins/toolchains? (pre-existing data is kept; no way back for the rest)"; then

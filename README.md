@@ -248,7 +248,7 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ```text
 .
 ├── bootstrap.sh        # portable entrypoint
-├── bin/yadr           # CLI: install/update/doctor/migrate/pack
+├── bin/yadr + bin/lib/ # CLI dispatcher + modules (install/recover/doctor/runtime/benchmark; see docs/cli-contract.md)
 ├── shell/             # zshrc, aliases, functions, completion, damoekri prompt
 ├── git/               # base gitconfig + YADR aliases
 ├── nvim/ / vim/      # shared Editor Layer
