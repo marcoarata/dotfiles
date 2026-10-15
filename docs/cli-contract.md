@@ -1,11 +1,13 @@
-# CLI contract — why `bin/yadr` stays one file
+# CLI contract — why `bin/yadr` stays dependency-free (`bin/` + `bin/lib/`)
 
-`bin/yadr` (~1000 lines, bash 3.2-compatible) is intentionally monolithic:
-it must run from `curl | sh` bootstraps, ancient macOS bash, and minimal
-Linux boxes with zero dependencies beyond bash/git — a `lib/` tree sourced
-at runtime would add load-path fragility exactly where installs must not
-fail. Split it only on measured pain (a bug caused by coupling, not size).
-`shellcheck -S warning` is enforced in CI as the coupling alarm.
+`bin/yadr` (dispatcher, bash 3.2-compatible) + `bin/lib/*.sh` (one file per
+area: install, recover, doctor, runtime, benchmark) stay dependency-free:
+they must run from `curl | sh` bootstraps, ancient macOS bash, and minimal
+Linux boxes with zero dependencies beyond bash/git. `lib/` is sourced via
+a `BIN_DIR`-resolved absolute path (symlink-aware, `YADR_LIB_DIR` override
+only for tests), so there is no load-path fragility. Split is mechanical
+only — same shell, same behavior. `shellcheck -S warning` is enforced in CI
+as the coupling alarm.
 
 Failure taxonomy used throughout:
 
