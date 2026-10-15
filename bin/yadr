@@ -114,10 +114,9 @@ backup_one() {
 }
 
 do_backup() {
-  # do_backup [subdir]: backs up managed pairs. Optional subdir
-  # to tag (migrate/legacy use their own via backup_one).
+  # do_backup: backs up managed pairs. (migrate/legacy use backup_one directly.)
   local ts dest n=0
-  ts="$(timestamp)"; dest="${BACKUP_ROOT}/${1:+$1-}${ts}"
+  ts="$(timestamp)"; dest="${BACKUP_ROOT}/${ts}"
   mkdir -p "$dest"
   while IFS=: read -r _rel dst; do
     [[ -z "$dst" ]] && continue
@@ -180,8 +179,8 @@ do_diff() {
       if cmp -s "$src" "$dst"; then ok "  unchanged"; else changed=$((changed+1)); diff -u "$dst" "$src" | head -n 80 || true; fi
     else
       # symlink or other type: compare link target
-      local slink dlink
-      slink="$(readlink "$src" 2>/dev/null || echo "?")"; dlink="$(readlink "$dst" 2>/dev/null || echo "?")"
+      local dlink
+      dlink="$(readlink "$dst" 2>/dev/null || echo "?")"
       if [[ "$dlink" == "$src" ]]; then ok "  unchanged (symlink → repo)"; else changed=$((changed+1)); warn "  would change: now '${dlink}', would become '${src}'"; fi
     fi
   done < <(managed_pairs)
@@ -206,7 +205,8 @@ handle_legacy_yadr() {
   case "$ans" in
     m|M|migrate)
       info "migrating: backing up the old + importing customs…"
-      local b="${BACKUP_ROOT}/legacy-$(timestamp)"
+      local b
+      b="${BACKUP_ROOT}/legacy-$(timestamp)"
       mkdir -p "$b"
       backup_one "${HOME}/.yadr" "$b" >/dev/null || true
       local f
@@ -277,7 +277,6 @@ next_steps() {
     "   profiles: node|python|typescript|ruby|rust|lazygit — theme: yadr theme list"
 }
 
-RUNTIMES_CORE=()
 runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the user.
   case "$1" in
     core)       echo "" ;;
@@ -342,6 +341,43 @@ ensure_lsp_servers() {
   fi
 }
 
+snapshot_share_dirs() { # records pre-existing share/cache entries once (first install wins)
+  # Purge later deletes everything EXCEPT these entries, so user data that
+  # predates YADR always survives. Filenames with newlines are out of scope.
+  local d tag snap
+  for d in "${HOME}/.local/share/nvim" "${HOME}/.local/share/mise" "${HOME}/.local/share/zoxide" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"; do
+    case "$d" in
+      *share/nvim)  tag="share-nvim" ;;
+      *share/mise)  tag="share-mise" ;;
+      *share/zoxide) tag="share-zoxide" ;;
+      *cache/nvim)  tag="cache-nvim" ;;
+      *state/nvim)  tag="state-nvim" ;;
+    esac
+    snap="${STATE_DIR}/preexisting-${tag}"
+    [[ -f "$snap" ]] && continue
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    if [[ -d "$d" ]]; then ls -A "$d" > "$snap" 2>/dev/null || true; else : > "$snap"; fi
+  done
+}
+
+purge_dir_keep_preexisting() { # $1 = dir, $2 = snapshot tag: deletes all but recorded entries
+  local dir="$1" snap="${STATE_DIR}/preexisting-$2" entry
+  [[ -d "$dir" ]] || return 0
+  if [[ ! -f "$snap" ]]; then
+    warn "no pre-install snapshot for ${dir}; leaving it untouched (refusing blind wipe)."
+    return 0
+  fi
+  while IFS= read -r entry || [[ -n "$entry" ]]; do
+    [[ -z "$entry" ]] && continue
+    if grep -Fxq -- "$entry" "$snap" 2>/dev/null; then
+      info "  kept (pre-existing): ${dir}/${entry}"
+    else
+      rm -rf "${dir:?}/${entry:?}" 2>/dev/null && info "  purged: ${dir}/${entry}" || warn "  could not purge ${dir}/${entry}"
+    fi
+  done < <(ls -A "$dir" 2>/dev/null)
+  rmdir "$dir" 2>/dev/null || true
+}
+
 links_uptodate() { # 0 when every managed pair is already as it should be (silent)
   local rel dst src
   while IFS=: read -r rel dst; do
@@ -379,12 +415,13 @@ do_install() {
   case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit) ;; *) die "unknown profile: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit)" ;; esac
   handle_legacy_yadr
   detect_rogue_checkouts
-  info "YADR 2027 $(version_str) — install [${profile}] en ${YADR_HOME}"
+  info "YADR 2027 $(version_str) — install [${profile}] in ${YADR_HOME}"
   # Save the previous login shell once (uninstall restores it exactly).
   if [[ ! -f "${STATE_DIR}/prev-shell" ]]; then
     mkdir -p "$STATE_DIR" 2>/dev/null || true
     printf '%s' "${SHELL:-unknown}" > "${STATE_DIR}/prev-shell" 2>/dev/null || true
   fi
+  snapshot_share_dirs
   if [[ "$profile" == "macos-extras" ]]; then
     [[ "$(uname -s)" == "Darwin" ]] || die "macos-extras on macOS only."
     confirm "Apply optional macOS defaults (platform/macos-extras.sh)?" || { info "cancelled."; return 0; }
@@ -440,7 +477,8 @@ do_migrate() {
   # Usage: yadr migrate [--dry-run]
   local dry=0
   [[ "${1:-}" == "--dry-run" ]] && dry=1
-  local dest="${BACKUP_ROOT}/migrate-$(timestamp)"
+  local dest
+  dest="${BACKUP_ROOT}/migrate-$(timestamp)"
   local migdir="${HOME}/.config/yadr/migrated"
   info "Classic YADR → 2027 (dry-run=${dry})"
   [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || info "no classic ~/.yadr; migrating loose files if any."
@@ -547,7 +585,7 @@ do_uninstall() {
   # 4. Purga opcional (datos: clon, estado, plugins nvim y toolchains).
   local do_purge=0
   if [[ "$purge" == "1" ]]; then
-    if confirm "Also delete clone, backups, Neovim plugins and mise toolchains? (no way back)"; then
+    if confirm "Also delete clone, backups, and YADR-added plugins/toolchains? (pre-existing data is kept; no way back for the rest)"; then
       do_purge=1
     else
       info "purge skipped."
@@ -561,8 +599,15 @@ do_uninstall() {
     [[ -f "${STATE_DIR}/provides-mise" ]] && rm -f "${HOME}/.local/bin/mise" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-zoxide" ]] && rm -f "${HOME}/.local/bin/zoxide" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-lazygit" ]] && rm -f "${HOME}/.local/bin/lazygit" 2>/dev/null || true
-    rm -rf "${YADR_HOME}" "${STATE_DIR}" "${HOME}/.local/share/nvim" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim" \
-      "${HOME}/.local/share/mise" "${HOME}/.local/share/zoxide" 2>/dev/null || true
+    # Share/cache dirs: only YADR-added entries go (pre-existing content
+    # recorded at first install always survives). Runs before STATE_DIR
+    # itself is removed (snapshots live there).
+    purge_dir_keep_preexisting "${HOME}/.local/share/nvim" "share-nvim"
+    purge_dir_keep_preexisting "${HOME}/.local/share/mise" "share-mise"
+    purge_dir_keep_preexisting "${HOME}/.local/share/zoxide" "share-zoxide"
+    purge_dir_keep_preexisting "${HOME}/.cache/nvim" "cache-nvim"
+    purge_dir_keep_preexisting "${HOME}/.local/state/nvim" "state-nvim"
+    rm -rf "${YADR_HOME}" "${STATE_DIR}" 2>/dev/null || true
     ok "purge complete."
   else
     info "Kept (your data): ${YADR_HOME} ${STATE_DIR} nvim-plugins mise-toolchains."

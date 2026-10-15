@@ -30,7 +30,11 @@ install_fonts_macos() {
   [[ -f "$manifest" ]] || { warn "font manifest missing; skipping."; return 0; }
   # shellcheck disable=SC1090
   source "$manifest" || return 0
-  if [[ -n "$(ls "${HOME}/Library/Fonts" 2>/dev/null | grep -i "NerdFont")" ]]; then
+  local _nfont="" _f
+  for _f in "${HOME}/Library/Fonts/"*[Nn]erd*; do
+    [[ -e "$_f" ]] && { _nfont="$_f"; break; }
+  done
+  if [[ -n "$_nfont" ]]; then
     log "Nerd font already installed."
     return 0
   fi

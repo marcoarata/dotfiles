@@ -325,3 +325,46 @@ macos_funcs() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"dark"* ]]
 }
+
+@test "purge keeps pre-existing share entries, removes YADR-added ones" {
+  local share="$TEST_HOME/.local/share/nvim"
+  mkdir -p "$share" "$TEST_HOME/.local/state/yadr"
+  touch "$share/precious-data" "$share/lazy.nvim"
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; export STATE_DIR='$TEST_HOME/.local/state/yadr'; printf 'precious-data\n' > \"\$STATE_DIR/preexisting-share-nvim\"; purge_dir_keep_preexisting '$share' share-nvim"
+  [ "$status" -eq 0 ]
+  [ -f "$share/precious-data" ]
+  [ ! -e "$share/lazy.nvim" ]
+}
+
+@test "snapshot_share_dirs is first-install-wins" {
+  local share="$TEST_HOME/.local/share/mise"
+  mkdir -p "$share" "$TEST_HOME/.local/state/yadr"
+  touch "$share/old-tool"
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; export STATE_DIR='$TEST_HOME/.local/state/yadr'; snapshot_share_dirs"
+  [ "$status" -eq 0 ]
+  touch "$share/new-tool"
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; export STATE_DIR='$TEST_HOME/.local/state/yadr'; snapshot_share_dirs; cat \"\$STATE_DIR/preexisting-share-mise\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"old-tool"* ]]
+  [[ "$output" != *"new-tool"* ]]
+}
+
+@test "purge refuses blind wipe without snapshot" {
+  local share="$TEST_HOME/.local/share/zoxide"
+  mkdir -p "$share"
+  touch "$share/something"
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; export STATE_DIR='$TEST_HOME/.local/state/yadr'; purge_dir_keep_preexisting '$share' share-zoxide"
+  [ "$status" -eq 0 ]
+  [ -f "$share/something" ]
+}
+
+@test "canonical home is ~/.yadr-2027 in bootstrap and docs" {
+  run bash -c "
+    set -e
+    grep -q 'DEFAULT_HOME=\"\${HOME}/.yadr-2027\"' '$YADR_ROOT/bootstrap.sh' || exit 1
+    grep -q 'marcoarata/dotfiles.git ~/\.yadr-2027' '$YADR_ROOT/README.md' || exit 1
+    grep -q 'marcoarata/dotfiles.git ~/\.yadr-2027' '$YADR_ROOT/INSTALL-YADR.md' || exit 1
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
