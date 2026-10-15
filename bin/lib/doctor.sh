@@ -70,7 +70,8 @@ do_doctor() {
   else dc_warn "vim missing" "yadr install core (provides vim via upstream Neovim)"; fi
   dc_cmd "rg (ripgrep)" rg "sudo apt install ripgrep / brew install ripgrep"
   if have fd || have fdfind; then dc_ok "fd ($(command -v fd || command -v fdfind))"; else dc_fail "fd missing" "sudo apt install fd-find (+ln -s fdfind→fd) / brew install fd"; fi
-  dc_cmd "zoxide" zoxide "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash / brew install zoxide"
+  if have zoxide; then dc_ok "zoxide ($(zoxide --version 2>/dev/null | head -n1 || echo in PATH))";
+  else dc_warn "zoxide missing" "curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash / brew install zoxide"; fi
   dc_cmd "mise (runtime backend)" mise "curl -fsSL https://mise.run | sh / brew install mise"
   # zsh plugins (advisory only: shell degrades gracefully without them, but
   # silent degradation is a bug — see Intel Mac Tier 3 report).
@@ -138,7 +139,7 @@ do_doctor() {
     else dc_fail "nvim starts with errors" "see above; try: yadr install core"; printf '%s\n' "$_nerr" >&2; fi
   fi
   # gitsigns opt-in (informa, no modifica).
-  if [[ -f "$(gitsigns_marker)" ]]; then dc_ok "gitsigns activo (opt-in)";
+  if [[ -f "$(gitsigns_marker)" ]]; then dc_ok "gitsigns active (opt-in)";
   else info "gitsigns off (default; enable: yadr gitsigns on)"; fi
   # yadr CLI on PATH (self-check: the binary itself must resolve).
   local _yv; _yv="$(command -v yadr 2>/dev/null || true)"

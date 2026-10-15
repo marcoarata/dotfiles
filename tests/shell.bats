@@ -244,9 +244,12 @@ load_aliases() {
 }
 
 yadr_funcs() {
-  # source bin/yadr function library without running its CLI dispatch
+  # source bin/yadr dispatcher (helpers) + bin/lib modules without running CLI dispatch.
+  # The dispatcher resolves lib/ from its own path, so pin YADR_LIB_DIR to the
+  # repo (the generated copy lives in $BATS_TMPDIR, not in bin/).
   local f="$BATS_TMPDIR/yadr-funcs-$$.sh"
-  awk '/^# --- parse global flags ---/{exit} {print}' "$YADR_ROOT/bin/yadr" > "$f"
+  printf 'export YADR_LIB_DIR="%s/bin/lib"\n' "$YADR_ROOT" > "$f"
+  awk '/^# --- parse global flags ---/{exit} {print}' "$YADR_ROOT/bin/yadr" >> "$f"
   printf '%s' "$f"
 }
 
@@ -273,13 +276,6 @@ yadr_funcs() {
   [ "$status" -ne 0 ]
 }
 
-platform_funcs() {
-  # source platform/linux.sh functions without running its main()
-  local f="$BATS_TMPDIR/platform-funcs-$$.sh"
-  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/linux.sh" > "$f"
-  printf '%s' "$f"
-}
-
 @test "ensure_vim shims even with genuine vim present" {
   mkdir -p "$TEST_HOME/.local/nvim-upstream/bin" "$TEST_HOME/.local/state/yadr" "$BATS_TMPDIR/fakevim/bin"
   printf '#!/usr/bin/env bash\necho "NVIM v0.12.5"\n' > "$TEST_HOME/.local/nvim-upstream/bin/nvim"
@@ -287,7 +283,7 @@ platform_funcs() {
   touch "$TEST_HOME/.local/state/yadr/provides-nvim-upstream"
   printf '#!/usr/bin/env bash\necho "VIM - Vi IMproved 9.0"\n' > "$BATS_TMPDIR/fakevim/bin/vim"
   chmod +x "$BATS_TMPDIR/fakevim/bin/vim"
-  run bash -c "export HOME='$TEST_HOME' PATH='$BATS_TMPDIR/fakevim/bin:/usr/bin:/bin'; source '$(platform_funcs)'; ensure_vim >/dev/null"
+  run bash -c "export HOME='$TEST_HOME' PATH='$BATS_TMPDIR/fakevim/bin:/usr/bin:/bin' PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'; source '$(platform_funcs linux.sh)'; ensure_vim >/dev/null"
   [ "$status" -eq 0 ]
   [ "$(readlink "$TEST_HOME/.local/bin/vim")" = "$TEST_HOME/.local/nvim-upstream/bin/nvim" ]
   [ -f "$TEST_HOME/.local/state/yadr/provides-vim" ]
@@ -324,7 +320,7 @@ macos_funcs() {
     set -e
     grep -q 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/platform/macos.sh' || exit 1
     grep -q '~/.config/yadr/solarized-bg' '$YADR_ROOT/nvim/lua/yadr/plugins/colorscheme.lua' || exit 1
-    grep -q 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/bin/yadr' || exit 1
+    grep -rq 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/bin/yadr' '$YADR_ROOT/bin/lib/' || exit 1
     echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
