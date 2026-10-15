@@ -1,5 +1,7 @@
 # YADR 2027
 
+[![ci](https://github.com/marcoarata/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/marcoarata/dotfiles/actions/workflows/ci.yml)
+
 Yet Another Development Runtime. The classic YADR experience with modern technology.
 
 <p align="center">
@@ -36,7 +38,7 @@ brew install curl git zsh
 ```
 
 **3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
-   installs prerequisites via platform/macos.sh, clones into ~/.yadr
+   installs prerequisites via platform/macos.sh, clones into ~/.yadr-2027
    and runs bin/yadr install with automatic backup)**
 
 ```bash
@@ -58,11 +60,11 @@ yadr doctor
 Auditable alternative (no `curl | sh`):
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr/bootstrap.sh
+~/.yadr-2027/bootstrap.sh
 ```
 
 ```bash
@@ -95,7 +97,7 @@ sudo apt install zsh curl git -y
 ```
 
 **3. Install YADR 2027 (detects linux/wsl, installs via
-   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr
+   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr-2027
    and runs bin/yadr install with automatic backup)**
 
 ```bash
@@ -117,11 +119,11 @@ yadr doctor
 Auditable alternative:
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr/bootstrap.sh
+~/.yadr-2027/bootstrap.sh
 ```
 
 ```bash

@@ -101,7 +101,7 @@ sh -c "`curl .../skwp/dotfiles.../install.sh`"
 2027: Ruby does not take part in bootstrap.
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr && ./bootstrap.sh   # or: yadr install
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027 && ./bootstrap.sh   # or: yadr install
 # Advanced: test a local copy without GitHub: YADR_HOME=<copy> ./bootstrap.sh --local
 ```
 

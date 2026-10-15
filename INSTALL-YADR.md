@@ -37,11 +37,11 @@ yadr doctor
 Without `curl | sh` (auditable):
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr/bootstrap.sh
+~/.yadr-2027/bootstrap.sh
 ```
 
 ```bash
@@ -95,11 +95,11 @@ yadr doctor
 Without `curl | sh`:
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr
+git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr/bootstrap.sh
+~/.yadr-2027/bootstrap.sh
 ```
 
 ```bash

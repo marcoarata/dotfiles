@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning bin/yadr bootstrap.sh platform/*.sh tests/smoke.sh
+      - name: zsh syntax
+        run: |
+          sudo apt-get install -y -qq zsh
+          for f in shell/*.zsh bootstrap.sh bin/yadr; do zsh -n "$f"; done
+      - name: bash syntax
+        run: bash -n bin/yadr && bash -n bootstrap.sh && bash -n tests/smoke.sh
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: bats
+        run: |
+          if [[ "$(uname -s)" == "Darwin" ]]; then brew install bats-core;
+          else sudo apt-get update -qq && sudo apt-get install -y -qq bats zsh; fi
+      - name: smoke
+        run: bash tests/smoke.sh
+      - name: bats
+        run: bats tests/shell.bats
+
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: core install in isolated HOME
+        run: |
+          export FAKE_HOME="$RUNNER_TEMP/yadr-home"
+          mkdir -p "$FAKE_HOME"
+          HOME="$FAKE_HOME" YADR_HOME="$GITHUB_WORKSPACE" \
+            bash "$GITHUB_WORKSPACE/bootstrap.sh" --local --yes
+      - name: doctor must pass clean
+        run: |
+          export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"
+          HOME="$RUNNER_TEMP/yadr-home" bash "$GITHUB_WORKSPACE/bin/yadr" doctor
+      - name: reinstall is a no-op (idempotence)
+        run: |
+          export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"
+          HOME="$RUNNER_TEMP/yadr-home" bash "$GITHUB_WORKSPACE/bin/yadr" install core --yes
+          HOME="$RUNNER_TEMP/yadr-home" bash "$GITHUB_WORKSPACE/bin/yadr" diff
