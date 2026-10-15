@@ -23,27 +23,23 @@ install_mise() {
   have mise && return 0
   log "installing mise (https://mise.jdx.dev)..."
   curl -fsSL https://mise.run | sh || { warn "mise install failed."; return 1; }
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-mise" 2>/dev/null || true
+  yadr_marker mise
 }
 
 install_zoxide() {
   have zoxide && return 0
   log "installing zoxide..."
   curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash || warn "zoxide failed (you can install it later)."
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-zoxide" 2>/dev/null || true
+  yadr_marker zoxide
 }
 
 # Neovim >=0.11 is the YADR floor (treesitter/gitsigns/lspconfig HEAD require it;
 # Ubuntu LTS ships 0.9.x). When apt falls short, use the official tarball into ~/.local/bin.
 ensure_nvim() {
   if have nvim; then
-    local ver maj min
-    ver="$(nvim --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
-    maj="${ver%%.*}"; min="${ver##*.}"
-    if [[ "$maj" -gt 0 || "$min" -ge 11 ]] 2>/dev/null; then log "neovim $ver OK (>=0.11)."; return 0; fi
-    warn "neovim $ver <0.11; installing upstream into ~/.local/bin..."
+    local ver
+    if ver="$(nvim_version_ok nvim 2>/dev/null)"; then log "neovim $ver OK (>=0.11)."; return 0; fi
+    warn "neovim ${ver:-unknown} <0.11; installing upstream into ~/.local/bin..."
   else
     log "neovim missing; installing upstream into ~/.local/bin..."
   fi
@@ -64,8 +60,7 @@ ensure_nvim() {
   cp -a "$tmp"/nvim-linux-*/ "${HOME}/.local/nvim-upstream/" || { warn "copy failed."; rm -rf "$tmp"; return 1; }
   ln -sfn "${HOME}/.local/nvim-upstream/bin/nvim" "${HOME}/.local/bin/nvim"
   rm -rf "$tmp"
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-nvim-upstream" 2>/dev/null || true
+  yadr_marker nvim-upstream
   "${HOME}/.local/bin/nvim" --version >/dev/null 2>&1 && log "neovim ready: $("${HOME}/.local/bin/nvim" --version 2>/dev/null | head -n1)." || warn "nvim installed but does not start."
 }
 

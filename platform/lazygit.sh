@@ -8,7 +8,7 @@ set -euo pipefail
 log()  { printf '[yadr:lazygit] %s\n' "$*"; }
 warn() { printf '[yadr:lazygit] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
-mark() {
+yadr_marker() { # records provides-lazygit for purge (same name as platform/common.sh)
   mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
   touch "${HOME}/.local/state/yadr/provides-lazygit" 2>/dev/null || true
 }
@@ -40,7 +40,7 @@ install_tarball() {
   mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
   cp -f "$tmp/lazygit" "${HOME}/.local/bin/lazygit" && chmod +x "${HOME}/.local/bin/lazygit"
   rm -rf "$tmp"
-  mark
+  yadr_marker
   log "lazygit v${ver} in ~/.local/bin."
 }
 
@@ -48,7 +48,7 @@ main() {
   if have lazygit; then log "lazygit already present ($(lazygit --version 2>/dev/null | head -n1))."; return 0; fi
   case "$(uname -s)" in
     Darwin)
-      if have brew; then brew install lazygit && { mark; return 0; }; fi
+      if have brew; then brew install lazygit && { yadr_marker; return 0; }; fi
       warn "brew missing or failed."
       return 1
       ;;
