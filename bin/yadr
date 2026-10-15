@@ -359,6 +359,21 @@ links_uptodate() { # 0 when every managed pair is already as it should be (silen
   return 0
 }
 
+ensure_profile_payload() { # runtimes + editor for one profile (shared by fast/full paths)
+  local profile="$1" tools
+  tools="$(runtime_tool_for "$profile")"
+  if [[ -n "$tools" ]]; then
+    info "profile ${profile}: ensuring runtimes (${tools})…"
+    for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
+  fi
+  # Neovim plugins matching lockfile (all profiles with nvim).
+  ensure_nvim_plugins || true
+  # Pack TypeScript: contract LSP servers.
+  if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
+    ensure_lsp_servers || true
+  fi
+}
+
 do_install() {
   local profile="${1:-core}"
   case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit) ;; *) die "unknown profile: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit)" ;; esac
@@ -388,15 +403,7 @@ do_install() {
     # Anything else (or stale links) keeps the full safe flow.
     if links_uptodate; then
       info "core links up to date — fast path (no platform, symlinks or confirmations)."
-      local tools; tools="$(runtime_tool_for "$profile")"
-      if [[ -n "$tools" ]]; then
-        info "profile ${profile}: ensuring runtimes (${tools})…"
-        for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
-      fi
-      ensure_nvim_plugins || true
-      if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
-        ensure_lsp_servers || true
-      fi
+      ensure_profile_payload "$profile"
       ok "install [${profile}] complete (fast path). Run 'yadr doctor' to verify."
       next_steps
       return 0
@@ -409,17 +416,7 @@ do_install() {
   else warn "platform script not found: ${plat}; continuing."
   fi
   # Profile runtimes via `runtime` abstraction (mise inside)
-  local tools; tools="$(runtime_tool_for "$profile")"
-  if [[ -n "$tools" ]]; then
-    info "profile ${profile}: ensuring runtimes (${tools})…"
-    for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
-  fi
-  # Neovim plugins matching lockfile (all profiles with nvim).
-  ensure_nvim_plugins || true
-  # Pack TypeScript: contract LSP servers.
-  if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
-    ensure_lsp_servers || true
-  fi
+  ensure_profile_payload "$profile"
   info "change preview (diff):"
   do_diff
   confirm "Apply symlinks (with prior automatic backup)?" || { info "install cancelled; nothing modified."; return 0; }
@@ -619,6 +616,13 @@ nerd_font_present() { # 0 when a Nerd Font is detectable (macOS dirs first, fc-l
   [[ -n "$(nerd_font_source)" ]]
 }
 
+version_at_least() { # version_at_least <"M.m..."> <maj> <min> — YADR floor checks share this
+  local ver="$1" want_maj="$2" want_min="$3" got
+  got="$(printf '%s' "$ver" | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
+  local maj="${got%%.*}" min="${got##*.}"
+  [[ "${maj:-0}" -gt "$want_maj" ]] || { [[ "${maj:-0}" -eq "$want_maj" ]] && [[ "${min:-0}" -ge "$want_min" ]]; }
+}
+
 do_doctor() {
   DOCTOR_FAIL=0; DOCTOR_WARN=0
   printf '%sYADR doctor %s%s\n' "$BOLD" "$(version_str)" "$RESET"
@@ -641,11 +645,8 @@ do_doctor() {
   fi
   dc_cmd "tmux" tmux "sudo apt install tmux / brew install tmux"
   if have nvim; then
-    local _nv _nvmaj _nvmin
-    _nv="$(nvim --version 2>/dev/null | head -n1)"
-    _nvmaj="$(printf '%s' "$_nv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)"
-    _nvmin="$(printf '%s' "$_nv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f2)"
-    if [[ "${_nvmaj:-0}" -gt 0 || "${_nvmin:-0}" -ge 11 ]] 2>/dev/null; then dc_ok "nvim (${_nv})";
+    local _nv; _nv="$(nvim --version 2>/dev/null | head -n1)"
+    if version_at_least "$_nv" 0 11; then dc_ok "nvim (${_nv})";
     else dc_fail "nvim ${_nv} <0.11 (YADR floor)" "yadr install core (platform installs upstream ≥0.11 into ~/.local/bin)"; fi
   else dc_fail "nvim missing" "sudo apt install neovim / brew install neovim"; fi
   # vim must resolve to Neovim >=0.11 or to genuine Vim — never to old nvim.
@@ -654,10 +655,7 @@ do_doctor() {
     _vv="$(vim --version 2>/dev/null | head -n1)"
     case "$_vv" in
       NVIM*)
-        local _vmaj _vmmin
-        _vmaj="$(printf '%s' "$_vv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f1)"
-        _vmmin="$(printf '%s' "$_vv" | grep -oE '[0-9]+\.[0-9]+' | head -n1 | cut -d. -f2)"
-        if [[ "${_vmaj:-0}" -gt 0 || "${_vmmin:-0}" -ge 11 ]] 2>/dev/null; then dc_ok "vim → Neovim (${_vv})";
+        if version_at_least "$_vv" 0 11; then dc_ok "vim → Neovim (${_vv})";
         else dc_fail "vim resolves to old Neovim (${_vv})" "yadr install core (creates ~/.local/bin/vim shim)"; fi
         ;;
       *) dc_ok "vim genuine (${_vv:-Vim})" ;;

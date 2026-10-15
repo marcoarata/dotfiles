@@ -298,3 +298,30 @@ platform_funcs() {
   [[ "$output" == *"f"* ]]
   rm -rf "$repo"
 }
+
+macos_funcs() {
+  # source platform/macos.sh functions without running its main()
+  local f="$BATS_TMPDIR/macos-funcs-$$.sh"
+  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/macos.sh" > "$f"
+  printf '%s' "$f"
+}
+
+@test "solarized-bg path is identical in macOS menu, lua and CLI" {
+  run bash -c "
+    set -e
+    grep -q 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/platform/macos.sh' || exit 1
+    grep -q '~/.config/yadr/solarized-bg' '$YADR_ROOT/nvim/lua/yadr/plugins/colorscheme.lua' || exit 1
+    grep -q 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/bin/yadr' || exit 1
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "macOS menu writes canonical theme names the CLI reads" {
+  run bash -c "export HOME='$TEST_HOME'; source '$(macos_funcs)' >/dev/null 2>&1; YADR_SOLARIZED_BG=dark choose_solarized_bg >/dev/null && cat '$TEST_HOME/.config/yadr/solarized-bg'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dark"* ]]
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme current
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dark"* ]]
+}
