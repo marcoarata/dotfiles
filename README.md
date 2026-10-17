@@ -222,6 +222,12 @@ yadr version           # shows version
 yadr benchmark shell|nvim|cd|prompt   # measures startup and cd/prompt cost
 ```
 
+Global runtime pins live in `runtime/mise.toml` (managed, symlinked as
+`~/.config/mise/config.toml`). To add global tools of your own, drop a file in
+`~/.config/mise/conf.d/*.toml` — mise merges it over the base and the checkout
+stays clean (editing the managed file dirties it and can make `yadr update`
+refuse to fast-forward).
+
 ## Classic YADR → 2027
 
 | Classic | 2027 | Note |

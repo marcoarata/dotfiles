@@ -1,4 +1,10 @@
-# runtime/mise.toml — YADR global base
+# runtime/mise.toml — YADR global base (MANAGED, git-tracked).
+# Symlinked as ~/.config/mise/config.toml. Do not hand-edit user tools here:
+# it dirties the checkout and can block `yadr update` (--ff-only). For extra
+# global tools of your own, drop ~/.config/mise/conf.d/<name>.toml — mise
+# merges it over this base and the tracked file stays clean.
+# `yadr runtime use <tool>@<version>` writes here by design (explicit global
+# pin); the plain `yadr runtime use <tool>` honors the pin without rewriting.
 # Version policy: explicit pinned Node LTS (currently 24).
 # On a new LTS release: bump this pin + `yadr runtime use node@<new>`
 # + note in docs/migration.md. Never a floating `lts` in core.

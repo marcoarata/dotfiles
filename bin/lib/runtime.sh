@@ -24,9 +24,10 @@ cmd_runtime_use() { # cmd_runtime_use tool[@version]
     ok "runtime '${spec}' ready (pin honored)."
     return 0
   fi
-  info "activando runtime '${spec}'…"
+  info "activating runtime '${spec}'…"
   mise use -g "$spec" || { err "'mise use -g ${spec}' failed."; return 1; }
   ok "runtime '${spec}' active globally."
+  info "note: this updated the managed runtime/mise.toml (git-tracked); for your own global tools prefer ~/.config/mise/conf.d/<name>.toml"
 }
 cmd_runtime_doctor() {
   if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend missing" "curl -fsSL https://mise.run | sh"; return 1; fi

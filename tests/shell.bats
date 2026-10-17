@@ -256,6 +256,17 @@ EOF
   [[ "$output" == *"ok"* ]]
 }
 
+@test "runtime use @version points to conf.d for user-global tools" {
+  local fake="$BATS_TMPDIR/fakemise-use"
+  mkdir -p "$fake"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/mise"
+  chmod +x "$fake/mise"
+  run bash -c "export HOME='$TEST_HOME' PATH='$fake:/usr/bin:/bin'; source '$(yadr_funcs)'; cmd_runtime_use node@24"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"conf.d"* ]]
+  [[ "$output" != *"activando"* ]]
+}
+
 @test "classic shell aliases are present (ga/cl/gd/gco/gs/gf/gps/...)" {
   run zsh -f -c "
     source '$YADR_ROOT/shell/aliases.zsh' 2>/dev/null
