@@ -180,6 +180,75 @@ load_aliases() {
   [[ "$output" == *"ok"* ]]
 }
 
+@test "runtime context shows only the project-pinned runtime (mise source)" {
+  local proj="$BATS_TMPDIR/proj-mise" fake="$BATS_TMPDIR/fakemise"
+  mkdir -p "$proj" "$fake"; : > "$proj/mise.toml"
+  cat > "$fake/mise" <<EOF
+#!/usr/bin/env bash
+cat <<OUT
+node    24.22.0    ~/.config/mise/config.toml    24
+python  3.12.15    $proj/mise.toml               3.12
+OUT
+EOF
+  chmod +x "$fake/mise"
+  run zsh -f -c "
+    PATH='$fake:/usr/bin:/bin'
+    unset XDG_CONFIG_HOME; export HOME='$TEST_HOME'
+    source '$YADR_ROOT/shell/runtime.zsh'
+    cd '$proj' || exit 1
+    out=\$(yadr_runtime_context 2>/dev/null)
+    [ \"\$out\" = 'python-3.12.15' ] || { echo \"got: \$out\"; exit 1; }
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "runtime context in a project without pins falls back to global node" {
+  local proj="$BATS_TMPDIR/proj-nopin" fake="$BATS_TMPDIR/fakemise"
+  mkdir -p "$proj" "$fake"
+  printf '{\n  "name": "x"\n}\n' > "$proj/package.json"
+  cat > "$fake/mise" <<'EOF'
+#!/usr/bin/env bash
+cat <<OUT
+node    24.22.0    ~/.config/mise/config.toml    24
+OUT
+EOF
+  chmod +x "$fake/mise"
+  run zsh -f -c "
+    PATH='$fake:/usr/bin:/bin'
+    unset XDG_CONFIG_HOME; export HOME='$TEST_HOME'
+    source '$YADR_ROOT/shell/runtime.zsh'
+    cd '$proj' || exit 1
+    out=\$(yadr_runtime_context 2>/dev/null)
+    [ \"\$out\" = 'node-24.22.0' ] || { echo \"got: \$out\"; exit 1; }
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "runtime context outside a project shows global node only" {
+  local fake="$BATS_TMPDIR/fakemise"
+  mkdir -p "$fake"
+  cat > "$fake/mise" <<'EOF'
+#!/usr/bin/env bash
+cat <<OUT
+node    24.22.0    ~/.config/mise/config.toml    24
+python  3.12.15    ~/.config/mise/config.toml    3.12
+OUT
+EOF
+  chmod +x "$fake/mise"
+  run zsh -f -c "
+    PATH='$fake:/usr/bin:/bin'
+    unset XDG_CONFIG_HOME; export HOME='$TEST_HOME'
+    source '$YADR_ROOT/shell/runtime.zsh'
+    cd '$TEST_HOME' || exit 1
+    out=\$(yadr_runtime_context 2>/dev/null)
+    [ \"\$out\" = 'node-24.22.0' ] || { echo \"got: \$out\"; exit 1; }
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
 @test "runtime layer guards mise absence" {
   [ -f "$YADR_ROOT/shell/runtime.zsh" ] || skip "runtime.zsh not in checkout"
   run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/runtime.zsh'; echo ok"

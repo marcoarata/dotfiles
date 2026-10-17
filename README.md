@@ -184,7 +184,8 @@ yadr theme list
 - No legacy `install.sh` from `skwp/dotfiles`.
 - No manual Damoekri setup (`promptinit / prompt damoekri`):
   `shell/zshrc` already sources `shell/damoekri.zsh`, with Git +
-  `yadr_runtime_context` (shows Node/Ruby only when present).
+  `yadr_runtime_context` (outside a project: global node; inside: only the
+  runtimes the project pins).
 - `yadr diff` shows what would change before touching anything;
   `yadr backup` saves to `~/.local/state/yadr/backups/<timestamp>/`.
 
@@ -281,6 +282,6 @@ Damoekri is a first-class component, not a swappable theme. Preserved:
 - git branch + status on the right
 - Solarized look by default
 
-Ruby info is removed from the prompt unless the ruby pack is active. Implemented in `shell/damoekri.zsh`, which consumes `yadr_runtime_context` from `shell/runtime.zsh` and never invokes managers directly. Without a Nerd Font it renders degraded (no broken glyphs).
+The right side is runtime-aware: outside a project it shows the global node; inside a project it shows **only the runtimes the project itself pins** (a per-project `mise.toml`/`.tool-versions`, or a local version file), never the inherited globals. A project with no pins falls back to the global node. Implemented in `shell/damoekri.zsh`, which consumes `yadr_runtime_context` from `shell/runtime.zsh` and never invokes managers directly. Without a Nerd Font it renders degraded (no broken glyphs).
 
 More: `docs/architecture.md`, `docs/troubleshooting.md`.
