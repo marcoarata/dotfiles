@@ -2,11 +2,17 @@
 
 [![ci](https://github.com/marcoarata/dotfiles/actions/workflows/ci.yml/badge.svg)](https://github.com/marcoarata/dotfiles/actions/workflows/ci.yml)
 
-Yet Another Development Runtime. The classic YADR experience with modern technology.
+Yet Another Development Runtime — the classic YADR experience for Zsh, Tmux and
+Neovim, rebuilt on a modern stack without complex configuration.
 
 <p align="center">
   <img src="docs/yadr2027.png" width="720" alt="YADR 2027">
 </p>
+
+> ⚠️ **Nerd Font required.** The Damoekri prompt and tmux glyphs render broken
+> without one. Install a [Nerd Font](https://www.nerdfonts.com) and select it in
+> your terminal emulator before checking the prompt. Without it, everything
+> still works (degrades to plain glyphs).
 
 ## Overview
 
@@ -15,15 +21,17 @@ YADR 2027 keeps the classic YADR experience contract — Zsh + Vim everywhere + 
 Philosophy:
 
 - **Experience > plugins.** Capabilities and muscle memory are preserved, not plugin lists.
-- **Vim Everywhere.** Zsh vi-mode, Neovim/Vim, tmux hjkl, inputrc/editrc.
-- **Fallbacks, never hard failures.** Every modern alias (`eza`, `bat`, `rg`, `fd`, `zoxide`, `delta`) degrades to the POSIX tool when missing.
+- **Vim Everywhere.** Zsh vi-mode, Neovim/Vim, tmux hjkl.
+- **Fallbacks, never hard failures.** Every modern alias (`eza`, `bat`, `rg`, `fd`, `zoxide`, `delta`) degrades to the POSIX tool when missing; `delta` is wired as the git pager only when it is installed.
 - **Core vs extras.** Portable core for macOS/Linux/WSL/SSH. macOS hacks and iTerm go to extras.
-- **Customization without forking.** `before / defaults / after`.
+- **Customization without forking.** `before / after` hooks around the defaults.
 - **Damoekri is sacred.** The prompt is modernized internally, its personality stays unchanged.
 
 ## Installation — YADR 2027
 
 ### 1) macOS
+
+#### Option A — Automatic (recommended)
 
 **1. Homebrew (only if missing)**
 
@@ -57,7 +65,17 @@ zsh
 yadr doctor
 ```
 
-Auditable alternative (no `curl | sh`):
+> macOS Intel (Tier 3 since Homebrew 7.0.0, Sep 2026): Homebrew no longer
+> builds bottles for Intel and its installer is Apple Silicon only.
+> YADR detects Intel and installs via MacPorts first (`PORT_PACKAGES`,
+> `delta`→`git-delta`), with XDG clones for zsh plugins as no-sudo
+> fallback. Install MacPorts from https://www.macports.org first, then run
+> the same bootstrap. Field report: `docs/homebrew-intel.md`.
+
+#### Option B — Manual and auditable (no `curl | sh`)
+
+Use this path if you prefer to audit the source locally before running it.
+It is an alternative to Option A, not a step after it.
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
@@ -75,14 +93,9 @@ zsh
 yadr doctor
 ```
 
-> macOS Intel (Tier 3 since Homebrew 7.0.0, Sep 2026): Homebrew no longer
-> builds bottles for Intel and its installer is Apple Silicon only.
-> YADR detects Intel and installs via MacPorts first (`PORT_PACKAGES`,
-> `delta`→`git-delta`), with XDG clones for zsh plugins as no-sudo
-> fallback. Install MacPorts from https://www.macports.org first, then run
-> the same bootstrap. Field report: `docs/homebrew-intel.md`.
-
 ### 2) Linux — Debian/Ubuntu, server, WSL
+
+#### Option A — Automatic (recommended)
 
 **1. System base**
 
@@ -116,7 +129,9 @@ zsh
 yadr doctor
 ```
 
-Auditable alternative:
+#### Option B — Manual and auditable (no `curl | sh`)
+
+Same alternative to Option A on Linux, WSL and servers:
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
@@ -169,6 +184,10 @@ yadr install lazygit
 ```
 
 ```bash
+yadr install tools   # eza/bat/delta for the full modern shell (see below)
+```
+
+```bash
 yadr install typescript
 ```
 
@@ -198,7 +217,7 @@ yadr diff     # read-only, changes nothing
 ```
 
 Post-install order (no guessing): `doctor` twice, then only the profiles
-you need — `yadr install node|python|typescript|ruby|rust|lazygit`,
+you need — `yadr install node|python|typescript|ruby|rust|lazygit|tools`,
 `yadr theme [list|use light|dark|none]`. Full flow: `INSTALL-YADR.md`.
 
 Equivalence details: `docs/migration.md`.
@@ -206,27 +225,38 @@ One-page quick install: `INSTALL-YADR.md`.
 
 ## `yadr` commands
 
-```bash
-yadr install [profile]  # symlinks + backup + deps (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras)
-yadr update            # git pull + mise upgrade (with backup and confirmation)
-yadr doctor            # checks with repair hints
-yadr diff              # shows what would change, without modifying anything
-yadr backup            # copies to ~/.local/state/yadr/backups/<timestamp>/
-yadr uninstall [--dry-run] [--purge]  # removes symlinks, restores your backup and reverts login shell
-yadr migrate [--dry-run]  # imports .vimrc.before/.after, .vundles.local... (idempotent)
-yadr pack list|add <name>  # optional packs (javascript/typescript/ruby/python/rust)
-yadr theme [list|use <name>|current]  # Solarized background (light|dark|none, default none)
-yadr gitsigns [on|off|status]  # Git signs in Neovim (default: off)
-yadr runtime current|list|use|doctor  # runtime abstraction (mise underneath)
-yadr version           # shows version
-yadr benchmark shell|nvim|cd|prompt   # measures startup and cd/prompt cost
-```
+**Environment and profiles**
 
-Global runtime pins live in `runtime/mise.toml` (managed, symlinked as
-`~/.config/mise/config.toml`). To add global tools of your own, drop a file in
-`~/.config/mise/conf.d/*.toml` — mise merges it over the base and the checkout
-stays clean (editing the managed file dirties it and can make `yadr update`
-refuse to fast-forward).
+- `yadr install [profile]` — symlinks, backup and dependencies.
+  Profiles: `core|node|typescript|ruby|python|rust|lazygit|tools|development|macos-extras`
+  (no profile = `core`).
+- `yadr update` — `git pull` + `mise upgrade` (with backup and confirmation).
+- `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores your
+  backup and reverts the login shell.
+- `yadr runtime current|list|use|doctor` — runtime abstraction (mise underneath).
+
+**Diagnostics and safety**
+
+- `yadr doctor` — checks the environment with repair hints.
+- `yadr diff` — shows what would change, without modifying anything.
+- `yadr backup` — copies to `~/.local/state/yadr/backups/<timestamp>/`.
+- `yadr benchmark shell|nvim|cd|prompt` — measures startup and cd/prompt cost.
+
+**Customization and extensions**
+
+- `yadr pack list|add <name>` — optional packs (javascript/typescript/ruby/python/rust).
+- `yadr theme [list|use <name>|current]` — Solarized background (light|dark|none, default none).
+- `yadr gitsigns [on|off|status]` — Git signs in Neovim (default: off).
+- `yadr migrate [--dry-run]` — imports `.vimrc.before/.after`, `.vundles.local`… (idempotent).
+- `yadr version` — prints the version.
+
+> **Global toolchains.** Your custom tool pins live in
+> `~/.config/mise/conf.d/*.toml`; mise merges them over the base. Do not edit
+> the managed `runtime/mise.toml` (symlinked as `~/.config/mise/config.toml`):
+> editing it dirties the checkout and can make `yadr update` refuse to
+> fast-forward. `yadr install tools` writes `~/.config/mise/conf.d/yadr-tools.toml`
+> for you when it installs `eza`/`bat`/`delta` on Linux/WSL (on macOS they come
+> from Homebrew/MacPorts).
 
 ## Classic YADR → 2027
 
@@ -238,15 +268,15 @@ refuse to fast-forward).
 | Vundle + 90 plugins | lazy.nvim, curated subset + LSP + Treesitter | see `docs/mappings.md` |
 | fasd / `z` | zoxide, `z` command preserved | fallback to `cd` |
 | ag | ripgrep (`rg`), `,gg/,gd/` mappings preserved | |
-| `ls/cat/find/grep/diff` | eza/bat/fd/rg/delta with fallback | originals always available via `command` |
+| `ls/cat/find/grep/diff` | eza/bat/fd/rg/delta with fallback | `delta` wired as git pager only when present; originals always available via `command` |
 | hub / ghi | `gh` | |
 | Exuberant ctags | Universal ctags and/or LSP | `,f` preserved |
 | Powerline fonts | Nerd Fonts | verify Damoekri/tmux glyphs |
 | Prezto | YADR Zsh Core (audited subset) | no mandatory heavy framework |
 | Vim | Vim + Neovim (shared Editor Layer) | shared mappings |
 | tmux + Solarized + iTerm | tmux + Solarized/Damoekri + terminal abstraction | iTerm to `platform/macos/` |
-| `~/.secrets` | `~/.config/yadr/local/` + optional providers (age/sops/1Password) | mode 700 |
-| `~/.vimrc.before/.after`, `~/.gitconfig.user` | `custom/before/`, `custom/after/`, coexistence via parallel mode + backup (migrate on roadmap) | never need to fork |
+| `~/.vimrc.before/.after` | `custom/before/`, `custom/after/` hooks around the defaults | never need to fork; coexistence via parallel mode + backup (migrate on roadmap) |
+| `~/.gitconfig.user` | `~/.gitconfig.user` (unchanged) | included from the managed `git/gitconfig`, so your identity never lands in the repo |
 
 Full details: `docs/mappings.md`, `docs/migration.md`.
 
@@ -262,8 +292,8 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ├── tmux/              # Vim-key tmux.conf
 ├── runtime/           # Runtime Layer: mise.toml, node/python/ruby/rust
 ├── packs/             # optional packs (rails, node, python...)
-├── platform/          # macos/ linux/ wsl/ common/
-├── custom/            # before/ after/ (user-owned, never touched by update)
+├── platform/          # macos/ linux/ wsl/ tools/ common/
+├── custom/            # optional before/ after/ hooks (user-owned; never touched by update)
 ├── docs/              # architecture, mappings, migration, troubleshooting
 └── tests/             # smoke.sh, shell.bats, fixtures/
 ```

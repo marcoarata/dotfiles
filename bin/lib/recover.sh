@@ -162,6 +162,8 @@ do_uninstall() {
     [[ -f "${STATE_DIR}/provides-mise" ]] && rm -f "${HOME}/.local/bin/mise" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-zoxide" ]] && rm -f "${HOME}/.local/bin/zoxide" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-lazygit" ]] && rm -f "${HOME}/.local/bin/lazygit" 2>/dev/null || true
+    # tools: drop the mise conf.d fragment YADR wrote (never the user's own).
+    [[ -f "${STATE_DIR}/provides-tools" ]] && rm -f "${HOME}/.config/mise/conf.d/yadr-tools.toml" 2>/dev/null || true
     # Share/cache dirs: only YADR-added entries go (pre-existing content
     # recorded at first install always survives). Runs before STATE_DIR
     # itself is removed (snapshots live there).

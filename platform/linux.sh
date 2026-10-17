@@ -108,8 +108,10 @@ main() {
   ensure_vim || true
   install_fonts || true
   # eza/bat/delta/lazygit/gh: prefer mise or manual per distro; not forced here
-  # to keep headless/SSH minimums intact.
-  log "linux ready (headless OK). Optional: eza bat delta lazygit gh (via mise or package manager)."
+  # to keep headless/SSH minimums intact. Install on demand instead:
+  #   yadr install tools    -> eza/bat/delta as user-global mise tools (conf.d)
+  #   yadr install lazygit  -> direct single-script install
+  log "linux ready (headless OK). Optional: yadr install tools (eza/bat/delta), yadr install lazygit, gh (package manager)."
 }
 
 # Nerd Fonts (faithful to classic install_fonts; modernized payload).

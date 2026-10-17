@@ -119,7 +119,7 @@ next_steps() {
     "2. yadr doctor (slow ONCE: installs nvim plugins)" \
     "3. yadr doctor (again: instant, shows the real state)" \
     "4. yadr install <whatever is still missing> until 0 errors / 0 warnings" \
-    "   profiles: node|python|typescript|ruby|rust|lazygit — theme: yadr theme list"
+    "   profiles: node|python|typescript|ruby|rust|lazygit|tools — theme: yadr theme list"
 }
 
 runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the user.
@@ -132,6 +132,7 @@ runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the 
     development) echo "node pnpm python rust ruby" ;;
     macos-extras) echo "" ;;
     lazygit) echo "" ;;
+    tools) echo "" ;;
     *) echo "" ;;
   esac
 }
@@ -261,7 +262,7 @@ ensure_profile_payload() { # runtimes + editor for one profile (shared by fast/f
 
 do_install() {
   local profile="${1:-core}"
-  case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit) ;; *) die "unknown profile: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit)" ;; esac
+  case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools) ;; *) die "unknown profile: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools)" ;; esac
   handle_legacy_yadr
   detect_rogue_checkouts
   info "YADR 2027 $(version_str) — install [${profile}] in ${YADR_HOME}"
@@ -281,6 +282,11 @@ do_install() {
   if [[ "$profile" == "lazygit" ]]; then
     info "installing lazygit (per-OS logic in platform/lazygit.sh)…"
     bash "${YADR_HOME}/platform/lazygit.sh" && ok "lazygit ready." || warn "lazygit failed (see above)."
+    return 0
+  fi
+  if [[ "$profile" == "tools" ]]; then
+    info "installing modern CLI tools (eza/bat/delta via platform/tools.sh)…"
+    bash "${YADR_HOME}/platform/tools.sh" && ok "CLI tools ready." || warn "CLI tools failed (see above)."
     return 0
   fi
   case "$profile" in node|typescript|ruby|python|rust|development)

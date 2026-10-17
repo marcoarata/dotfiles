@@ -34,7 +34,8 @@ zsh
 yadr doctor
 ```
 
-Without `curl | sh` (auditable):
+**Alternative: manual and auditable install (no `curl | sh`).** This replaces
+steps 1-5 above; it is not a step after them.
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
@@ -92,7 +93,8 @@ zsh
 yadr doctor
 ```
 
-Without `curl | sh`:
+**Alternative: manual and auditable install (no `curl | sh`).** This replaces
+steps 1-5 above; it is not a step after them.
 
 ```bash
 git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
@@ -151,6 +153,10 @@ yadr install python      # Python via mise (fast path, same as above)
 
 ```bash
 yadr install lazygit     # direct + fastest (single script, no prompts)
+```
+
+```bash
+yadr install tools       # eza/bat/delta: full modern shell on Linux/WSL (mise conf.d)
 ```
 
 ```bash

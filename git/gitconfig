@@ -18,6 +18,11 @@
   excludesfile = ~/.gitignore_global
   autocrlf = input
   safecrlf = true
+  # delta as pager only when it is installed; otherwise git's usual pager.
+  # git runs the pager through the shell, so the guard degrades cleanly on
+  # machines without delta (e.g. a Linux core install that skipped tools).
+  # Quoted on purpose: an unquoted ';' would start a git comment.
+  pager = "if command -v delta >/dev/null 2>&1; then delta; else less; fi"
 
 [diff]
   mnemonicprefix = true
@@ -25,6 +30,15 @@
   algorithm = patience
 [diff "bin"]
   textconv = hexdump -v -C
+
+[interactive]
+  # Keep interactive patch colors through delta when present; pass the diff
+  # through untouched otherwise. Also run through the shell by git.
+  diffFilter = "if command -v delta >/dev/null 2>&1; then delta --color-only; else cat; fi"
+[delta]
+  # Inert when delta is absent (git ignores the unknown section).
+  navigate = true
+  line-numbers = true
 
 [rerere]
   enabled = true

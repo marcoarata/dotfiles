@@ -142,7 +142,7 @@ usage() {
 ${BOLD}YADR 2027 $(version_str)${RESET} — ${DIM}${YADR_HOME}${RESET}
 usage: yadr <command> [args]
 
-  install [profile]  base + profile (core|node|typescript|ruby|python|rust|lazygit|development|macos-extras; no profile = core)
+  install [profile]  base + profile (core|node|typescript|ruby|python|rust|lazygit|tools|development|macos-extras; no profile = core)
   update             git pull + runtime upgrades (with backup and confirmation)
   doctor             checks the environment with hints (pass/warn/fail)
   diff               shows what would change, modifies nothing

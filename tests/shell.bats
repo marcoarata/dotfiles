@@ -295,6 +295,40 @@ EOF
   [ "$status" -eq 0 ]
 }
 
+@test "gitconfig wires delta for pager and diffFilter with a guard" {
+  run bash -c "
+    cfg='$YADR_ROOT/git/gitconfig'
+    git config --file \"\$cfg\" core.pager | grep -q 'command -v delta' || exit 1
+    git config --file \"\$cfg\" interactive.diffFilter | grep -q 'command -v delta' || exit 1
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "git pager resolves to delta when present, less when absent" {
+  local fake="$BATS_TMPDIR/pagerbin-$$"
+  mkdir -p "$fake"
+  local pager
+  pager="$(git config --file "$YADR_ROOT/git/gitconfig" core.pager)"
+  [ -n "$pager" ]
+  printf '#!/usr/bin/env bash\necho delta-pager\n' > "$fake/delta"; chmod +x "$fake/delta"
+  run bash -c "export PATH='$fake:/usr/bin:/bin'; $pager"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"delta-pager"* ]]
+  rm -f "$fake/delta"
+  printf '#!/usr/bin/env bash\necho less-fallback\n' > "$fake/less"; chmod +x "$fake/less"
+  run bash -c "export PATH='$fake:/usr/bin:/bin'; $pager"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"less-fallback"* ]]
+  rm -rf "$fake"
+}
+
+@test "yadr help lists the tools profile" {
+  run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" --help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"tools"* ]]
+}
+
 @test "theme defaults to none on clean HOME" {
   run env HOME="$TEST_HOME" bash "$YADR_ROOT/bin/yadr" theme current
   [ "$status" -eq 0 ]
@@ -523,4 +557,25 @@ platform_funcs() {
     fetch_verified_zip 'file://$TEST_HOME/a.zip' 'deadbeef' '$TEST_HOME/other' '*.ttf'"
   [ "$status" -ne 0 ]
   [ ! -e "$TEST_HOME/other/f.ttf" ]
+}
+
+@test "install tools pins eza/bat/delta in mise conf.d" {
+  local fake="$BATS_TMPDIR/mise-tools-$$"
+  mkdir -p "$fake"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/mise"
+  chmod +x "$fake/mise"
+  run bash -c "export HOME='$TEST_HOME' PATH='$fake:/usr/bin:/bin'; source '$(platform_funcs tools.sh)'; install_mise"
+  [ "$status" -eq 0 ]
+  local conf="$TEST_HOME/.config/mise/conf.d/yadr-tools.toml"
+  [ -f "$conf" ]
+  grep -q '^eza = "latest"' "$conf"
+  grep -q '^bat = "latest"' "$conf"
+  grep -q '^delta = "latest"' "$conf"
+  [ -f "$TEST_HOME/.local/state/yadr/provides-tools" ]
+}
+
+@test "purge cleans YADR tools conf.d (marker-gated)" {
+  run bash -c "grep -q 'provides-tools' '$YADR_ROOT/bin/lib/recover.sh' && grep -q 'conf.d/yadr-tools.toml' '$YADR_ROOT/bin/lib/recover.sh' && echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
 }
