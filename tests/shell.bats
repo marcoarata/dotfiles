@@ -579,3 +579,60 @@ platform_funcs() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
 }
+
+@test "uninstall --purge removes YADR state, keeps pre-existing data" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-clone-$$"
+  # Fake checkout (isolated): --purge would rm -rf $YADR_HOME, never the real repo.
+  rm -rf "$clone"; mkdir -p "$clone/shell"
+  : > "$clone/shell/aliases.zsh"
+  # Managed symlink pointing at the fake checkout.
+  mkdir -p "$home/.config/yadr"
+  ln -s "$clone/shell/aliases.zsh" "$home/.config/yadr/aliases.zsh"
+  # A real user file that must survive.
+  printf 'mine\n' > "$home/.zshrc"
+  # YADR-added: tools conf.d fragment + purge marker.
+  mkdir -p "$home/.config/mise/conf.d" "$home/.local/state/yadr"
+  : > "$home/.config/mise/conf.d/yadr-tools.toml"
+  : > "$home/.local/state/yadr/provides-tools"
+  # Share dir: pre-existing entry (snapshotted) vs YADR-added.
+  mkdir -p "$home/.local/share/nvim"
+  : > "$home/.local/share/nvim/precious-data"
+  : > "$home/.local/share/nvim/lazy.nvim"
+  printf 'precious-data\n' > "$home/.local/state/yadr/preexisting-share-nvim"
+  run bash -c "
+    export HOME='$home' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -eq 0 ]
+  [ ! -e "$home/.config/yadr/aliases.zsh" ]          # managed symlink removed
+  [ ! -e "$home/.config/mise/conf.d/yadr-tools.toml" ] # conf.d fragment purged
+  [ -f "$home/.zshrc" ]                              # user file kept
+  [ -f "$home/.local/share/nvim/precious-data" ]     # pre-existing shared data kept
+  [ ! -e "$home/.local/share/nvim/lazy.nvim" ]       # YADR-added entry purged
+  [ ! -e "$clone" ]                                  # clone removed
+  [ ! -e "$home/.local/state/yadr" ]                 # state/backups removed
+  rm -rf "$clone"
+}
+
+@test "fetch_verified_zip fails cleanly on an unreachable source" {
+  rm -rf "$TEST_HOME/out"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$TEST_HOME/missing.zip' '' '$TEST_HOME/out' '*.ttf'"
+  [ "$status" -ne 0 ]
+  [ ! -e "$TEST_HOME/out" ]   # nothing created on a failed download
+}
+
+@test "do_update without a git checkout warns and does not fail" {
+  local d="$BATS_TMPDIR/nogit-$$"; mkdir -p "$d"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_HOME='$d'
+    source '$(yadr_funcs)'
+    do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no .git"* ]]
+  rm -rf "$d"
+}
