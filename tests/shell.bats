@@ -636,3 +636,39 @@ platform_funcs() {
   [[ "$output" == *"no .git"* ]]
   rm -rf "$d"
 }
+
+@test "detect_platform_script maps OS and WSL detection" {
+  local pv="$BATS_TMPDIR/procver-$$"
+  printf 'Linux version 5.15.90.1-microsoft-standard-WSL2 (gcc)\n' > "$pv"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    run bash -c "export HOME='$TEST_HOME' YADR_HOME='$YADR_ROOT'; source '$(yadr_funcs)'; detect_platform_script"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/platform/macos.sh" ]]
+  else
+    run bash -c "export HOME='$TEST_HOME' YADR_HOME='$YADR_ROOT' YADR_PROC_VERSION='$pv'; source '$(yadr_funcs)'; detect_platform_script"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/platform/wsl.sh" ]]
+    printf 'Linux version 6.8.0-generic (gcc)\n' > "$pv"
+    run bash -c "export HOME='$TEST_HOME' YADR_HOME='$YADR_ROOT' YADR_PROC_VERSION='$pv'; source '$(yadr_funcs)'; detect_platform_script"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/platform/linux.sh" ]]
+  fi
+}
+
+@test "wsl clipboard note matches the available tool (3 branches)" {
+  local b="$BATS_TMPDIR/wsl-bin-$$"; mkdir -p "$b"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$b/win32yank.exe"; chmod +x "$b/win32yank.exe"
+  run bash -c "export HOME='$TEST_HOME' PATH='$b:/usr/bin:/bin'; source '$(platform_funcs wsl.sh)'; wsl_clipboard_note"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"win32yank.exe available"* ]]
+  rm -f "$b/win32yank.exe"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$b/clip.exe"; chmod +x "$b/clip.exe"
+  run bash -c "export HOME='$TEST_HOME' PATH='$b:/usr/bin:/bin'; source '$(platform_funcs wsl.sh)'; wsl_clipboard_note"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"clip.exe available"* ]]
+  rm -f "$b/clip.exe"
+  run bash -c "export HOME='$TEST_HOME' PATH='/usr/bin:/bin'; source '$(platform_funcs wsl.sh)'; wsl_clipboard_note"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"win32yank (recommended)"* ]]
+  rm -rf "$b"
+}

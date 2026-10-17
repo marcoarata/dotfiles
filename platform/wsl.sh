@@ -6,10 +6,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 log()  { printf '[yadr:wsl] %s\n' "$*"; }
 
-main() {
-  log "WSL detected — applying Linux base then WSL tweaks."
-  bash "${SCRIPT_DIR}/linux.sh" "$@"
+wsl_clipboard_note() {
   # Clipboard: win32yank or clip.exe/wslview when present; nothing mandatory is installed.
+  # Extracted so the three branches are unit-testable without a WSL host.
   if command -v win32yank.exe >/dev/null 2>&1; then
     log "clipboard: win32yank.exe available."
   elif command -v clip.exe >/dev/null 2>&1; then
@@ -21,6 +20,12 @@ main() {
   YADR works without this; it only improves the clipboard.
 NOTE
   fi
+}
+
+main() {
+  log "WSL detected — applying Linux base then WSL tweaks."
+  bash "${SCRIPT_DIR}/linux.sh" "$@"
+  wsl_clipboard_note
   cat <<'NOTE'
 [yadr:wsl] Done. WSL notes:
   - No Linux GUI needed: use the Windows terminal (Terminal.app equivalent:

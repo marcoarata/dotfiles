@@ -33,8 +33,11 @@ detect_rogue_checkouts() {
 }
 
 detect_platform_script() {
+  # YADR_PROC_VERSION is a test seam (defaults to the real file) so the WSL
+  # branch can be exercised without a WSL host.
+  local pv="${YADR_PROC_VERSION:-/proc/version}"
   if [[ "$(uname -s)" == "Darwin" ]]; then echo "${YADR_HOME}/platform/macos.sh"
-  elif grep -qi microsoft /proc/version 2>/dev/null; then echo "${YADR_HOME}/platform/wsl.sh"
+  elif grep -qi microsoft "$pv" 2>/dev/null; then echo "${YADR_HOME}/platform/wsl.sh"
   else echo "${YADR_HOME}/platform/linux.sh"
   fi
 }

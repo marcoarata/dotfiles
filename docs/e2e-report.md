@@ -25,6 +25,12 @@ pre-existing shared data stay; YADR-added share entries and the tools
 unreachable source (no leftovers), and `do_update` without a git checkout
 (warns, exits 0).
 
+WSL is covered at the **logic level** (platform selection from the version
+string, and the three clipboard branches), not with a full runner. This is a
+deliberate omission: GitHub-hosted Windows + WSL is slow and flaky, and
+`platform/wsl.sh` mostly delegates to `linux.sh`, which the Ubuntu job
+already exercises. Revisit only if a reliable hosted WSL runner appears.
+
 ## 2. Ephemeral Ubuntu 24.04 VM (quickemu, 2vCPU/4GB, all under `/tmp`)
 
 Full matrix with isolated HOME, project copied in, `--local` mode:
