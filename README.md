@@ -9,11 +9,6 @@ Neovim, rebuilt on a modern stack without complex configuration.
   <img src="docs/yadr2027.png" width="720" alt="YADR 2027">
 </p>
 
-> ⚠️ **Nerd Font required.** The Damoekri prompt and tmux glyphs render broken
-> without one. Install a [Nerd Font](https://www.nerdfonts.com) and select it in
-> your terminal emulator before checking the prompt. Without it, everything
-> still works (degrades to plain glyphs).
-
 ## Overview
 
 YADR 2027 keeps the classic YADR experience contract — Zsh + Vim everywhere + mnemonic aliases + tmux + fluid Git + Damoekri prompt — and replaces the aged implementation (RVM + Rake + Vundle + fasd + ag + hub) with a modern stack with no mandatory Ruby.
@@ -26,6 +21,11 @@ Philosophy:
 - **Core vs extras.** Portable core for macOS/Linux/WSL/SSH. macOS hacks and iTerm go to extras.
 - **Customization without forking.** `before / after` hooks around the defaults.
 - **Damoekri is sacred.** The prompt is modernized internally, its personality stays unchanged.
+
+> ⚠️ **Nerd Font required.** The Damoekri prompt and tmux glyphs render broken
+> without one. Install a [Nerd Font](https://www.nerdfonts.com) and select it in
+> your terminal emulator before checking the prompt. Without it, everything
+> still works (degrades to plain glyphs).
 
 ## Installation — YADR 2027
 
