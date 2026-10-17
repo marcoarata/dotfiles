@@ -1,7 +1,7 @@
 # E2E evidence report
 
 How YADR 2027 is proven to work. Evidence over prose: every claim below
-links a reproducible run. Last verified: 2026-10-15 (CI all green).
+links a reproducible run. Last verified: 2026-10-17 (CI all green).
 
 ## 1. CI matrix (GitHub Actions, `.github/workflows/ci.yml`)
 
@@ -10,13 +10,20 @@ Runs on every `main` push + PR, Ubuntu + macOS:
 | Job | What it proves | Status |
 |---|---|---|
 | `lint` | `shellcheck -S warning` + `zsh -n` + `bash -n` clean | green |
-| `test` | `smoke.sh` + all `bats` green on both OSes | green |
+| `test` | `smoke.sh` + all `bats` (incl. `uninstall --purge` e2e and network-failure paths) green on both OSes | green |
 | `install` | core install in isolated HOME + `doctor` exit 0 + idempotent reinstall | green |
 
 History: the first green run followed 4 test failures with diagnosed
 root causes (CWD assumed outside repos, shared `TEST_HOME` pollution,
 `command cd` exit 127 on zsh 5.8, fallback masking a missing zsh) — all
 fixed in `tests/shell.bats`, none in production code.
+
+Graceful-failure paths are covered by `bats` in isolated `HOME`/`YADR_HOME`:
+`uninstall --purge` end-to-end (managed symlinks go; user files and
+pre-existing shared data stay; YADR-added share entries and the tools
+`conf.d` fragment go; clone and state removed), `fetch_verified_zip` on an
+unreachable source (no leftovers), and `do_update` without a git checkout
+(warns, exits 0).
 
 ## 2. Ephemeral Ubuntu 24.04 VM (quickemu, 2vCPU/4GB, all under `/tmp`)
 

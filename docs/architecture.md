@@ -78,3 +78,40 @@ Prezto is out as a framework. YADR natively reproduces only what it uses:
 | `ruby`/`rvm` | removed from core → Ruby Pack | `packs/ruby/` |
 
 Out: everything else from Prezto (themes, `fasd`, `pacman` helpers, etc.).
+
+## Supply chain & trust
+
+What YADR fetches, and how far it is pinned — so the trade-off is explicit
+rather than accidental:
+
+- **Nerd Fonts: pinned and verified.** The zip comes from a pinned upstream
+  release and its **SHA256** (recorded in `terminal/fonts/manifest.env`,
+  measured in a clean VM) is checked before extraction
+  (`fetch_verified_zip` in `platform/common.sh`).
+- **`mise` and `zoxide` installers: floating by policy.** Their bootstrap
+  scripts always fetch the current upstream release, so they are not pinned
+  by hash. This is a conscious supply-chain decision (both move fast and ship
+  large, platform-specific binaries), not an oversight: a hard pin would go
+  stale silently and break more often than it protects. Skip their installers
+  if you prefer — Core works without them.
+- **No `curl | sh` is required.** The auditable path clones the repo and runs
+  `bootstrap.sh` locally (README "Option B").
+- **`sudo` only through one helper.** `platform/linux.sh` defines `priv()`
+  (root or `sudo`); there is no bare `sudo` scattered through the code.
+
+## Conventions (and deliberate non-DRY)
+
+Two things look like duplication but are intentional; changing them would
+trade a real robustness property for cosmetic DRY:
+
+- **`log`/`warn`/`have` are redefined in each `platform/*.sh`.** Those
+  scripts are standalone entrypoints (`bash platform/linux.sh`) that must run
+  without being sourced by `bin/yadr`; depending on a shared file would add a
+  load-order failure mode for a handful of lines. `platform/common.sh` holds
+  only what genuinely needs sharing (fonts, purge markers, `nvim_version_ok`).
+- **`managed_pairs` is defined once, in `bin/yadr`,** and is the single source
+  of truth for the symlink map; `diff`, `backup` and `uninstall` all consume
+  it. It is *not* copied into `lib/`.
+
+`shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
+`bootstrap.sh` file in CI as the coupling alarm for both points.
