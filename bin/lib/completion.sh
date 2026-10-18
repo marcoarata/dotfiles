@@ -33,7 +33,7 @@ _yadr_complete() {
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   cmd="${COMP_WORDS[1]}"
-  local commands="backup benchmark completion diff doctor gitsigns help install migrate pack runtime theme uninstall update version"
+  local commands="backup benchmark completion diff doctor gitsigns help install migrate runtime theme uninstall update version"
 
   if [[ "$cur" == -* ]]; then
     COMPREPLY=( $(compgen -W '--yes --help -y -h' -- "$cur") )
@@ -44,10 +44,9 @@ _yadr_complete() {
     return 0
   fi
   case "$cmd" in
-    install)   words='core node typescript ruby python rust lazygit tools development macos-extras' ;;
+    install)   words='core node javascript typescript ruby python rust lazygit tools development macos-extras' ;;
     uninstall) words='--dry-run --purge' ;;
     migrate)   words='--dry-run' ;;
-    pack)      words='list add' ;;
     theme)     words='list use current' ;;
     gitsigns)  words='on off status' ;;
     runtime)   words='current list use doctor' ;;
@@ -68,14 +67,13 @@ YADR_COMPLETION_BASH
 _yadr() {
   local -a sub
   if (( CURRENT == 2 )); then
-    compadd -- backup benchmark completion diff doctor gitsigns help install migrate pack runtime theme uninstall update version
+    compadd -- backup benchmark completion diff doctor gitsigns help install migrate runtime theme uninstall update version
     return
   fi
   case "${words[2]}" in
-    install)   sub=(core node typescript ruby python rust lazygit tools development macos-extras) ;;
+    install)   sub=(core node javascript typescript ruby python rust lazygit tools development macos-extras) ;;
     uninstall) sub=(--dry-run --purge) ;;
     migrate)   sub=(--dry-run) ;;
-    pack)      sub=(list add) ;;
     theme)     sub=(list use current) ;;
     gitsigns)  sub=(on off status) ;;
     runtime)   sub=(current list use doctor) ;;
@@ -100,16 +98,14 @@ complete -c yadr -n __fish_use_subcommand -a gitsigns -d 'Git signs in Neovim (o
 complete -c yadr -n __fish_use_subcommand -a help -d 'show usage'
 complete -c yadr -n __fish_use_subcommand -a install -d 'install YADR (profile)'
 complete -c yadr -n __fish_use_subcommand -a migrate -d 'import classic YADR customization'
-complete -c yadr -n __fish_use_subcommand -a pack -d 'list or install optional packs'
 complete -c yadr -n __fish_use_subcommand -a runtime -d 'current|list|use|doctor'
 complete -c yadr -n __fish_use_subcommand -a theme -d 'Solarized background (list|use|current)'
 complete -c yadr -n __fish_use_subcommand -a uninstall -d 'revert install and restore your backup'
 complete -c yadr -n __fish_use_subcommand -a update -d 'git pull + runtime upgrades'
 complete -c yadr -n __fish_use_subcommand -a version -d 'print version'
-complete -c yadr -n '__fish_seen_subcommand_from install' -a 'core node typescript ruby python rust lazygit tools development macos-extras'
+complete -c yadr -n '__fish_seen_subcommand_from install' -a 'core node javascript typescript ruby python rust lazygit tools development macos-extras'
 complete -c yadr -n '__fish_seen_subcommand_from uninstall' -a '--dry-run --purge'
 complete -c yadr -n '__fish_seen_subcommand_from migrate' -a '--dry-run'
-complete -c yadr -n '__fish_seen_subcommand_from pack' -a 'list add'
 complete -c yadr -n '__fish_seen_subcommand_from theme' -a 'list use current'
 complete -c yadr -n '__fish_seen_subcommand_from gitsigns' -a 'on off status'
 complete -c yadr -n '__fish_seen_subcommand_from runtime' -a 'current list use doctor'

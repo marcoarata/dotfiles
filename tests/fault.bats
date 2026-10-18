@@ -106,7 +106,7 @@ load helpers
     do_install imaginary"
   [ "$status" -ne 0 ]
   [[ "$output" == *"unknown profile: imaginary"* ]]
-  [[ "$output" == *"core|node|typescript"* ]]
+  [[ "$output" == *"core|node|javascript|typescript"* ]]
   [ ! -e "$TEST_HOME/.local/state/yadr/prev-shell" ]   # died before any side effect
 }
 

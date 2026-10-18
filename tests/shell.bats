@@ -744,13 +744,19 @@ macos_funcs() {
   [[ "$output" == *"disabled"* ]]
 }
 
-@test "CLI: pack list names the shipped packs" {
-  run yadr_cli pack list
+@test "CLI: install javascript resolves to the node profile" {
+  # One vocabulary: the JS pack is installed through `install`, and the
+  # javascript alias maps to the node profile instead of a pack command.
+  run bash -c "source '$(yadr_funcs)'; normalize_profile javascript"
+  [ "$output" == "node" ]
+  run bash -c "source '$(yadr_funcs)'; normalize_profile typescript"
+  [ "$output" == "typescript" ]
+  run yadr_cli --help
   [ "$status" -eq 0 ]
-  local p
-  for p in typescript python ruby rust javascript; do
-    [[ "$output" == *"$p"* ]] || fail "pack ${p} missing from 'pack list'"
-  done
+  [[ "$output" == *"javascript"* ]] || fail "javascript is not listed as an install profile"
+  run yadr_cli install bogus --yes
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown profile"* ]]
 }
 
 @test "CLI: runtime without a backend fails with the install hint" {

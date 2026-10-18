@@ -277,7 +277,7 @@ real manager is reachable while they run. What each CI job proves is listed in
 **Environment and profiles**
 
 - `yadr install [profile]` — symlinks, backup and dependencies.
-  Profiles: `core|node|typescript|ruby|python|rust|lazygit|tools|development|macos-extras`
+  Profiles: `core|node|javascript|typescript|ruby|python|rust|lazygit|tools|development|macos-extras`
   (no profile = `core`).
 - `yadr update` — `git pull` + `mise upgrade` (with backup and confirmation).
   When the pull fails it keeps your checkout as it was, says so and exits
@@ -296,7 +296,6 @@ real manager is reachable while they run. What each CI job proves is listed in
 
 **Customization and extensions**
 
-- `yadr pack list|add <name>` — optional packs (javascript/typescript/ruby/python/rust).
 - `yadr theme [list|use <name>|current]` — Solarized background (light|dark|none, default none).
 - `yadr gitsigns [on|off|status]` — Git signs in Neovim (default: off).
 - `yadr migrate [--dry-run]` — imports `.vimrc.before/.after`, `.vundles.local`… (idempotent).
@@ -360,7 +359,7 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ├── nvim/ / vim/      # shared Editor Layer
 ├── tmux/              # Vim-key tmux.conf
 ├── runtime/           # Runtime Layer: mise.toml, node/python/ruby/rust
-├── packs/             # optional packs (typescript, python, ruby, rust, javascript)
+├── packs/             # per-project reference bases (typescript, python, ruby, rust, javascript)
 ├── platform/          # macos/ linux/ wsl/ tools/ common/
 ├── custom/            # optional before/ after/ hooks (user-owned; never touched by update)
 ├── docs/              # architecture + ADRs, cli-contract, mappings, migration,
@@ -370,17 +369,18 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 
 ## Packs
 
-Packs = optional on-demand installable layers:
+`packs/<name>/` holds per-project reference material — a short README plus a
+copyable base (`tsconfig.base.json`, a `mise` fragment, a `package.json`) — for
+optional layers beyond core. Installing the layer is a normal profile:
 
 ```bash
-yadr pack list
-yadr pack add typescript
-yadr pack add ruby
+yadr install typescript   # node + pnpm + LSP servers
+yadr install javascript   # alias of `node`
+yadr install ruby         # legacy Ruby
 ```
 
-Each pack ships a `mise.toml` fragment, aliases, and editor config. Core never
-depends on a pack. `yadr pack list` prints the packs this checkout ships
-(`javascript`, `typescript`, `python`, `ruby`, `rust`). See `docs/architecture.md`.
+Core never depends on a pack; the profiles are self-contained, and the `packs/`
+files are there to copy into your own project. See `docs/architecture.md`.
 
 ## Damoekri
 

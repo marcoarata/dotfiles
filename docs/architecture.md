@@ -20,7 +20,7 @@ YADR 2027
   ```
 
 - **Editor:** single `mappings.md` for Vim and Neovim. Vundle removed → lazy.nvim. 90 plugins → subset: LSP + Treesitter + Git + textobjects + search + project.
-- **Packs:** ship their own partial `mise.toml`, aliases and extra `nvim` config. Enabled with `yadr pack add <name>`.
+- **Packs:** `packs/<name>/` holds reference bases for optional per-project layers; installing one is a normal profile (`yadr install typescript`), and Core never depends on a pack.
 - **Platform:** YADR declares *what* it needs (`git zsh fzf rg fd`), each platform decides *how* (`brew` / `apt` / `pacman`).
 
 ## Runtime Layer abstraction

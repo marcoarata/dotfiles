@@ -175,7 +175,7 @@ yadr install tools       # eza/bat/delta: full modern shell on Linux/WSL (mise c
 ```
 
 ```bash
-yadr install typescript  # TS + LSP servers via Mason (or: yadr pack add typescript)
+yadr install typescript  # TS + LSP servers via Mason
 ```
 
 ```bash
@@ -184,10 +184,6 @@ yadr install ruby        # legacy Ruby pack (optional)
 
 ```bash
 yadr install rust
-```
-
-```bash
-yadr pack list           # list available packs
 ```
 
 ```bash

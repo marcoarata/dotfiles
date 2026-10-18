@@ -302,9 +302,14 @@ ensure_profile_payload() { # runtimes + editor for one profile (shared by fast/f
   return "$rc"
 }
 
+normalize_profile() { # javascript -> node: same runtime, one vocabulary
+  case "$1" in javascript) printf 'node' ;; *) printf '%s' "$1" ;; esac
+}
+
 do_install() {
-  local profile="${1:-core}"
-  case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools) ;; *) die "unknown profile: $profile (core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools)" ;; esac
+  local profile
+  profile="$(normalize_profile "${1:-core}")"
+  case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools) ;; *) die "unknown profile: $profile (core|node|javascript|typescript|ruby|python|rust|development|macos-extras|lazygit|tools)" ;; esac
   handle_legacy_yadr
   detect_rogue_checkouts
   info "YADR 2027 $(version_str) — install [${profile}] in ${YADR_HOME}"

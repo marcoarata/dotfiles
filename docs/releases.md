@@ -6,7 +6,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 
 1. Bump `VERSION` (`X.Y.Z`, semver: breaking installer/config change = major).
 2. Sync pins from a clean checkout: open `nvim` once (`Lazy! restore` +
-   `:Mason` per `packs/`), then `git diff -- nvim/lazy-lock.json` must
+   the `:Mason` servers the profiles declare), then `git diff -- nvim/lazy-lock.json` must
    contain only intended bumps. Commit the lockfile.
 3. Green locally: `bash tests/smoke.sh`, `bats tests/shell.bats`,
    `bats tests/bootstrap.bats` (installer flags and release pinning),

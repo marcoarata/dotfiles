@@ -151,15 +151,13 @@ usage() {
 ${BOLD}YADR 2027 $(version_str)${RESET} — ${DIM}${YADR_HOME}${RESET}
 usage: yadr <command> [args]
 
-  install [profile]  base + profile (core|node|typescript|ruby|python|rust|lazygit|tools|development|macos-extras; no profile = core)
+  install [profile]  base + profile (core|node|javascript|typescript|ruby|python|rust|lazygit|tools|development|macos-extras; no profile = core)
   update             git pull + runtime upgrades (with backup and confirmation)
   doctor             checks the environment with hints (pass/warn/fail)
   diff               shows what would change, modifies nothing
   backup             copies current dotfiles to ~/.local/state/yadr/backups/<timestamp>/
   uninstall [--dry-run] [--purge]  reverts install and restores your backup
   migrate [--dry-run] imports classic YADR customization (idempotent)
-  pack list          lists installable optional packs
-  pack add <name>    installs a pack (same as its install profile)
   theme [list|use <name>|current]  Solarized background (light|dark|none, default none)
   gitsigns [on|off|status]  Git signs in Neovim (default: off)
   runtime current    active runtimes
@@ -191,13 +189,6 @@ case "$cmd" in
   backup)    do_backup ;;
   uninstall) do_uninstall "$@" ;;
   migrate)   do_migrate "${1:-}" ;;
-  pack)
-    sub="${1:-}"; shift || true
-    case "$sub" in
-      list) do_pack_list ;;
-      add)  do_pack_add "${1:-}" ;;
-      *) usage; die "pack: unknown subcommand '${sub}' (list|add)" ;;
-    esac ;;
   gitsigns)
     sub="${1:-}"; shift || true
     case "$sub" in

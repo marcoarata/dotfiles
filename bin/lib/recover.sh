@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# YADR 2027 — lib/recover.sh: install/uninstall/migrate/pack flows plus backup helpers
+# YADR 2027 — lib/recover.sh: install/uninstall/migrate flows plus backup helpers
 # Sourced by bin/yadr into the same shell (and by tests);
 # never executed directly. Bash 3.2-compatible, no new dependencies.
 
@@ -76,26 +76,6 @@ do_migrate() {
 EOF
   [[ "$found" -eq 0 ]] && info "nothing classic to migrate."
   [[ "$dry" == "1" ]] && info "dry-run: nothing modified." || ok "migrate complete (backup in ${dest})."
-}
-
-do_pack_list() {
-  info "available packs (packs/<name>/):"
-  local d name desc
-  for d in "${YADR_HOME}"/packs/*/; do
-    [[ -d "$d" ]] || continue
-    name="$(basename "$d")"
-    desc="$(grep -m1 -E '^# ' "$d/README.md" 2>/dev/null | sed 's/^# //')"
-    printf '  %-12s %s\n' "$name" "${desc:-pack YADR}"
-  done
-}
-
-do_pack_add() { # do_pack_add <pack> — same as the matching install profile
-  local pack="${1:?usage: yadr pack add <name>  (see: yadr pack list)}"
-  [[ -d "${YADR_HOME}/packs/${pack}" ]] || die "unknown pack: ${pack} (see: yadr pack list)"
-  local profile="$pack"
-  case "$pack" in javascript) profile="node" ;; esac
-  info "pack '${pack}' → install [${profile}]"
-  do_install "$profile"
 }
 
 do_uninstall() {
