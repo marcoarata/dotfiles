@@ -1034,3 +1034,68 @@ EOF
   [[ "$output" == *"win32yank (recommended)"* ]]
   rm -rf "$b"
 }
+
+# platform/linux.sh picks a manager from what exists. The containers/OSes that
+# CI cannot run locally (Arch) are covered by faking the whole world: PATH has
+# ONLY the package manager under test, so no real apt/dnf/pacman is reachable.
+# The stubs use #!/bin/bash (not /usr/bin/env, which PATH would not resolve).
+
+@test "platform/linux.sh selects pacman and installs the Arch package set" {
+  local fb="$BATS_TMPDIR/pm-pacman-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/bash\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac\n' > "$fb/uname"
+  printf '#!/bin/bash\nprintf "pacman %%s\\n" "$*" >> "$FAKE_LOG"\n' > "$fb/pacman"
+  printf '#!/bin/bash\nprintf "sudo %%s\\n" "$*" >> "$FAKE_LOG"\n"$@"\n' > "$fb/sudo"
+  chmod +x "$fb/uname" "$fb/pacman" "$fb/sudo"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    source '$(platform_funcs linux.sh)'
+    main"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"manager: pacman"* ]]
+  [[ "$output" != *"manager: apt"* ]]
+  grep -q '^pacman -Sy --noconfirm' "$fb/calls.log"
+  grep -q '\bzsh\b' "$fb/calls.log"
+  grep -q '\bbase-devel\b' "$fb/calls.log"          # Arch name for build tools
+  grep -q '\bfd\b' "$fb/calls.log"                  # Arch does not ship fd-find
+  [[ "$output" == *"linux ready (headless OK)"* ]]  # optional installers may fail
+  rm -rf "$fb"
+}
+
+@test "platform/linux.sh selects apt and installs the Debian package set" {
+  local fb="$BATS_TMPDIR/pm-apt-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/bash\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac\n' > "$fb/uname"
+  printf '#!/bin/bash\nprintf "apt-get %%s\\n" "$*" >> "$FAKE_LOG"\n' > "$fb/apt-get"
+  printf '#!/bin/bash\nprintf "sudo %%s\\n" "$*" >> "$FAKE_LOG"\n"$@"\n' > "$fb/sudo"
+  chmod +x "$fb/uname" "$fb/apt-get" "$fb/sudo"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    source '$(platform_funcs linux.sh)'
+    main"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"manager: apt"* ]]
+  [[ "$output" != *"manager: pacman"* ]]
+  grep -q '^apt-get update$' "$fb/calls.log"
+  grep -q '\bfd-find\b' "$fb/calls.log"             # Debian name
+  grep -q '\bbuild-essential\b' "$fb/calls.log"
+  rm -rf "$fb"
+}
+
+@test "platform/linux.sh selects dnf and installs the Fedora package set" {
+  local fb="$BATS_TMPDIR/pm-dnf-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/bash\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac\n' > "$fb/uname"
+  printf '#!/bin/bash\nprintf "dnf %%s\\n" "$*" >> "$FAKE_LOG"\n' > "$fb/dnf"
+  printf '#!/bin/bash\nprintf "sudo %%s\\n" "$*" >> "$FAKE_LOG"\n"$@"\n' > "$fb/sudo"
+  chmod +x "$fb/uname" "$fb/dnf" "$fb/sudo"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    source '$(platform_funcs linux.sh)'
+    main"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"manager: dnf"* ]]
+  grep -q '^dnf install -y' "$fb/calls.log"
+  grep -q '\bgcc\b' "$fb/calls.log"                 # Fedora name for build tools
+  rm -rf "$fb"
+}

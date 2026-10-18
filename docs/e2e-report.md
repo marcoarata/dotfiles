@@ -5,18 +5,35 @@ links a reproducible run. Last verified: 2026-10-17 (CI all green).
 
 ## 1. CI matrix (GitHub Actions, `.github/workflows/ci.yml`)
 
-Runs on every `main` push + PR, Ubuntu + macOS:
+Runs on every `main` push + PR:
 
-| Job | What it proves | Status |
-|---|---|---|
-| `lint` | `shellcheck -S warning` + `zsh -n` + `bash -n` clean | green |
-| `test` | `smoke.sh` + all `bats` (incl. `uninstall --purge` e2e and network-failure paths) green on both OSes | green |
-| `install` | core install in isolated HOME + `doctor` exit 0 + idempotent reinstall | green |
+| Job | Runs on | What it proves | Status |
+|---|---|---|---|
+| `lint` | Ubuntu | `shellcheck -S warning` + `zsh -n` + `bash -n` clean | green |
+| `test` | Ubuntu, macOS | `smoke.sh` + `bats` (`shell.bats`, `bootstrap.bats`) green on both OSes | green |
+| `coverage` | Ubuntu | line coverage of `bin/` measured from the bats suite, against a floor | pending first CI run |
+| `fault-injection` | Ubuntu | injected failures fail loudly and never print success for work that did not happen (`tests/fault.bats`) | pending first CI run |
+| `arch-container` | Arch (`archlinux:latest`) | the unit suites *and* a real core install + `doctor` inside the distro (pacman branch) | pending first CI run |
+| `install` | Ubuntu, macOS | core install in isolated HOME + `doctor` exit 0 + idempotent reinstall | green |
+
+The three newer lanes pass locally (see `docs/evaluation.md` for the exact
+commands); their rows are marked green only once the corresponding CI run is
+observed on `main`. `docs/releases.md` documents what each job blocks before
+a tag.
 
 History: the first green run followed 4 test failures with diagnosed
 root causes (CWD assumed outside repos, shared `TEST_HOME` pollution,
 `command cd` exit 127 on zsh 5.8, fallback masking a missing zsh) — all
 fixed in `tests/shell.bats`, none in production code.
+
+Graceful-failure paths are covered by `bats` in isolated `HOME`/`YADR_HOME`:
+`uninstall --purge` end-to-end (managed symlinks go; user files and
+pre-existing shared data stay; YADR-added share entries and the tools
+`conf.d` fragment go; clone and state removed), `fetch_verified_zip` on an
+unreachable source (no leftovers), and `do_update` without a git checkout
+(warns, exits 0). The dedicated lane in `tests/fault.bats` goes further:
+it breaks a runtime, the editor, the network, the plugin cache and the
+purge snapshots on purpose and asserts the absence of success lines.
 
 Graceful-failure paths are covered by `bats` in isolated `HOME`/`YADR_HOME`:
 `uninstall --purge` end-to-end (managed symlinks go; user files and

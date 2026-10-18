@@ -243,6 +243,23 @@ you need — `yadr install node|python|typescript|ruby|rust|lazygit|tools`,
 Equivalence details: `docs/migration.md`.
 One-page quick install: `INSTALL-YADR.md`.
 
+## Support matrix
+
+Tiers say how a platform is verified, not just that it is "supported":
+
+| Tier | Meaning | Platforms |
+|---|---|---|
+| 1 | CI on every push: unit suites **and** a real install in an isolated `$HOME` + `doctor` | macOS arm64; Debian/Ubuntu (server, no GUI); WSL2 |
+| 2 | Dedicated CI lane; unit suites and a real install run there | Arch Linux (`archlinux:latest` container) |
+| 3 | The distro branch is covered by tests, but CI has no lane for it yet | Fedora/RHEL (`dnf`); macOS Intel (MacPorts path) |
+| 4 | Documented limits, deliberately not worked around | WSL 1 (Node ≥ 23 cannot exec, microsoft/WSL#8151) |
+
+Windows native is not supported — WSL is the Windows story, and `yadr` never
+tries to serve both. The `dnf`/`pacman`/`apt` branches are exercised by the
+package-manager tests in `tests/shell.bats`, which fake the whole world so no
+real manager is reachable while they run. What each CI job proves is listed in
+`docs/releases.md`; the historical evidence is in `docs/e2e-report.md`.
+
 ## `yadr` commands
 
 **Environment and profiles**

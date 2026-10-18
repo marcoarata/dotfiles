@@ -58,6 +58,37 @@ jobs:
       - name: injected failures must fail loudly, never lie
         run: bats tests/fault.bats
 
+  arch-container:
+    # Arch is a supported distro (platform/linux.sh drives pacman), and the
+    # only way to test its branch for real is inside the distro. The unit
+    # suites run here too, so portability claims cover Arch as well.
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: git (for actions/checkout)
+        run: |
+          pacman -Sy --noconfirm --needed git \
+            || { pacman-key --init; pacman-key --populate archlinux; pacman -Sy --noconfirm --needed git; }
+      - uses: actions/checkout@v4
+      - name: suites on Arch
+        run: |
+          pacman -S --noconfirm --needed bats zsh
+          bash tests/smoke.sh
+          bats tests/shell.bats tests/fault.bats tests/bootstrap.bats
+      - name: real install in an isolated HOME (pacman branch)
+        run: |
+          export FAKE_HOME=/tmp/yadr-home
+          mkdir -p "$FAKE_HOME"
+          HOME="$FAKE_HOME" YADR_HOME="$GITHUB_WORKSPACE" \
+            bash "$GITHUB_WORKSPACE/bootstrap.sh" --local --yes
+      - name: doctor must pass clean
+        run: |
+          export PATH="/tmp/yadr-home/.local/bin:$PATH"
+          HOME=/tmp/yadr-home bash "$GITHUB_WORKSPACE/bin/yadr" doctor
+
   install:
     strategy:
       fail-fast: false
