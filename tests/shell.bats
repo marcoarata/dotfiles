@@ -638,6 +638,36 @@ platform_funcs() {
   rm -rf "$home" "$fake" "$repo"
 }
 
+@test "typescript payload runs Lazy! restore once, not twice" {
+  # ensure_nvim_plugins already syncs the lockfile; ensure_lsp_servers used to
+  # launch nvim a second time for the same restore (harmless, pure waste).
+  local home="$BATS_TMPDIR/lsp-once-$$" bin="$BATS_TMPDIR/lsp-once-bin-$$" repo="$BATS_TMPDIR/lsp-once-repo-$$"
+  rm -rf "$home" "$bin" "$repo"
+  mkdir -p "$home/.local/share/nvim/lazy/lazy.nvim" "$home/.local/share/nvim/lazy/mason.nvim" "$bin" "$repo"
+  printf '#!/usr/bin/env bash\necho "$*" >> "$HOME/nvim.log"\nexit 0\n' > "$bin/nvim"
+  chmod +x "$bin/nvim"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$bin/mise"; chmod +x "$bin/mise"
+  run bash -c "
+    export HOME='$home' PATH='$bin:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    ensure_profile_payload typescript"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c 'Lazy! restore' "$home/nvim.log")" -eq 1 ]
+  [ "$(grep -c 'MasonInstall' "$home/nvim.log")" -eq 1 ]
+  [[ "$output" == *"skipping the extra sync"* ]]
+  # A standalone ensure_lsp_servers (no restore yet in this process) still syncs.
+  rm -f "$home/nvim.log"
+  run bash -c "
+    export HOME='$home' PATH='$bin:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    ensure_lsp_servers"
+  [ "$status" -eq 0 ]
+  [ "$(grep -c 'Lazy! restore' "$home/nvim.log")" -eq 1 ]
+  rm -rf "$home" "$bin" "$repo"
+}
+
 @test "uninstall --purge removes YADR state, keeps pre-existing data" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-clone-$$"
   # Fake checkout (isolated): --purge would rm -rf $YADR_HOME, never the real repo.

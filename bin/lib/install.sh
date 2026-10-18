@@ -144,6 +144,11 @@ lazy_restore() { # one headless `Lazy! restore`; 0 on success (caller reports)
   run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 5
 }
 
+# Set by ensure_nvim_plugins once it has run `Lazy! restore` in this process, so
+# ensure_lsp_servers (called right after it for the same profile) does not launch
+# nvim a second time to do the same lockfile sync. Empty on a standalone call.
+_YADR_NVIM_RESTORED=""
+
 ensure_nvim_plugins() {
   # Restores plugins exactly to the lockfile (Lazy! restore downgrades
   # any plugin ahead of its pin; fixes stale/broken checkouts).
@@ -162,6 +167,8 @@ ensure_nvim_plugins() {
   else
     warn "restore incomplete; open nvim and run :Lazy restore."
   fi
+  # Report to ensure_lsp_servers that the lockfile sync already happened.
+  _YADR_NVIM_RESTORED=1
   # Cleans orphans (plugins no longer in the spec: lualine, devicons…).
   # Without them, Telescope and others cannot re-enable Nerd icons on their own.
   info "cleaning orphan plugins (Lazy! clean)…"
@@ -177,13 +184,19 @@ ensure_lsp_servers() {
   # (Replaces mason-lspconfig ensure_installed, removed.)
   # Mandatory order: lazy first (mason.nvim only exists after opening nvim
   # once), Mason after. All visible: nothing to /dev/null.
+  # The lazy step is skipped when ensure_nvim_plugins already did it in this
+  # run (their common caller ensures both for one profile).
   have nvim || { warn "no nvim; skipping LSP servers."; return 0; }
-  info "syncing Neovim plugins to lockfile (restore; slow the first time)…"
-  if lazy_restore; then
-    ok "plugins synced."
+  if [[ -n "$_YADR_NVIM_RESTORED" ]]; then
+    info "lazy plugins already restored by this run; skipping the extra sync."
   else
-    warn "Lazy restore failed or took >10min; open nvim and run :Lazy restore."
-    return 0
+    info "syncing Neovim plugins to lockfile (restore; slow the first time)…"
+    if lazy_restore; then
+      ok "plugins synced."
+    else
+      warn "Lazy restore failed or took >10min; open nvim and run :Lazy restore."
+      return 0
+    fi
   fi
   [[ -d "${HOME}/.local/share/nvim/lazy/mason.nvim" ]] || { warn "mason still absent after sync; open nvim and retry yadr install typescript."; return 0; }
   info "installing LSP servers (mason, may take a while)…"
