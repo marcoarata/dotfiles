@@ -34,9 +34,13 @@ do_doctor() {
   DOCTOR_FAIL=0; DOCTOR_WARN=0
   printf '%sYADR doctor %s%s\n' "$BOLD" "$(version_str)" "$RESET"
   detect_rogue_checkouts
+  # Where Neovim keeps config/data: XDG-aware, the same paths nvim resolves via
+  # stdpath(), so a moved XDG directory cannot produce false warnings (ADR-005).
+  local _nvdata _nvconf
+  _nvdata="$(nvim_data_dir)"; _nvconf="$(nvim_config_dir)"
   local _dirty; _dirty="$(dirty_tree_list)"
   if [[ -n "$_dirty" ]]; then
-    dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (usually git/gitconfig from a 'git config --global' -- keep your identity in ~/.gitconfig.user instead; also nvim/lazy-lock.json from Lazy sync, or runtime/mise.toml from 'mise use -g'; put your own global tools in ~/.config/mise/conf.d/); updates may refuse to fast-forward"
+    dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (usually git/gitconfig from a 'git config --global' -- keep your identity in ~/.gitconfig.user instead; also nvim/lazy-lock.json from Lazy sync, or runtime/mise.toml from 'mise use -g'; put your own global tools in $(mise_config_dir)/conf.d/); updates may refuse to fast-forward"
   fi
   dc_cmd "zsh" zsh "sudo apt install zsh / brew install zsh; chsh -s \$(command -v zsh)"
   dc_cmd "git" git "sudo apt install git / brew install git"
@@ -77,11 +81,11 @@ do_doctor() {
   # silent degradation is a bug — see Intel Mac Tier 3 report).
   for _plug in "zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" "zsh-autosuggestions/zsh-autosuggestions.zsh"; do
     _found=""
-    for _base in "${XDG_DATA_HOME:-$HOME/.local/share}/yadr-plugins" /opt/local/share /usr/share "$(brew --prefix 2>/dev/null)/share"; do
+    for _base in "$(yadr_plugins_dir)" /opt/local/share /usr/share "$(brew --prefix 2>/dev/null)/share"; do
       if [[ -n "$_base" && -f "${_base}/${_plug}" ]]; then _found="${_base}/${_plug}"; break; fi
     done
     if [[ -n "$_found" ]]; then dc_ok "${_plug%%/*} (${_found})";
-    else dc_warn "${_plug%%/*} not found" "yadr install core, or clone into ~/.local/share/yadr-plugins/"; fi
+    else dc_warn "${_plug%%/*} not found" "yadr install core, or clone into $(yadr_plugins_dir)/"; fi
   done
   # runtimes via abstraction
   for t in node npm pnpm; do
@@ -89,22 +93,22 @@ do_doctor() {
   done
   if have python; then dc_ok "python ($(python --version 2>&1 | head -n1))"; else dc_warn "python missing" "yadr install python (installs Python 3.14 via mise)"; fi
   if have lazygit; then dc_ok "lazygit ($(lazygit --version 2>/dev/null | head -n1))"; else dc_warn "lazygit missing" "yadr install lazygit"; fi
-  # lsp: server on PATH or installed by Mason (~/.local/share/nvim/mason/bin)
+  # lsp: server on PATH or installed by Mason (<nvim data dir>/mason/bin)
   if have rust-analyzer || have typescript-language-server || have pyright || have lua-language-server || have gopls || have clangd; then
     dc_ok "lsp (server en PATH)"
-  elif [[ -n "$(ls "${HOME}/.local/share/nvim/mason/bin" 2>/dev/null)" ]]; then
-    dc_ok "lsp (servers Mason: $(ls "${HOME}/.local/share/nvim/mason/bin" 2>/dev/null | tr '\n' ' '))"
+  elif [[ -n "$(ls "${_nvdata}/mason/bin" 2>/dev/null)" ]]; then
+    dc_ok "lsp (servers Mason: $(ls "${_nvdata}/mason/bin" 2>/dev/null | tr '\n' ' '))"
   else dc_warn "lsp without servers" "yadr install typescript (installs the 5 servers via Mason)"; fi
   # treesitter: parsers o CLI.
   if have tree-sitter; then dc_ok "treesitter (cli)"
-  elif [[ -n "$(ls "${HOME}/.local/share/nvim/lazy/nvim-treesitter"/parser 2>/dev/null)" ]]; then dc_ok "treesitter (parsers nvim)"
+  elif [[ -n "$(ls "${_nvdata}/lazy/nvim-treesitter"/parser 2>/dev/null)" ]]; then dc_ok "treesitter (parsers nvim)"
   else dc_warn "treesitter without parsers" "open nvim and run :TSUpdate, or install tree-sitter-cli"; fi
   # Solarized: palette referenced in repo or HOME configs.
-  if [[ -n "$(grep -rli "solarized" "${YADR_HOME}/nvim" "${YADR_HOME}/tmux" "${YADR_HOME}/shell" "${HOME}/.config/nvim" "${HOME}/.tmux.conf" 2>/dev/null)" ]]; then
+  if [[ -n "$(grep -rli "solarized" "${YADR_HOME}/nvim" "${YADR_HOME}/tmux" "${YADR_HOME}/shell" "${_nvconf}" "${HOME}/.tmux.conf" 2>/dev/null)" ]]; then
     dc_ok "Solarized (referenced in configs)"
   else dc_warn "Solarized missing" "reinstall: yadr install core (palette in nvim/tmux/shell)"; fi
   # Damoekri: prompt present
-  if [[ -f "${YADR_HOME}/shell/damoekri.zsh" ]] || grep -q "damoekri" "${HOME}/.zshrc" 2>/dev/null; then
+  if [[ -f "${YADR_HOME}/shell/damoekri.zsh" ]] || grep -q "damoekri" "$(zshrc_path)" 2>/dev/null; then
     dc_ok "Damoekri (prompt present)"
   else dc_warn "Damoekri missing" "reinstall: yadr install core (prompt in shell/damoekri.zsh)"; fi
   # Nerd Font (installed by platform/; without it nvim degrades icons).
@@ -117,9 +121,9 @@ do_doctor() {
     dc_ok "Nerd Font present (${_nfsrc})"
   else dc_warn "Nerd Font missing" "yadr install core installs it (terminal/fonts); without a font, icons degrade to text"; fi
   # Neovim plugins vs lockfile (detects ahead/behind checkouts).
-  if [[ -f "${YADR_HOME}/nvim/lazy-lock.json" && -d "${HOME}/.local/share/nvim/lazy" ]]; then
+  if [[ -f "${YADR_HOME}/nvim/lazy-lock.json" && -d "${_nvdata}/lazy" ]]; then
     local _div="" _d _name _want _got
-    for _d in "${HOME}"/.local/share/nvim/lazy/*/; do
+    for _d in "${_nvdata}"/lazy/*/; do
       [[ -d "${_d}/.git" ]] || continue
       _name="$(basename "$_d")"
       _want="$(grep -o "\"${_name}\": { \"branch\": \"[^\"]*\", \"commit\": \"[0-9a-f]*\"" "${YADR_HOME}/nvim/lazy-lock.json" 2>/dev/null | grep -oE '[0-9a-f]{40}' || true)"
@@ -132,7 +136,7 @@ do_doctor() {
   else dc_warn "neovim plugins not installed" "open nvim once or run yadr install core"; fi
   # nvim: clean headless startup (catches E5113/broken configs like gitsigns).
   # Only with installed config; else the plugins check already warned.
-  if have nvim && [[ -L "${HOME}/.config/nvim" ]]; then
+  if have nvim && [[ -L "${_nvconf}" ]]; then
     local _nerr
     _nerr="$(run_timeout 120 nvim --headless "+qa" 2>&1 | grep -iE "error|failed to|not installed|not found| Press ENTER" | head -n 5 || true)"
     if [[ -z "$_nerr" ]]; then dc_ok "clean nvim startup";
@@ -154,7 +158,7 @@ do_doctor() {
 }
 
 # --- gitsigns opt-in (off by default) ---
-gitsigns_marker() { printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}/yadr/gitsigns.enabled"; }
+gitsigns_marker() { printf '%s' "$(yadr_config_dir)/gitsigns.enabled"; }
 cmd_gitsigns() { # on|off|status
   local sub="${1:-status}" marker
   marker="$(gitsigns_marker)"

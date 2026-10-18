@@ -125,8 +125,8 @@ alias k9="kill -9"
 alias psa="ps aux"
 alias psg="ps aux | grep "
 alias :q="exit"
-alias ve="$EDITOR ~/.config/nvim/init.lua"
-alias ze="$EDITOR ~/.zshrc"
+alias ve='$EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.lua"'
+alias ze='$EDITOR "${ZDOTDIR:-$HOME}/.zshrc"'
 alias gar="killall -HUP -u \"$USER\" zsh"  # global zsh reload
 alias yup="yadr update"
 if command -v gh >/dev/null 2>&1; then

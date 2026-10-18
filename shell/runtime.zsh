@@ -6,7 +6,7 @@
 # Outside a project: the global node only (classic behavior).
 # Inside a project: only the runtimes the project itself pins. Attribution
 # comes from `mise ls --current` (authoritative source path): a version whose
-# source is the global config (under ~/.config/mise) is inherited, not pinned,
+# source is the global config (under the mise config dir) is inherited, not pinned,
 # and is filtered out. Rows mise marks "(missing)" (requested by the config but
 # not installed) are dropped too: the prompt never reports a version that is
 # not on disk. Without mise, node is always shown and ruby/python only

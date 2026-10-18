@@ -4,7 +4,7 @@
 # They already ship on macOS (see platform/macos.sh PACKAGES/PORT_PACKAGES);
 # on Linux/WSL this profile adds them as user-global mise tools.
 # Idempotent: installs only what is missing. No sudo. Never touches the
-# managed runtime/mise.toml — it writes ~/.config/mise/conf.d/yadr-tools.toml.
+# managed runtime/mise.toml — it writes <mise config>/conf.d/yadr-tools.toml.
 # Policy: floating latest (leaf tools). Marks provides-tools for purge.
 set -euo pipefail
 
@@ -12,7 +12,7 @@ log()  { printf '[yadr:tools] %s\n' "$*"; }
 warn() { printf '[yadr:tools] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-CONF_D="${HOME}/.config/mise/conf.d/yadr-tools.toml"
+CONF_D="${XDG_CONFIG_HOME:-$HOME/.config}/mise/conf.d/yadr-tools.toml"
 TOOLS=(eza bat delta)
 
 missing_tools() # prints each tool not on PATH, one per line
@@ -22,8 +22,9 @@ missing_tools() # prints each tool not on PATH, one per line
 }
 
 yadr_marker() { # records provides-tools for purge (same name as platform/common.sh)
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-tools" 2>/dev/null || true
+  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  mkdir -p "$dir" 2>/dev/null || true
+  touch "${dir}/provides-tools" 2>/dev/null || true
 }
 
 install_macos() {

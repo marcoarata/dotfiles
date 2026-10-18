@@ -8,7 +8,7 @@ detect_rogue_checkouts() {
   # (~/yadr2027v4.0, ~/dotfiles-old…) plus cross symlinks produce ghost
   # states: nvim loads config from another checkout and nothing is
   # reproducible. This detects it before it bites.
-  local found=0 d target
+  local found=0 d target rel link
   for d in "${HOME}"/yadr* "${HOME}"/dotfiles*; do
     [[ -e "$d" || -L "$d" ]] || continue
     [[ "$d" == "${YADR_HOME}" ]] && continue
@@ -16,7 +16,10 @@ detect_rogue_checkouts() {
     warn "rogue checkout detected: ${d} (sanctioned: ${YADR_HOME})"
     found=1
   done
-  for link in "${HOME}/.config/nvim" "${HOME}/.zshrc" "${HOME}/.gitconfig" "${HOME}/.tmux.conf"; do
+  # Every managed destination (not a hardcoded list): with XDG moved, the link
+  # is not where the old literal said it was, and the check would miss it.
+  while IFS=: read -r rel link; do
+    [[ -z "$rel" || -z "$link" ]] && continue
     if [[ -L "$link" ]]; then
       target="$(readlink "$link")"
       [[ "$target" == /* ]] || target="${HOME}/${target}"
@@ -25,7 +28,7 @@ detect_rogue_checkouts() {
         *) warn "foreign symlink: ${link} → ${target} (kept; YADR uses ${YADR_HOME})"; found=1 ;;
       esac
     fi
-  done
+  done < <(managed_pairs)
   if [[ "$found" == "1" ]]; then
     warn "rogue checkout/symlinks outside ${YADR_HOME}: use a single clone; the rest confuses nvim/lazy."
   fi
@@ -160,10 +163,14 @@ ensure_nvim_plugins() {
   # Restores plugins exactly to the lockfile (Lazy! restore downgrades
   # any plugin ahead of its pin; fixes stale/broken checkouts).
   have nvim || return 0
-  [[ -d "${HOME}/.local/share/nvim/lazy/lazy.nvim" ]] || return 0
+  # Where Neovim itself keeps them: stdpath("data") follows XDG_DATA_HOME, so a
+  # hardcoded ~/.local/share here made this step silently skip on a machine that
+  # moved its XDG directories (ADR-005).
+  local nvim_data; nvim_data="$(nvim_data_dir)"
+  [[ -d "${nvim_data}/lazy/lazy.nvim" ]] || return 0
   # Leftover interrupted clones (*.cloning) block reinstalls.
   local stale
-  for stale in "${HOME}"/.local/share/nvim/lazy/*.cloning; do
+  for stale in "${nvim_data}"/lazy/*.cloning; do
     [[ -e "$stale" ]] || continue
     warn "cleaning interrupted clone: $(basename "$stale")"
     rm -rf "$stale"
@@ -205,7 +212,7 @@ ensure_lsp_servers() {
       return 0
     fi
   fi
-  [[ -d "${HOME}/.local/share/nvim/lazy/mason.nvim" ]] || { warn "mason still absent after sync; open nvim and retry yadr install typescript."; return 0; }
+  [[ -d "$(nvim_data_dir)/lazy/mason.nvim" ]] || { warn "mason still absent after sync; open nvim and retry yadr install typescript."; return 0; }
   info "installing LSP servers (mason, may take a while)…"
   if run_timeout 900 nvim --headless -c "MasonInstall typescript-language-server bash-language-server lua-language-server json-lsp marksman" -c "qa" 2>&1 | tail -n 8; then
     ok "LSP servers ready."
@@ -214,23 +221,28 @@ ensure_lsp_servers() {
   fi
 }
 
+share_dirs() { # "snapshot-tag<TAB>dir": every directory the purge inventory covers
+  # TAB-separated (a moved XDG_DATA_HOME can hold anything but a newline) and
+  # explicit about the tag: with XDG relocated, the tag can no longer be derived
+  # from the path shape. Single source of truth for snapshot AND purge (ADR-005).
+  printf '%s\t%s\n' share-nvim   "$(nvim_data_dir)"
+  printf '%s\t%s\n' share-mise   "$(mise_data_dir)"
+  printf '%s\t%s\n' share-zoxide "$(zoxide_data_dir)"
+  printf '%s\t%s\n' cache-nvim   "$(nvim_cache_dir)"
+  printf '%s\t%s\n' state-nvim   "$(nvim_state_dir)"
+}
+
 snapshot_share_dirs() { # records pre-existing share/cache entries once (first install wins)
   # Purge later deletes everything EXCEPT these entries, so user data that
   # predates YADR always survives. Filenames with newlines are out of scope.
-  local d tag snap
-  for d in "${HOME}/.local/share/nvim" "${HOME}/.local/share/mise" "${HOME}/.local/share/zoxide" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"; do
-    case "$d" in
-      *share/nvim)  tag="share-nvim" ;;
-      *share/mise)  tag="share-mise" ;;
-      *share/zoxide) tag="share-zoxide" ;;
-      *cache/nvim)  tag="cache-nvim" ;;
-      *state/nvim)  tag="state-nvim" ;;
-    esac
+  local tag d snap
+  while IFS=$'\t' read -r tag d; do
+    [[ -n "$tag" ]] || continue
     snap="${STATE_DIR}/preexisting-${tag}"
     [[ -f "$snap" ]] && continue
     mkdir -p "$STATE_DIR" 2>/dev/null || true
     if [[ -d "$d" ]]; then ls -A "$d" > "$snap" 2>/dev/null || true; else : > "$snap"; fi
-  done
+  done < <(share_dirs)
 }
 
 purge_dir_keep_preexisting() { # $1 = dir, $2 = snapshot tag: deletes all but recorded entries

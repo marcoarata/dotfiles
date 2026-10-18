@@ -27,7 +27,7 @@ cmd_runtime_use() { # cmd_runtime_use tool[@version]
   info "activating runtime '${spec}'…"
   mise use -g "$spec" || { err "'mise use -g ${spec}' failed."; return 1; }
   ok "runtime '${spec}' active globally."
-  info "note: this updated the managed runtime/mise.toml (git-tracked); for your own global tools prefer ~/.config/mise/conf.d/<name>.toml"
+  info "note: this updated the managed runtime/mise.toml (git-tracked); for your own global tools prefer $(mise_config_dir)/conf.d/<name>.toml"
 }
 cmd_runtime_doctor() {
   if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend missing" "curl -fsSL https://mise.run | sh"; return 1; fi
@@ -36,7 +36,7 @@ cmd_runtime_doctor() {
 }
 
 # --- theme (Solarized background; same file the macOS menu writes) ---
-theme_file() { printf '%s' "${HOME}/.config/yadr/solarized-bg"; }
+theme_file() { printf '%s' "$(yadr_config_dir)/solarized-bg"; }
 theme_normalize() { # light|solarized-light|dark|solarized-dark|none -> canonical or ""
   case "$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]')" in
     light|solarized-light) echo "light" ;;

@@ -6,8 +6,11 @@
 # Override PLATFORM_COMMON only in tests to point at this file.
 
 yadr_marker() { # $1 = short name: records provides-<name> for purge
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-$1" 2>/dev/null || true
+  # STATE_DIR wins when the CLI exported it; else the XDG-aware default that
+  # mirrors bin/lib/paths.sh (platform scripts also run standalone).
+  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  mkdir -p "$dir" 2>/dev/null || true
+  touch "${dir}/provides-$1" 2>/dev/null || true
 }
 
 nvim_version_ok() { # $1 = nvim binary: echoes "M.m", exit 0 when >=0.11

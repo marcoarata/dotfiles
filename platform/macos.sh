@@ -93,9 +93,9 @@ ensure_zsh_plugins_macos() {
 choose_solarized_bg() {
   # macOS background menu: 1 light (solid) / 2 dark (solid) / 3 none.
   # Enter / invalid / no TTY / --yes / env override missing -> none.
-  # Stored in ~/.config/yadr/solarized-bg (read by nvim on every start);
+  # Stored in <XDG config>/yadr/solarized-bg (read by nvim on every start);
   # YADR_SOLARIZED_BG env (light|dark|none) wins without prompting.
-  local dest="${HOME}/.config/yadr/solarized-bg" choice=""
+  local dest="${XDG_CONFIG_HOME:-$HOME/.config}/yadr/solarized-bg" choice=""
   if [[ -n "${YADR_SOLARIZED_BG:-}" ]]; then
     case "${YADR_SOLARIZED_BG}" in light|dark|none) choice="${YADR_SOLARIZED_BG}" ;;
       *) warn "YADR_SOLARIZED_BG='${YADR_SOLARIZED_BG}' invalid (light|dark|none); using none."; choice="none" ;;

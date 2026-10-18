@@ -112,6 +112,14 @@ trade a real robustness property for cosmetic DRY:
 - **`managed_pairs` is defined once, in `bin/yadr`,** and is the single source
   of truth for the symlink map; `diff`, `backup` and `uninstall` all consume
   it. It is *not* copied into `lib/`.
+- **`bin/lib/paths.sh` is the single source of truth for destinations**
+  (ADR-005). It is sourced by `bin/yadr` before every other module, and
+  `managed_pairs`, the installer, `doctor`, the purge inventory, the
+  `export`/`apply` bundle and the theme all consume it, so the CLI and the tools
+  it configures cannot disagree about where a file lives. `platform/*.sh`
+  compose the same `${XDG_*:-$HOME/...}` defaults inline for the reason above
+  (they run standalone); a test rejects hardcoded XDG-derived paths in `bin/`,
+  `platform/` and `bootstrap.sh` so the two forms cannot drift.
 
 `shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
 `bootstrap.sh` file in CI as the coupling alarm for both points.
@@ -127,3 +135,4 @@ rejected and the consequences accepted:
 | [ADR-002](adr-002-runtime-manager.md) | `mise` as the runtime backend, never required by Core |
 | [ADR-003](adr-003-purge-inventory.md) | `--purge` deletes only what YADR added (pre-install snapshot; refuses blind wipes) |
 | [ADR-004](adr-004-failure-policy.md) | Runtime failures are fatal; editor failures are advisory |
+| [ADR-005](adr-005-path-policy.md) | Paths follow the variables of the tool that reads the file (`XDG_*`, `ZDOTDIR`) |

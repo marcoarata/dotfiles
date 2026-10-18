@@ -82,7 +82,7 @@ ensure_nvim() {
 # around (/usr/bin/vim is never touched; the shim wins via PATH and
 # `yadr uninstall --purge` removes it via the provides-vim marker).
 ensure_vim() {
-  [[ -f "${HOME}/.local/state/yadr/provides-nvim-upstream" ]] || return 0
+  [[ -f "${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}/provides-nvim-upstream" ]] || return 0
   local nvim_bin="${HOME}/.local/nvim-upstream/bin/nvim"
   [[ -x "$nvim_bin" ]] || return 0
   local ver
@@ -141,8 +141,8 @@ install_fonts() {
   fi
   have curl unzip fc-cache || { warn "missing curl/unzip/fontconfig; install the font manually (${YADR_FONT_URL})."; return 0; }
   log "downloading ${YADR_FONT_FAMILY} ${YADR_FONT_VERSION}..."
-  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${HOME}/.local/share/fonts" '*.ttf' '*.otf' || return 0
-  fc-cache -f "${HOME}/.local/share/fonts" >/dev/null 2>&1 || true
+  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" '*.ttf' '*.otf' || return 0
+  fc-cache -f "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" >/dev/null 2>&1 || true
   yadr_marker font
   [[ -n "$(fc-list 2>/dev/null | grep -i "$YADR_FONT_FAMILY")" ]] && log "font installed." || warn "installed but fc-list cannot see it (graphical session?)."
 }

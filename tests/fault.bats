@@ -14,6 +14,8 @@ setup() {
   export YADR_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
   export TEST_HOME="$BATS_TMPDIR/yadr-fault-home"
   rm -rf "$TEST_HOME"; mkdir -p "$TEST_HOME"
+  # Same hermetic-path rule as shell.bats: lib/paths.sh follows XDG_*/ZDOTDIR.
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME ZDOTDIR
 }
 
 load helpers

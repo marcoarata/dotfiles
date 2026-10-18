@@ -82,7 +82,7 @@ map("n", ",ocf", function()
 end, vim.tbl_extend("force", opts, { desc = "Open changed files" }))
 
 -- Vim config: ,vc edit nvim config, ,vr reload config
-map("n", ",vc", "<cmd>edit ~/.config/nvim/init.lua<cr>", vim.tbl_extend("force", opts, { desc = "Edit nvim config" }))
+map("n", ",vc", "<cmd>edit " .. vim.fn.stdpath("config") .. "/init.lua<cr>", vim.tbl_extend("force", opts, { desc = "Edit nvim config" }))
 map("n", ",vr", function()
   for name, _ in pairs(package.loaded) do
     if name:match("^yadr") then

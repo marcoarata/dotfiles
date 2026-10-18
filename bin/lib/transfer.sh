@@ -33,8 +33,8 @@ EOF
 }
 
 state_glob_dirs() { # "archive-prefix:directory" — every file inside is user state
-  printf 'migrated/:%s\n' "${HOME}/.config/yadr/migrated"
-  printf 'mise-conf.d/:%s\n' "${HOME}/.config/mise/conf.d"
+  printf 'migrated/:%s\n' "$(yadr_config_dir)/migrated"
+  printf 'mise-conf.d/:%s\n' "$(mise_config_dir)/conf.d"
 }
 
 state_dest_for() { # archive-name -> absolute destination, empty when not user state
@@ -44,8 +44,8 @@ state_dest_for() { # archive-name -> absolute destination, empty when not user s
     vimrc.before)   echo "${HOME}/.vimrc.before" ;;
     vimrc.after)    echo "${HOME}/.vimrc.after" ;;
     tmux.conf.user) echo "${HOME}/.tmux.conf.user" ;;
-    migrated/*)     echo "${HOME}/.config/yadr/migrated/${1#migrated/}" ;;
-    mise-conf.d/*)  echo "${HOME}/.config/mise/conf.d/${1#mise-conf.d/}" ;;
+    migrated/*)     echo "$(yadr_config_dir)/migrated/${1#migrated/}" ;;
+    mise-conf.d/*)  echo "$(mise_config_dir)/conf.d/${1#mise-conf.d/}" ;;
     *)              echo "" ;;
   esac
 }

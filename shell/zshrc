@@ -113,6 +113,7 @@ fi
 
 # --- Local overrides (unversioned) ---
 [[ -f "$XDG_CONFIG_HOME/zsh/local.zsh" ]] && source "$XDG_CONFIG_HOME/zsh/local.zsh" || true
-[[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local" || true
+# Next to this file: zsh reads $ZDOTDIR/.zshrc, so the hook lives there too.
+[[ -f "${ZDOTDIR:-$HOME}/.zshrc.local" ]] && source "${ZDOTDIR:-$HOME}/.zshrc.local" || true
 
 return 0 2>/dev/null || true

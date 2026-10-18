@@ -126,6 +126,31 @@ jobs:
           echo "::notice::Nerd Font: $(find /tmp/yadr-home/.local/share/fonts -type f 2>/dev/null | wc -l) file(s) under HOME, $(fc-list 2>/dev/null | grep -ci -e nerd -e jetbrains || true) visible to fontconfig (a headless container often sees 0: install_fonts warns in that case, it never fails)"
           echo "::notice::symlinks into HOME: $(find /tmp/yadr-home -maxdepth 1 -type l | wc -l)"
           [ -z "$missing" ] || { echo "::error::install did not provide:$missing"; exit 1; }
+      - name: real install with moved XDG directories (ADR-005)
+        run: |
+          # The environment the path policy exists for: a desktop session
+          # exports XDG_* and the user may have relocated them. A real install
+          # must land its links where the tools read them -- not under
+          # $HOME/.config -- and `doctor` must agree afterwards.
+          export XDG_ROOT=/tmp/yadr-xdg
+          export FAKE_HOME="$XDG_ROOT/home"
+          rm -rf "$XDG_ROOT"; mkdir -p "$FAKE_HOME"
+          export HOME="$FAKE_HOME"
+          export XDG_CONFIG_HOME="$XDG_ROOT/config" XDG_DATA_HOME="$XDG_ROOT/data"
+          export XDG_CACHE_HOME="$XDG_ROOT/cache" XDG_STATE_HOME="$XDG_ROOT/state"
+          YADR_HOME="$GITHUB_WORKSPACE" bash "$GITHUB_WORKSPACE/bootstrap.sh" --local --yes
+          export PATH="$HOME/.local/bin:$PATH"
+          fail=0
+          for p in "$XDG_CONFIG_HOME/nvim" "$XDG_CONFIG_HOME/mise/config.toml" "$XDG_CONFIG_HOME/yadr/aliases.zsh"; do
+            if [ ! -L "$p" ]; then echo "::error::not linked where the tool reads it: $p"; fail=1; fi
+          done
+          if [ -e "$HOME/.config/nvim" ]; then
+            echo "::error::nvim config left in the HOME default ($HOME/.config/nvim)"; fail=1
+          fi
+          [ "$fail" -eq 0 ] || exit 1
+          echo "::notice::XDG moved: nvim config -> $(readlink "$XDG_CONFIG_HOME/nvim")"
+          echo "::notice::XDG moved: nvim stdpath(config) -> $(nvim --clean --headless -c 'lua io.write(vim.fn.stdpath("config"))' -c qa 2>/dev/null)"
+          bash "$GITHUB_WORKSPACE/bin/yadr" doctor
 
   install:
     strategy:

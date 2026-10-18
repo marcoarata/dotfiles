@@ -17,6 +17,13 @@ done
 BIN_DIR="$(cd -- "$(dirname -- "$_SRC")" && pwd -P)"
 YADR_HOME="$(cd -- "${BIN_DIR}/.." && pwd -P)"
 unset _SRC _D
+# lib/ is resolved from the binary's own path (YADR_LIB_DIR override: tests only)
+YADR_LIB_DIR="${YADR_LIB_DIR:-${BIN_DIR}/lib}"
+# Path policy loads FIRST: the symlink map, STATE_DIR and the PATH entries below
+# all compute destinations with it (ADR-005).
+# shellcheck source=lib/paths.sh
+# shellcheck disable=SC1090
+source "${YADR_LIB_DIR}/paths.sh" || { echo "cannot load lib/paths.sh" >&2; exit 1; }
 # platform/*.sh installs the CLI into ~/.local/bin (mise, zoxide); doctor and
 # subcommands must see them even if the interactive PATH lacks them yet.
 case ":$PATH:" in
@@ -24,13 +31,14 @@ case ":$PATH:" in
   *) PATH="$HOME/.local/bin:$PATH" ;;
 esac
 case ":$PATH:" in
-  *":$HOME/.local/share/mise/shims:"*) ;;
-  *) PATH="$HOME/.local/share/mise/shims:$PATH" ;;
+  *":$(xdg_data)/mise/shims:"*) ;;
+  *) PATH="$(xdg_data)/mise/shims:$PATH" ;;
 esac
 export PATH
 VERSION_FILE="${YADR_HOME}/VERSION"
-export BACKUP_ROOT="${HOME}/.local/state/yadr/backups"
-export STATE_DIR="${HOME}/.local/state/yadr"
+BACKUP_ROOT="$(yadr_state_dir)/backups"
+STATE_DIR="$(yadr_state_dir)"
+export BACKUP_ROOT STATE_DIR
 
 # --- colors (tty only) ---
 if [[ -t 1 ]]; then
@@ -83,26 +91,27 @@ confirm() {
 
 # --- managed pairs: "relative_source:absolute_dest" ---
 # When the source is missing from the repo (e.g. partial checkout), report and skip.
+# Destinations come from lib/paths.sh: the link lands where the tool that reads
+# it actually looks, even when the user moved their XDG directories (ADR-005).
 managed_pairs() {
   cat <<EOF
 bin/yadr:${HOME}/.local/bin/yadr
-shell/zshrc:${HOME}/.zshrc
-shell/aliases.zsh:${HOME}/.config/yadr/aliases.zsh
-shell/damoekri.zsh:${HOME}/.config/yadr/damoekri.zsh
-shell/keybindings.zsh:${HOME}/.config/yadr/keybindings.zsh
-shell/runtime.zsh:${HOME}/.config/yadr/runtime.zsh
+shell/zshrc:$(zshrc_path)
+shell/aliases.zsh:$(yadr_config_dir)/aliases.zsh
+shell/damoekri.zsh:$(yadr_config_dir)/damoekri.zsh
+shell/keybindings.zsh:$(yadr_config_dir)/keybindings.zsh
+shell/runtime.zsh:$(yadr_config_dir)/runtime.zsh
 git/gitconfig:${HOME}/.gitconfig
 tmux/tmux.conf:${HOME}/.tmux.conf
-nvim:${HOME}/.config/nvim
-runtime/mise.toml:${HOME}/.config/mise/config.toml
+nvim:$(nvim_config_dir)
+runtime/mise.toml:$(mise_config_dir)/config.toml
 EOF
 }
 
 
 # Command implementations live in lib/ (sourced into this same shell,
 # so behavior is identical to a single file). YADR_LIB_DIR override
-# exists only for tests.
-YADR_LIB_DIR="${YADR_LIB_DIR:-${BIN_DIR}/lib}"
+# exists only for tests (and is resolved above, before paths.sh).
 for _lib in install recover doctor runtime benchmark transfer; do
   # shellcheck disable=SC1090
   source "${YADR_LIB_DIR}/${_lib}.sh" || { echo "cannot load lib/${_lib}.sh" >&2; exit 1; }

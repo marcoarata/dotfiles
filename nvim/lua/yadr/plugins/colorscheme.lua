@@ -32,7 +32,11 @@ return {
       -- solid dark/light only on explicit choice (or YADR_SOLID_BG=1 legacy).
       local bg = vim.env.YADR_SOLARIZED_BG or ""
       if bg == "" then
-        local f = io.open(vim.fn.expand("~/.config/yadr/solarized-bg"), "r")
+        -- Same path policy as the CLI (ADR-005): XDG_CONFIG_HOME/xdg/yadr,
+        -- falling back to ~/.config so a default machine is unchanged.
+        local cfgdir = vim.env.XDG_CONFIG_HOME
+        if cfgdir == nil or cfgdir == "" then cfgdir = vim.fn.expand("~/.config") end
+        local f = io.open(cfgdir .. "/yadr/solarized-bg", "r")
         if f then
           bg = f:read("*l") or ""
           f:close()

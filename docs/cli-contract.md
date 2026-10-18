@@ -1,13 +1,36 @@
 # CLI contract — why `bin/yadr` stays dependency-free (`bin/` + `bin/lib/`)
 
 `bin/yadr` (dispatcher, bash 3.2-compatible) + `bin/lib/*.sh` (one file per
-area: install, recover, doctor, runtime, benchmark, transfer) stay dependency-free:
+area: paths, install, recover, doctor, runtime, benchmark, transfer) stay dependency-free:
 they must run from `curl | sh` bootstraps, ancient macOS bash, and minimal
 Linux boxes with zero dependencies beyond bash/git. `lib/` is sourced via
 a `BIN_DIR`-resolved absolute path (symlink-aware, `YADR_LIB_DIR` override
 only for tests), so there is no load-path fragility. Split is mechanical
 only — same shell, same behavior. `shellcheck -S warning` is enforced in CI
 as the coupling alarm.
+
+## Where files live (ADR-005)
+
+`bin/lib/paths.sh` is the only place that computes a destination, and it is
+loaded before any other module. Every helper follows the environment variable of
+the program that reads the file, falling back to the XDG spec default
+(`$HOME/.config`, `$HOME/.local/share`, `$HOME/.cache`, `$HOME/.local/state`):
+
+| Destination | Follows | Why |
+|---|---|---|
+| Neovim config / plugin-Mason data / cache / state | `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, `XDG_STATE_HOME` | Neovim resolves them with `stdpath()` |
+| `mise` config and data | `XDG_CONFIG_HOME`, `XDG_DATA_HOME` | `mise` honours both |
+| theme, migrated classic files, gitsigns marker | `XDG_CONFIG_HOME` (`/yadr`) | YADR's own state; the marker is read by the Lua side from the same variable |
+| backups, purge snapshots, `provides-*` markers | `XDG_STATE_HOME` (`/yadr`) | YADR's own state |
+| zsh rc | `ZDOTDIR` when set | zsh reads `$ZDOTDIR/.zshrc` instead of `~/.zshrc` |
+| `~/.gitconfig`, `~/.tmux.conf`, `~/.local/bin` | nothing (HOME) | git and tmux always read them; XDG defines no binary directory |
+
+`install`, `doctor`, `diff`, `backup`, `uninstall --purge`, `export`/`apply` and
+`theme` all consume these helpers, and `share_dirs()` feeds the purge snapshot
+and the purge itself from one list. `platform/*.sh` compose the same defaults
+inline because they run standalone; a test fails if `bin/`, `platform/` or
+`bootstrap.sh` hardcode one of these paths again. See
+`docs/adr-005-path-policy.md`.
 
 Failure taxonomy used throughout:
 

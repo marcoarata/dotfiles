@@ -11,6 +11,27 @@ direct. Real problem signals (then it is a bug): persistent `Failed`,
 (`:Lazy restore`). Note: the panel only appears in `nvim`; classic `vim` opens
 the file directly (YADR configures Neovim, not Vim).
 
+## Moved `XDG` directories (the files are still findable)
+
+YADR writes to the same directories the programs it configures read, so moving
+`XDG_CONFIG_HOME`/`XDG_DATA_HOME`/`XDG_CACHE_HOME`/`XDG_STATE_HOME` (or
+`ZDOTDIR`) moves YADR's files with them — no flag, no reinstall, and nothing
+left behind in the old location. Check the resolution with:
+
+```sh
+yadr diff | grep -E 'nvim|mise|yadr/|zshrc'   # where the links would go (read-only)
+```
+
+- Neovim config/data follow `XDG_CONFIG_HOME`/`XDG_DATA_HOME`, which is where
+  Neovim's own `stdpath()` looks. `nvim --headless -c 'lua print(vim.fn.stdpath("config"))' -c qa`
+  prints the same directory YADR linked.
+- `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin` do **not** follow XDG: git,
+  tmux and your `PATH` read them where they are.
+- With the variables unset (the default on a fresh machine) everything falls
+  back to `~/.config`, `~/.local/share` and `~/.local/state`.
+- If a path still looks wrong, `yadr doctor` reports what it found and where;
+  the policy is `docs/adr-005-path-policy.md`.
+
 ## Slow shell (<500ms slow VM / <300ms workstation threshold; see `yadr benchmark shell`)
 
 1. `yadr benchmark shell` (measures the YADR zshrc with isolated HOME, without touching your `~`).

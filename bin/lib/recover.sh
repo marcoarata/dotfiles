@@ -36,31 +36,44 @@ do_backup() {
 
 do_migrate() {
   # Imports classic YADR customization into YADR 2027. Idempotent.
-  # Untouched repo: files go to ~/.config/yadr/migrated/ + backup.
+  # Untouched repo: files go to <yadr config>/migrated/ + backup.
   # Usage: yadr migrate [--dry-run]
   local dry=0
   [[ "${1:-}" == "--dry-run" ]] && dry=1
   local dest
   dest="${BACKUP_ROOT}/migrate-$(timestamp)"
-  local migdir="${HOME}/.config/yadr/migrated"
+  local migdir; migdir="$(yadr_config_dir)/migrated"
   info "Classic YADR → 2027 (dry-run=${dry})"
   [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || info "no classic ~/.yadr; migrating loose files if any."
   local found=0
-  local f src rel
-  for f in .vimrc.before:.config/yadr/migrated/vimrc.before .vimrc.after:.config/yadr/migrated/vimrc.after .vundles.local:.config/yadr/migrated/vundles.local .gitconfig.user:"(already included via include, kept)" .tmux.conf.user:"(already included via source, kept)" .secrets:.config/yadr/migrated/secrets; do
-    src="${HOME}/${f%%:*}"; rel="${f##*:}"
+  local f src dst
+  # "<file in HOME>=<absolute destination>"; "keep:" = honored by include/source
+  # already, so only its presence is reported.
+  while IFS='=' read -r f dst; do
+    [[ -n "$f" ]] || continue
+    src="${HOME}/${f}"
     [[ -e "$src" ]] || continue
     found=$((found+1))
     if [[ "$dry" == "1" ]]; then
-      info "  would migrate: ${src} → ${rel}"
-    else
-      mkdir -p "$migdir" 2>/dev/null || true
-      backup_one "$src" "$dest" >/dev/null || true
-      case "$rel" in \(*) info "  keeping: ${src} ${rel}" ;;
-        *) mkdir -p "$(dirname "${HOME}/${rel}")"; cp_preserve "$src" "${HOME}/${rel}" && info "  migrated: ${src} → ${HOME}/${rel}" ;;
-      esac
+      info "  would migrate: ${src} → ${dst}"
+      continue
     fi
-  done
+    case "$dst" in
+      keep:*) info "  keeping: ${src} (${dst#keep:})" ;;
+      *)
+        backup_one "$src" "$dest" >/dev/null || true
+        mkdir -p "$(dirname "$dst")" 2>/dev/null || true
+        cp_preserve "$src" "$dst" && info "  migrated: ${src} → ${dst}"
+        ;;
+    esac
+  done <<EOF
+.vimrc.before=${migdir}/vimrc.before
+.vimrc.after=${migdir}/vimrc.after
+.vundles.local=${migdir}/vundles.local
+.secrets=${migdir}/secrets
+.gitconfig.user=keep:already included via include
+.tmux.conf.user=keep:already included via source
+EOF
   [[ "$found" -eq 0 ]] && info "nothing classic to migrate."
   [[ "$dry" == "1" ]] && info "dry-run: nothing modified." || ok "migrate complete (backup in ${dest})."
 }
@@ -136,7 +149,7 @@ do_uninstall() {
     done < <(managed_pairs)
   fi
   # Empty YADR dirs (only if left empty).
-  rmdir "${HOME}/.config/yadr" 2>/dev/null || true
+  rmdir "$(yadr_config_dir)" 2>/dev/null || true
   # 3. Previous login shell.
   if [[ "${SHELL:-}" == *zsh* && -n "$prev" && "$prev" != *zsh* && "$prev" != "unknown" ]]; then
     if [[ -t 0 ]]; then
@@ -163,15 +176,16 @@ do_uninstall() {
     [[ -f "${STATE_DIR}/provides-zoxide" ]] && rm -f "${HOME}/.local/bin/zoxide" 2>/dev/null || true
     [[ -f "${STATE_DIR}/provides-lazygit" ]] && rm -f "${HOME}/.local/bin/lazygit" 2>/dev/null || true
     # tools: drop the mise conf.d fragment YADR wrote (never the user's own).
-    [[ -f "${STATE_DIR}/provides-tools" ]] && rm -f "${HOME}/.config/mise/conf.d/yadr-tools.toml" 2>/dev/null || true
+    [[ -f "${STATE_DIR}/provides-tools" ]] && rm -f "$(mise_config_dir)/conf.d/yadr-tools.toml" 2>/dev/null || true
     # Share/cache dirs: only YADR-added entries go (pre-existing content
     # recorded at first install always survives). Runs before STATE_DIR
-    # itself is removed (snapshots live there).
-    purge_dir_keep_preexisting "${HOME}/.local/share/nvim" "share-nvim"
-    purge_dir_keep_preexisting "${HOME}/.local/share/mise" "share-mise"
-    purge_dir_keep_preexisting "${HOME}/.local/share/zoxide" "share-zoxide"
-    purge_dir_keep_preexisting "${HOME}/.cache/nvim" "cache-nvim"
-    purge_dir_keep_preexisting "${HOME}/.local/state/nvim" "state-nvim"
+    # itself is removed (snapshots live there). Same list as the snapshot:
+    # share_dirs computes both, so purge and snapshot cannot diverge (ADR-005).
+    local _tag _dir
+    while IFS=$'\t' read -r _tag _dir; do
+      [[ -n "$_tag" ]] || continue
+      purge_dir_keep_preexisting "$_dir" "$_tag"
+    done < <(share_dirs)
     rm -rf "${YADR_HOME}" "${STATE_DIR}" 2>/dev/null || true
     ok "purge complete."
   else

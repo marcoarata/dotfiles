@@ -9,8 +9,11 @@ log()  { printf '[yadr:lazygit] %s\n' "$*"; }
 warn() { printf '[yadr:lazygit] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 yadr_marker() { # records provides-lazygit for purge (same name as platform/common.sh)
-  mkdir -p "${HOME}/.local/state/yadr" 2>/dev/null || true
-  touch "${HOME}/.local/state/yadr/provides-lazygit" 2>/dev/null || true
+  # STATE_DIR wins when the CLI exported it; else the XDG-aware default that
+  # mirrors bin/lib/paths.sh (this script must also run standalone).
+  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  mkdir -p "$dir" 2>/dev/null || true
+  touch "${dir}/provides-lazygit" 2>/dev/null || true
 }
 
 os_id() { grep -E '^ID=' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"' || true; }

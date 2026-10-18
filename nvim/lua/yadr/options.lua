@@ -20,7 +20,7 @@ opt.autoindent = true
 
 -- Solarized truecolor.
 -- Pre-plugin default only: plugins/colorscheme.lua decides the final
--- background from YADR_SOLARIZED_BG / ~/.config/yadr/solarized-bg
+-- background from YADR_SOLARIZED_BG / <XDG config>/yadr/solarized-bg
 -- (default transparent on macOS and Linux; solid only opt-in).
 opt.termguicolors = true
 vim.o.background = "dark"

@@ -278,7 +278,8 @@ real manager is reachable while they run. What each CI job proves is listed in
 
 - `yadr doctor` — checks the environment with repair hints.
 - `yadr diff` — shows what would change, without modifying anything.
-- `yadr backup` — copies to `~/.local/state/yadr/backups/<timestamp>/`.
+- `yadr backup` — copies to the state dir (`~/.local/state/yadr/backups/<timestamp>/`
+  by default; see "Where files live" below).
 - `yadr benchmark shell|nvim|cd|prompt` — measures startup and cd/prompt cost.
 
 **Customization and extensions**
@@ -301,6 +302,19 @@ real manager is reachable while they run. What each CI job proves is listed in
 > fast-forward. `yadr install tools` writes `~/.config/mise/conf.d/yadr-tools.toml`
 > for you when it installs `eza`/`bat`/`delta` on Linux/WSL (on macOS they come
 > from Homebrew/MacPorts).
+
+> **Where files live (moved `XDG` directories).** YADR writes to the same places
+> the programs it configures read, so nothing silently misses: the Neovim config
+> and the plugin/Mason data follow `XDG_CONFIG_HOME`/`XDG_DATA_HOME` (exactly
+> `stdpath()`), `mise`'s config follows `XDG_CONFIG_HOME`, the theme, the
+> migrated classic files and the gitsigns marker live in
+> `$XDG_CONFIG_HOME/yadr/`, and backups and the purge snapshots in
+> `$XDG_STATE_HOME/yadr/`. The zsh rc follows `$ZDOTDIR` when it is set.
+> `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin` stay where those tools
+> always look for them. With the variables unset — the default on a fresh
+> machine — every path falls back to `~/.config`, `~/.local/share` and
+> `~/.local/state`, so nothing moves. Full policy:
+> `docs/adr-005-path-policy.md`.
 
 ## Classic YADR → 2027
 
@@ -329,7 +343,7 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ```text
 .
 ├── bootstrap.sh        # portable entrypoint
-├── bin/yadr + bin/lib/ # CLI dispatcher + modules (install/recover/doctor/runtime/benchmark; see docs/cli-contract.md)
+├── bin/yadr + bin/lib/ # CLI dispatcher + modules (paths/install/recover/doctor/runtime/benchmark; see docs/cli-contract.md)
 ├── shell/             # zshrc, aliases, functions, completion, damoekri prompt
 ├── git/               # base gitconfig + YADR aliases
 ├── nvim/ / vim/      # shared Editor Layer

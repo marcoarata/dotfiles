@@ -8,6 +8,10 @@ setup() {
   # Isolate HOME to avoid touching real dotfiles; fresh per test
   export TEST_HOME="$BATS_TMPDIR/yadr-home"
   rm -rf "$TEST_HOME"; mkdir -p "$TEST_HOME"
+  # Hermetic paths: lib/paths.sh follows XDG_*/ZDOTDIR, and a desktop session
+  # exports them (often pointing at the real HOME), so the ambient values must
+  # never leak into a test. Tests that exercise a moved XDG set them on purpose.
+  unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME ZDOTDIR
 }
 
 load helpers
@@ -450,15 +454,25 @@ macos_funcs() {
   printf '%s' "$f"
 }
 
-@test "solarized-bg path is identical in macOS menu, lua and CLI" {
+@test "solarized-bg path is identical in macOS menu, lua and CLI (XDG-aware)" {
+  # ADR-005: the three readers (CLI theme_file, macOS menu writer, Lua reader)
+  # must resolve the same directory from the same variable, and fall back to
+  # ~/.config when the variable is unset.
+  local x="$BATS_TMPDIR/xdg-theme-$$"
+  rm -rf "$x"; mkdir -p "$x"
   run bash -c "
-    set -e
-    grep -q 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/platform/macos.sh' || exit 1
-    grep -q '~/.config/yadr/solarized-bg' '$YADR_ROOT/nvim/lua/yadr/plugins/colorscheme.lua' || exit 1
-    grep -rq 'HOME}/.config/yadr/solarized-bg' '$YADR_ROOT/bin/yadr' '$YADR_ROOT/bin/lib/' || exit 1
+    export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config'
+    source '$(yadr_funcs)'
+    [ \"\$(theme_file)\" = '$x/config/yadr/solarized-bg' ] || exit 1
+    grep -q 'XDG_CONFIG_HOME' '$YADR_ROOT/platform/macos.sh' || exit 1
+    grep -q 'XDG_CONFIG_HOME' '$YADR_ROOT/nvim/lua/yadr/plugins/colorscheme.lua' || exit 1
     echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; theme_file"
+  [ "$status" -eq 0 ]
+  [ "$output" == "$TEST_HOME/.config/yadr/solarized-bg" ]
+  rm -rf "$x"
 }
 
 @test "macOS menu writes canonical theme names the CLI reads" {
@@ -1139,4 +1153,137 @@ EOF
   [[ "$output" == *"platform/common.sh missing"* ]]
   [[ "$output" == *"linux ready"* ]]
   rm -rf "$fb"
+}
+
+# ADR-005 — path policy. The installer, doctor, the purge inventory and the
+# tools YADR configures must agree on where a file lives; when they disagree the
+# failure is silent (a link nobody reads, a warning that never clears, a purge
+# that leaves data behind). These tests move XDG_*/ZDOTDIR on purpose.
+
+@test "path policy: XDG moved — every destination follows the tool that reads it" {
+  local x="$BATS_TMPDIR/xdg-moved-$$"
+  rm -rf "$x"; mkdir -p "$x"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export XDG_CONFIG_HOME='$x/config' XDG_DATA_HOME='$x/data'
+    export XDG_CACHE_HOME='$x/cache' XDG_STATE_HOME='$x/state'
+    source '$(yadr_funcs)'
+    managed_pairs"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nvim:$x/config/nvim"* ]]                          # nvim: stdpath("config")
+  [[ "$output" == *"runtime/mise.toml:$x/config/mise/config.toml"* ]] # mise honors XDG
+  [[ "$output" == *"shell/aliases.zsh:$x/config/yadr/aliases.zsh"* ]] # YADR's own files
+  [[ "$output" == *"git/gitconfig:$TEST_HOME/.gitconfig"* ]]          # git reads it anyway
+  [[ "$output" == *"tmux/tmux.conf:$TEST_HOME/.tmux.conf"* ]]         # tmux reads it anyway
+  [[ "$output" == *"shell/zshrc:$TEST_HOME/.zshrc"* ]]                # no ZDOTDIR: HOME
+  # Defaults (XDG unset) are exactly what they were before the policy existed.
+  run bash -c "export HOME='$TEST_HOME'; source '$(yadr_funcs)'; managed_pairs"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nvim:$TEST_HOME/.config/nvim"* ]]
+  [[ "$output" == *"shell/aliases.zsh:$TEST_HOME/.config/yadr/aliases.zsh"* ]]
+  [[ "$output" == *"shell/zshrc:$TEST_HOME/.zshrc"* ]]
+  rm -rf "$x"
+}
+
+@test "path policy: the nvim config link lands where nvim resolves its config" {
+  local x="$BATS_TMPDIR/xdg-nvimlink-$$"
+  rm -rf "$x"; mkdir -p "$x/config"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config'
+    source '$(yadr_funcs)'
+    link_one '${YADR_ROOT}/nvim' \"\$(nvim_config_dir)\" >/dev/null
+    readlink \"\$(nvim_config_dir)\""
+  [ "$status" -eq 0 ]
+  [ "$output" == "${YADR_ROOT}/nvim" ]
+  [ ! -e "$TEST_HOME/.config/nvim" ]   # nothing lands in the un-moved path
+  rm -rf "$x"
+}
+
+@test "path policy: nvim's own stdpath agrees with the helpers (XDG moved)" {
+  command -v nvim >/dev/null 2>&1 || skip "nvim not installed"
+  local x="$BATS_TMPDIR/xdg-stdpath-$$"
+  rm -rf "$x"; mkdir -p "$x"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config' XDG_DATA_HOME='$x/data'
+    source '$(yadr_funcs)'
+    nvim --clean --headless \
+      -c 'lua io.write(vim.fn.stdpath(\"config\") .. \" \" .. vim.fn.stdpath(\"data\"))' \
+      -c qa 2>/dev/null"
+  [ "$status" -eq 0 ]
+  [ "$output" == "$x/config/nvim $x/data/nvim" ]
+  rm -rf "$x"
+}
+
+@test "path policy: ZDOTDIR moves the zsh rc the installer manages" {
+  command -v zsh >/dev/null 2>&1 || skip "zsh not installed"
+  local zd="$BATS_TMPDIR/zdotdir-$$"
+  rm -rf "$zd"; mkdir -p "$zd"
+  printf 'echo zdotdir-rc-loaded\n' > "$zd/.zshrc"
+  # zsh itself reads $ZDOTDIR/.zshrc instead of ~/.zshrc ...
+  run env ZDOTDIR="$zd" HOME="$TEST_HOME" zsh -i -c true
+  [[ "$output" == *"zdotdir-rc-loaded"* ]]
+  # ... so that is where the managed link has to go.
+  run bash -c "export HOME='$TEST_HOME' ZDOTDIR='$zd'; source '$(yadr_funcs)'; zshrc_path"
+  [ "$status" -eq 0 ]
+  [ "$output" == "$zd/.zshrc" ]
+  rm -rf "$zd"
+}
+
+@test "path policy: doctor sees nvim plugins under a moved XDG data dir" {
+  local x="$BATS_TMPDIR/xdg-doctor-$$"
+  rm -rf "$x"; mkdir -p "$x/data/nvim/lazy/telescope.nvim"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$x/data' PATH='/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    export YADR_HOME='$YADR_ROOT'
+    out=\"\$(do_doctor 2>&1 || true)\"
+    printf '%s\n' \"\$out\" | grep -E 'nvim plugins|neovim plugins'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nvim plugins (lockfile OK)"* ]]
+  [[ "$output" != *"neovim plugins not installed"* ]]
+  # Plugins that are NOT where nvim looks must not count as installed: the same
+  # defect seen from the other side (doctor must not believe the HOME literal).
+  mkdir -p "$TEST_HOME/.local/share/nvim/lazy/other.nvim"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$x/elsewhere' PATH='/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    export YADR_HOME='$YADR_ROOT'
+    out=\"\$(do_doctor 2>&1 || true)\"
+    printf '%s\n' \"\$out\" | grep -E 'nvim plugins|neovim plugins'"
+  [[ "$output" == *"neovim plugins not installed"* ]]
+  rm -rf "$x"
+}
+
+@test "path policy: snapshot and purge cover the XDG directories the tools use" {
+  local x="$BATS_TMPDIR/xdg-snapshot-$$"
+  rm -rf "$x"; mkdir -p "$x/data/nvim" "$x/state/yadr"
+  : > "$x/data/nvim/precious-data"
+  # 1. the snapshot records the pre-existing entry of the XDG data dir
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$x/data' XDG_STATE_HOME='$x/state'
+    source '$(yadr_funcs)'
+    export STATE_DIR='$x/state/yadr'
+    snapshot_share_dirs
+    cat \"\$STATE_DIR/preexisting-share-nvim\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"precious-data"* ]]
+  # 2. purge then keeps it and removes only what YADR added there
+  : > "$x/data/nvim/lazy.nvim"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$x/data' XDG_STATE_HOME='$x/state'
+    source '$(yadr_funcs)'
+    export STATE_DIR='$x/state/yadr'
+    purge_dir_keep_preexisting '$x/data/nvim' share-nvim"
+  [ "$status" -eq 0 ]
+  [ -f "$x/data/nvim/precious-data" ]
+  [ ! -e "$x/data/nvim/lazy.nvim" ]
+  rm -rf "$x"
+}
+
+@test "path policy: shipped code never hardcodes the tools' XDG-derived dirs" {
+  # Regression guard for the whole class ADR-005 closes: a literal path in the
+  # CLI or in platform/ means installer, doctor or purge disagree with the tool.
+  run grep -rnE 'HOME}/\.(local/share|local/state|config)/nvim|HOME}/\.(config|local/share)/yadr|HOME}/\.config/mise|HOME}/\.local/share/mise|HOME}/\.cache/nvim' \
+    "$YADR_ROOT/bin" "$YADR_ROOT/platform" "$YADR_ROOT/bootstrap.sh"
+  [ "$status" -ne 0 ]
 }
