@@ -7,7 +7,9 @@
 # Inside a project: only the runtimes the project itself pins. Attribution
 # comes from `mise ls --current` (authoritative source path): a version whose
 # source is the global config (under ~/.config/mise) is inherited, not pinned,
-# and is filtered out. Without mise, node is always shown and ruby/python only
+# and is filtered out. Rows mise marks "(missing)" (requested by the config but
+# not installed) are dropped too: the prompt never reports a version that is
+# not on disk. Without mise, node is always shown and ruby/python only
 # when the project has a local version file (.ruby-version/.python-version).
 # Caches by $PWD: detection runs at most once per directory.
 # Never fails (always return 0).
@@ -34,11 +36,17 @@ _yadr_has_marker() {
   return 1
 }
 # "version source" for <tool> from `mise ls --current` output. "" when absent.
+# mise lists what the config *requests* even when it is not installed, marking
+# the row "(missing)" (e.g. `node 24.22.0 (missing) ~/.config/mise/config.toml 24`).
+# Such a row is not an installed runtime: drop it instead of showing a fake
+# version in the prompt.
 _yadr_mise_row() {
   [[ -n "${2:-}" ]] || return 1
   local row
   row="$(printf '%s' "$2" | awk -v t="$1" '$1 == t {print $2, $3; exit}')"
-  [[ -n "$row" ]] && printf '%s' "$row" || return 1
+  [[ -n "$row" ]] || return 1
+  case "$row" in *"(missing)"*) return 1 ;; esac
+  printf '%s' "$row"
 }
 # Is the source a project-local config file (not the global mise config)?
 _yadr_is_local_src() {

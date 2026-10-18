@@ -249,6 +249,34 @@ EOF
   [[ "$output" == *"ok"* ]]
 }
 
+@test "runtime context ignores runtime rows mise marks (missing)" {
+  # mise lists what the *config* asks for even when it is not installed
+  # ("node 24.22.0 (missing) …"): the prompt must never show that version.
+  local fake="$BATS_TMPDIR/fakemise-missing" proj="$BATS_TMPDIR/proj-missing-$$"
+  mkdir -p "$fake" "$proj"; : > "$proj/mise.toml"
+  cat > "$fake/mise" <<'EOF'
+#!/usr/bin/env bash
+cat <<OUT
+node    24.22.0    (missing)                     ~/.config/mise/config.toml  24
+OUT
+EOF
+  chmod +x "$fake/mise"
+  run zsh -f -c "
+    PATH='$fake:/usr/bin:/bin'
+    unset XDG_CONFIG_HOME; export HOME='$TEST_HOME'
+    source '$YADR_ROOT/shell/runtime.zsh'
+    cd '$TEST_HOME' || exit 1
+    out=\$(yadr_runtime_context 2>/dev/null)
+    [ -z \"\$out\" ] || { echo \"global got: \$out\"; exit 1; }
+    cd '$proj' || exit 1
+    out=\$(yadr_runtime_context 2>/dev/null)
+    [ -z \"\$out\" ] || { echo \"project got: \$out\"; exit 1; }
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+  rm -rf "$proj"
+}
+
 @test "runtime layer guards mise absence" {
   [ -f "$YADR_ROOT/shell/runtime.zsh" ] || skip "runtime.zsh not in checkout"
   run zsh -f -c "PATH=/usr/bin:/bin; source '$YADR_ROOT/shell/runtime.zsh'; echo ok"
