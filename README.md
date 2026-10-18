@@ -298,7 +298,8 @@ real manager is reachable while they run. What each CI job proves is listed in
 
 - `yadr theme [list|use <name>|current]` — Solarized background (light|dark|none, default none).
 - `yadr gitsigns [on|off|status]` — Git signs in Neovim (default: off).
-- `yadr migrate [--dry-run]` — imports `.vimrc.before/.after`, `.vundles.local`… (idempotent).
+- `yadr migrate [--dry-run]` — one-shot import of classic YADR customization
+  (`.vimrc.before/.after`, `.vundles.local`…); safe to re-run.
 - `yadr version` — prints the version.
 - `yadr completion bash|zsh|fish` — prints that shell's completion script
   (`yadr completion --install` writes all three; `yadr install` does it for you).

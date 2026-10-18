@@ -65,7 +65,7 @@ Failure taxonomy used throughout:
 | `diff` | nothing | nothing, always | 0 |
 | `backup` | nothing | new dir under `backups/` + `last-backup` pointer | 0 |
 | `uninstall` | nothing | removes own symlinks, restores backup, optional purge | 0, or 0 on cancel |
-| `migrate` | nothing | copies into `~/.config/yadr/migrated/` + backup | 0 |
+| `migrate` | nothing | one-shot classic-YADR import: copies into `~/.config/yadr/migrated/` + backup | 0 |
 | `runtime *` | mise for use/list/current | global tool versions (`use`) | 1 without backend/spec |
 | `theme *` | nothing | `~/.config/yadr/solarized-bg` (use) | 1 on unknown name |
 | `gitsigns *` | nothing | marker file (on/off) | 1 on unknown subcommand |
