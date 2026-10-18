@@ -370,11 +370,14 @@ do_install() {
 
 dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty when clean/no-git
   [[ -d "${YADR_HOME}/.git" ]] || return 0
-  git -C "$YADR_HOME" status --porcelain 2>/dev/null | head -n 5
+  # `|| true`: an unreadable/corrupt index must not abort update via set -e;
+  # the pull itself will fail loudly a moment later if the repo is broken.
+  git -C "$YADR_HOME" status --porcelain 2>/dev/null | head -n 5 || true
 }
 
 do_update() {
   info "updating YADR 2027…"
+  local rc=0
   if [[ -d "${YADR_HOME}/.git" ]]; then
     local _dirty; _dirty="$(dirty_tree_list)"
     if [[ -n "$_dirty" ]]; then
@@ -384,11 +387,21 @@ do_update() {
     fi
     confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
     do_backup
-    git -C "$YADR_HOME" pull --ff-only || warn "pull failed (conflicts or offline). Fix by hand."
-    ok "repo updated."
-    ensure_nvim_plugins || true
+    if git -C "$YADR_HOME" pull --ff-only; then
+      ok "repo updated."
+      # Editor sync only makes sense on a checkout that actually moved; when the
+      # pull failed there is nothing new to restore to.
+      ensure_nvim_plugins || true
+    else
+      # Same policy as a failed runtime (ADR-004): never claim what did not
+      # happen. "ok repo updated." used to print right after a failed pull.
+      warn "pull failed (dirty checkout, conflicts or offline); the checkout is unchanged."
+      info "fix by hand in ${YADR_HOME}, then run 'yadr update' again."
+      rc=1
+    fi
   else
     warn "no .git in ${YADR_HOME}; nothing to update (local checkout)."
   fi
   if have mise; then mise upgrade 2>/dev/null || mise up 2>/dev/null || warn "mise upgrade failed."; fi
+  return "$rc"
 }

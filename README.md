@@ -231,6 +231,8 @@ One-page quick install: `INSTALL-YADR.md`.
   Profiles: `core|node|typescript|ruby|python|rust|lazygit|tools|development|macos-extras`
   (no profile = `core`).
 - `yadr update` — `git pull` + `mise upgrade` (with backup and confirmation).
+  When the pull fails it keeps your checkout as it was, says so and exits
+  non-zero (it never prints a success line for an update that did not happen).
 - `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores your
   backup and reverts the login shell.
 - `yadr runtime current|list|use|doctor` — runtime abstraction (mise underneath).

@@ -10,14 +10,7 @@ setup() {
   rm -rf "$TEST_HOME"; mkdir -p "$TEST_HOME"
 }
 
-# Helper: source shell/aliases.zsh when present, else skip.
-# zsh itself is required (no silent fallback: a missing zsh must fail loudly).
-load_aliases() {
-  [ -f "$YADR_ROOT/shell/aliases.zsh" ] || skip "shell/aliases.zsh not in checkout"
-  command -v zsh >/dev/null 2>&1 || { echo "zsh required for shell tests" >&2; return 1; }
-  # Simulate missing modern tools
-  PATH="/usr/bin:/bin" HOME="$TEST_HOME" zsh -f -c "source '$YADR_ROOT/shell/aliases.zsh'; echo loaded" 2>/dev/null
-}
+load helpers
 
 @test "aliases load without eza/bat/rg/fd/zoxide" {
   run load_aliases
@@ -395,16 +388,6 @@ EOF
   [[ "$output" == *"light (env"* ]]
 }
 
-yadr_funcs() {
-  # source bin/yadr dispatcher (helpers) + bin/lib modules without running CLI dispatch.
-  # The dispatcher resolves lib/ from its own path, so pin YADR_LIB_DIR to the
-  # repo (the generated copy lives in $BATS_TMPDIR, not in bin/).
-  local f="$BATS_TMPDIR/yadr-funcs-${BATS_TEST_NUMBER:-$$}.sh"
-  printf 'export YADR_LIB_DIR="%s/bin/lib"\n' "$YADR_ROOT" > "$f"
-  awk '/^# --- parse global flags ---/{exit} {print}' "$YADR_ROOT/bin/yadr" >> "$f"
-  printf '%s' "$f"
-}
-
 @test "nerd font detected via macOS Library/Fonts without fc-list" {
   mkdir -p "$TEST_HOME/Library/Fonts"
   touch "$TEST_HOME/Library/Fonts/JetBrainsMonoNerd.ttf"
@@ -528,14 +511,6 @@ macos_funcs() {
     echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
-}
-
-platform_funcs() {
-  # source one platform script's functions without running its main()
-  # usage: platform_funcs <script>  (sets PLATFORM_COMMON to the real common.sh)
-  local script="$1" f="$BATS_TMPDIR/platform-${BATS_TEST_NUMBER:-$PPID}.sh"
-  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/${script}" > "$f"
-  printf '%s' "$f"
 }
 
 @test "nvim_version_ok accepts >=0.11, rejects below and garbage" {
@@ -699,13 +674,6 @@ platform_funcs() {
   [[ "$output" == *"plugins match the lock"* ]]
   [[ "$output" == *"healthy path continues"* ]]
   rm -rf "$bin" "$home"
-}
-
-# Helper: run the REAL dispatcher in the isolated HOME, without a runtime
-# backend in PATH (deterministic on any machine; bin/yadr only adds
-# $HOME/.local/bin and mise shims, which the isolated HOME does not have).
-yadr_cli() {
-  HOME="$TEST_HOME" PATH="/usr/bin:/bin" bash "$YADR_ROOT/bin/yadr" "$@"
 }
 
 @test "CLI: version and help come from the real dispatcher" {

@@ -9,11 +9,28 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `:Mason` per `packs/`), then `git diff -- nvim/lazy-lock.json` must
    contain only intended bumps. Commit the lockfile.
 3. Green locally: `bash tests/smoke.sh`, `bats tests/shell.bats`,
-   `shellcheck -S warning` on `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh`,
+   `bats tests/fault.bats` (injected failures), `bash tests/coverage.sh`
+   (coverage floor), `shellcheck -S warning` on
+   `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh
+   tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
    `yadr doctor` 0/0 on a fresh isolated HOME.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
    pin-sensitive users install from the tag instead of `main`.
+
+## What CI enforces on every push
+
+| Job | Runs on | Blocks the release by measuring |
+|---|---|---|
+| `lint` | ubuntu | `shellcheck -S warning` on every shipped bash file + `zsh -n`/`bash -n` |
+| `test` | ubuntu, macos | `tests/smoke.sh` (structure, syntax, nvim lua parse, lockfile pins) + `bats tests/shell.bats` |
+| `coverage` | ubuntu | line coverage of `bin/` from the bats suite, with a floor (`tests/coverage.sh`) |
+| `fault-injection` | ubuntu | injected failures: broken runtime, failing editor, failed pull, blind purge (`tests/fault.bats`) |
+| `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor` |
+
+The four bats/smoke batteries are also runnable by hand exactly as CI runs them;
+`tests/coverage.sh` and `tests/fault.bats` are the two that exist only because
+"the suite is green" is not evidence on its own.
 
 ## Pinned inventory (verify before tagging)
 

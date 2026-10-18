@@ -13,13 +13,13 @@ jobs:
       - name: shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh
+          shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash
       - name: zsh syntax
         run: |
           sudo apt-get install -y -qq zsh
           for f in shell/*.zsh shell/zshrc bootstrap.sh bin/yadr; do zsh -n "$f"; done
       - name: bash syntax
-        run: bash -n bin/yadr && bash -n bootstrap.sh && bash -n tests/smoke.sh && bash -n tests/coverage.sh && bash -n tests/coverage-hook.sh && for f in bin/lib/*.sh platform/*.sh; do bash -n "$f"; done
+        run: bash -n bin/yadr && bash -n bootstrap.sh && bash -n tests/smoke.sh && bash -n tests/coverage.sh && bash -n tests/coverage-hook.sh && bash -n tests/helpers.bash && for f in bin/lib/*.sh platform/*.sh; do bash -n "$f"; done
 
   test:
     strategy:
@@ -48,6 +48,15 @@ jobs:
         env:
           YADR_COV_REQUIRE: "1"
         run: bash tests/coverage.sh
+
+  fault-injection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bats + zsh
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats zsh
+      - name: injected failures must fail loudly, never lie
+        run: bats tests/fault.bats
 
   install:
     strategy:

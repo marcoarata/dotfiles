@@ -42,6 +42,10 @@ check_file docs/homebrew-intel.md
 check_file bin/yadr
 check_file bootstrap.sh
 check_file tests/shell.bats
+check_file tests/fault.bats
+check_file tests/helpers.bash
+check_file tests/coverage.sh
+check_file tests/coverage-hook.sh
 check_file tests/lua-parse.lua
 check_file tests/fixtures/typescript-project/package.json
 check_file tests/fixtures/typescript-project/mise.toml

@@ -22,9 +22,12 @@
      command and the install keeps going. Rationale: recoverable at the user's
      convenience, and a fatal editor step would inject network flakiness into
      installs and CI.
-  3. **`update` never destroys anything.** A failed `git pull --ff-only` warns;
-     a dirty checkout is reported before pulling; editor restore stays
-     advisory; a failed `mise upgrade` warns.
+  3. **`update` never destroys anything, and never claims a repo it did not
+     update.** A failed `git pull --ff-only` leaves the checkout exactly as it
+     was, skips the editor sync (there is nothing new to restore to) and returns
+     non-zero; a dirty checkout is reported before pulling; editor restore stays
+     advisory; a failed `mise upgrade` warns. The previous behavior printed
+     `ok repo updated.` right after a failed pull and exited 0.
   4. **Helpers report their own status.** `lazy_restore` returns nvim's status
      explicitly instead of inheriting it from the caller's `set -o pipefail`,
      so the advisory warnings reflect reality in any calling context.
@@ -37,7 +40,12 @@
     the honesty guarantee cannot regress silently.
   - Editor steps are best-effort by design: a user who ignores the warning
     gets a working shell and a repairable editor, not a half-installed system.
+  - The asymmetry itself is regression-tested in a dedicated lane:
+    `tests/fault.bats` (CI job `fault-injection`) breaks a runtime, the editor,
+    the network and the purge snapshots on purpose, and asserts after each
+    injection that no success line was printed for work that did not happen.
 - Evidence: tests "install fast path fails loudly when a runtime does not
-  install", "typescript payload runs Lazy! restore once, not twice" and
-  "lazy_restore reports a failing nvim without relying on pipefail"; code in
-  `bin/lib/install.sh` (`ensure_profile_payload`, `do_install`, `do_update`).
+  install", "typescript payload runs Lazy! restore once, not twice",
+  "lazy_restore reports a failing nvim without relying on pipefail" and the
+  whole `tests/fault.bats` lane; code in `bin/lib/install.sh`
+  (`ensure_profile_payload`, `do_install`, `do_update`, `dirty_tree_list`).
