@@ -16,7 +16,9 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
    `yadr doctor` reports 0 errors on a fresh isolated HOME (its warnings name
    what that machine still lacks; `0 warnings` needs the distro packages and
-   the documented install loop).
+   the documented install loop). For a release that touches paths, also run
+   `bats tests/shell.bats -f "path policy"` and one real install with the
+   `XDG_*` variables moved, which is what `docs/e2e-report.md` §7 records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
    pin-sensitive users install the tag instead:
@@ -34,7 +36,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 | `test` | ubuntu, macos | `tests/smoke.sh` (structure, syntax, nvim lua parse, lockfile pins) + `bats tests/shell.bats tests/bootstrap.bats` |
 | `coverage` | ubuntu | line coverage of `bin/` from the bats suite, with a floor (`tests/coverage.sh`) |
 | `fault-injection` | ubuntu | injected failures: broken runtime, failing editor, failed pull, blind purge (`tests/fault.bats`) |
-| `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch) |
+| `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch), plus a second real install with moved `XDG` directories and `doctor` against it |
 | `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor` |
 
 Runner images are pinned (`ubuntu-24.04`, deliberate bumps); see the header
@@ -49,6 +51,10 @@ Re-verified for `v0.3.0` on 2026-10-18: the Nerd Font release was downloaded
 again and its SHA-256 re-measured against `manifest.env`, and `Lazy! restore`
 on a clean `XDG` directory left `nvim/lazy-lock.json` byte-identical (26 pins,
 25 installed, `gitsigns.nvim` opt-in).
+
+`v0.3.1` changes no pinned artifact, so that verification still applies:
+`git diff v0.3.0..v0.3.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |
 |---|---|---|

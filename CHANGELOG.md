@@ -4,10 +4,24 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
-## [Unreleased]
+## [0.3.1] — 2026-10-18 — paths that follow the tools
 
 ### Fixed
 
+- `doctor`, `install`, `uninstall --purge` and `export`/`apply` resolved paths
+  under `$HOME` while the programs they configure read `XDG_CONFIG_HOME`,
+  `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME`. On a machine whose
+  XDG directories are moved (a desktop session exports them; Zorin/GNOME did on
+  the machine where this was found) every failure was silent: `install core`
+  skipped the Neovim plugin restore without a message, `doctor` then warned
+  "neovim plugins not installed" forever (a hint that could not be cleared),
+  the Neovim config symlink landed in a directory Neovim does not read while
+  `doctor` reported the editor as configured, and `--purge` snapshotted and
+  cleaned the wrong plugin/cache directories. Every destination is now computed
+  by `bin/lib/paths.sh` (ADR-005): XDG where the reader honours it, `HOME`
+  where git (`~/.gitconfig`) and tmux (`~/.tmux.conf`) always look, and
+  `$ZDOTDIR` for the zsh rc. With the variables unset the fallbacks are the XDG
+  spec defaults, so nothing moves and no migration is needed.
 - `doctor`'s "live checkout has local modifications" hint now names the most
   common cause first: `~/.gitconfig` is a symlink into the checkout, so a plain
   `git config --global user.email` edits `git/gitconfig` in the repository and
@@ -19,6 +33,29 @@ command behind every claim is in `docs/evaluation.md`.
   fresh install reports `0 errors` and a warning per thing this machine cannot
   provide (distro packages need `sudo`; LSP servers need `yadr install
   typescript`). The row and the `--ref` row now state what was measured.
+
+### Added
+
+- `bin/lib/paths.sh`: the single place that computes a destination, sourced by
+  `bin/yadr` before any other module, with `docs/adr-005-path-policy.md`.
+- 7 path-policy tests (`bats tests/shell.bats -f "path policy"`), including one
+  that asks Neovim itself (`stdpath()`) and one that fails if `bin/`,
+  `platform/` or `bootstrap.sh` hardcode one of those paths again.
+- The Arch lane now also performs a **real install with moved XDG
+  directories** and runs `doctor` against it.
+
+### Changed
+
+- The bats suites unset `XDG_*`/`ZDOTDIR` in `setup()`: they no longer inherit
+  the host session's variables, so no test can read or write the real
+  `~/.config`/`~/.local/share` by accident. That also removed a local,
+  environment-dependent failure of the Nerd Font test: a Nerd Font installed by
+  the user leaks in through `XDG_DATA_HOME`, and the test asserts absence.
+- `doctor`'s repair hints print the path that was actually resolved (for
+  example `$(mise_config_dir)/conf.d/`) instead of a hardcoded `~/.config/...`.
+- `docs/evaluation.md`: a v0.3.1 row, and the v0.3.0 row's aggregate is
+  corrected (its own table averages 9.40, not the 9.45 it quotes). The row's
+  scores and verdict are left exactly as published.
 
 ## [0.3.0] — 2026-10-18 — evidence you can re-run
 

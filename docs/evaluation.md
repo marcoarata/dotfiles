@@ -35,6 +35,8 @@ Two rules keep it useful:
 | 2026-10-17 | `52a8d7a` | 9.0 / 10 | Self-audit recorded in the E2E work of that revision |
 | 2026-10-17 | `9084222` | 9.1 / 10 | Self-audit, 20 commits after the previous row |
 | 2026-10-18 | `v0.3.0` (tag) | 9.5 / 10 | Self-audit; per-dimension breakdown below. The tag names the revision, so this row cannot drift |
+| 2026-10-18 | `ac7b346` (post-tag `main`) | 9.4 / 10 | Re-audit of the tag published the same day: the release verification showed that `doctor` and `install` assumed `$HOME/.local/share` for Neovim's data, so a machine with moved `XDG` directories was silently broken (skipped plugin restore, unclearable warning, purge leaving data behind). Portability 9.5 → 9.0, mean 9.35. Self-audited |
+| 2026-10-18 | `v0.3.1` (tag) | 9.4 / 10 | Self-audit; ADR-005 closes the split (Portability back to 9.5, mean 9.40) and the arithmetic of the v0.3.0 row is corrected without rewriting it. Per-dimension breakdown below. The tag names the revision |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
@@ -65,6 +67,43 @@ but offers nothing outside zsh and English, and the testing machinery is
 heavier than the product. A project that dropped either would be simpler and
 less trustworthy, which is the trade this revision chose.
 
+> **Correction (appended 2026-10-18, with the v0.3.1 row).** The mean quoted
+> above is an arithmetic slip: adding the table it refers to
+> (8 x 9.5 + 2 x 9.0) gives **9.40**, not 9.45. Per rule 1 the row's scores and
+> verdict are left exactly as published; the corrected number and what it
+> implies are recorded in the v0.3.1 section below.
+
+### v0.3.1, dimension by dimension
+
+Scored on the tagged revision (ADR-005 implemented). Same rubric as above:
+the cells listed here are the ones that moved, and every one of them is backed
+by a command in the next section.
+
+| # | Dimension | v0.3.0 | post-tag re-audit | v0.3.1 | What moved it (and the standing limit) |
+|---|---|---|---|---|---|
+| 1 | Architecture | 9.5 | 9.5 | 9.5 | `bin/lib/paths.sh` owns every destination and is sourced before any other module; `bin/yadr` is still the largest file |
+| 2 | Install & reproducibility | 9.5 | 9.5 | 9.5 | `ensure_nvim_plugins` now checks the directory Neovim actually reads, so the restore cannot be skipped silently; a real install with moved `XDG` runs in CI |
+| 3 | Operational safety | 9.5 | 9.5 | 9.5 | `share_dirs()` feeds the pre-install snapshot **and** `uninstall --purge` from one list, so they can no longer drift |
+| 4 | Portability | 9.5 | **9.0** | 9.5 | restored. A moved-`XDG` box was measurably broken (silent skip, unclearable warning, purge leaving data behind); it is now covered by 7 tests and by a real install in CI. Limits unchanged: WSL 1 cannot run Node >= 23 (upstream), Intel mac is tier 3 |
+| 5 | Developer UX | 9.0 | 9.0 | 9.0 | unchanged: English only; no completions for shells other than zsh |
+| 6 | Neovim | 9.5 | 9.5 | 9.5 | `doctor` resolves config/data through `nvim_config_dir`/`nvim_data_dir`, and a test asserts Neovim's own `stdpath("config")`/`stdpath("data")` agree with the helpers |
+| 7 | Shell scripting | 9.5 | 9.5 | 9.5 | `shellcheck -S warning` clean on every shipped bash file, `bash -n`/`zsh -n`, bash 3.2-compatible code |
+| 8 | Documentation | 9.5 | 9.5 | 9.5 | ADR-005 plus a "Where files live" section in `docs/cli-contract.md`, the README and `docs/troubleshooting.md` |
+| 9 | Testing & evidence | 9.5 | 9.5 | 9.5 | `smoke` (89 checks), 101 bats tests (7 of them the path policy), coverage floor 50% with 59.3% measured, 6 CI lanes; the coverage floor still covers `bin/` only |
+| 10 | Simplicity | 9.0 | 9.0 | 9.0 | unchanged: one more small module (`paths.sh`, 100% line coverage) inside the same 6 lanes |
+
+Aggregate: **9.4 / 10** -- the mean of the ten scores is exactly 9.40. Two
+things are stated plainly instead of rounded away:
+
+1. **The v0.3.0 row's arithmetic was wrong** (see the correction above): its
+   own table averages 9.40, so the 9.5 verdict of that row was never supported
+   by its own breakdown.
+2. **The defect is fixed and Portability is back at 9.5**, which returns the
+   mean from 9.35 (post-tag re-audit) to 9.40. Reaching 9.45 needs one more
+   half point of real work, and this file names where it comes from rather than
+   rounding for it. The cheapest honest one is dimension 5: completions for
+   bash/fish, which its v0.3.0 limit already lists.
+
 ## Re-executable checks
 
 Every command below runs from the repository root and touches nothing outside an
@@ -80,6 +119,7 @@ grow, invariants do not.
 | `bash tests/coverage.sh` | Line coverage of `bin/` measured from the bats suite, against a floor | `core >= floor`, exit 0 |
 | `bootstrap.sh --ref vX.Y.Z` from a fresh `HOME` (the published tag, `YADR_HOME` elsewhere) | The tag installs itself detached and `VERSION` matches the tag name | `yadr version` prints `X.Y.Z`; `yadr doctor` reports `0 errors` |
 | `shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash` | Shell hygiene of every shipped and test bash file | no output, exit 0 |
+| `bats tests/shell.bats -f "path policy"` | Installer, `doctor`, the purge inventory and the theme resolve destinations the way the tools they configure do (`XDG_*`, `ZDOTDIR`), including Neovim's own `stdpath()`; and no shipped file hardcodes one of those paths again | 7 tests, 0 failures |
 | `bootstrap.sh --local --yes` with `HOME=/tmp/<fresh>` | Install from a clean HOME: symlinks, CLI on `PATH`, idempotent second run | exit 0 both times |
 | `HOME=/tmp/<fresh> bin/yadr doctor` | Environment contract after install (run against the published tag on 2026-10-18) | `0 errors`; warnings name exactly what this machine still lacks -- identity, LSP servers, distro-provided shell plugins -- and each hint says how to add it. `0 warnings` needs the distro packages (sudo) and the documented install loop, which is what `docs/e2e-report.md` §2 records |
 | `bin/yadr diff` | Nothing changes silently | read-only; no writes |
@@ -115,10 +155,19 @@ real macOS hardware, WSL guest) is in `docs/e2e-report.md`.
 - **The visual matrix is gone.** The screenshots of `docs/e2e-report.md` §3
   were temporary evidence and were removed; the section describes the review,
   it does not pretend to store the captures.
-- **One bats test is environment-dependent**: "nerd font absent without dirs or
-  fc-list tools". On a developer machine that has a Nerd Font installed it
-  fails by definition; CI machines do not have one. It is green in CI, and the
-  local failure is the test working as intended.
+- **One bats test asserts a negative that depends on the machine**: "nerd font
+  absent without dirs or fc-list tools". It is hermetic now — the suites unset
+  `XDG_*`/`ZDOTDIR`, so a Nerd Font in the *user's* font directory no longer
+  leaks into it and the local suite is green on a machine that has Nerd Fonts
+  installed. A Nerd Font installed *system-wide* still makes it fail by
+  definition, which is what the test is supposed to detect.
+- **YADR's own executables stay in `~/.local/bin`.** XDG defines no binary
+  directory, so `bin/yadr` and the tools YADR installs (nvim upstream, mise,
+  zoxide, lazygit) keep the de-facto location. Everything that has an XDG
+  variable (`config`, `data`, `cache`, `state`) follows it (ADR-005).
+- **A real install with moved `XDG` directories runs in the Arch lane.** The
+  Ubuntu/macOS `install` jobs install with the default paths; the moved-`XDG`
+  behaviour is covered there by the bats suite.
 
 ## Appending the next evaluation
 

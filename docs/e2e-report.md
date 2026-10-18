@@ -13,7 +13,7 @@ Runs on every `main` push + PR:
 | `test` | Ubuntu, macOS | `smoke.sh` + `bats` (`shell.bats`, `bootstrap.bats`) green on both OSes | green |
 | `coverage` | Ubuntu | line coverage of `bin/` measured from the bats suite, against a floor | green |
 | `fault-injection` | Ubuntu | injected failures fail loudly and never print success for work that did not happen (`tests/fault.bats`) | green |
-| `arch-container` | Arch (`archlinux:latest`) | the unit suites *and* a real core install + `doctor` inside the distro (pacman branch) | green |
+| `arch-container` | Arch (`archlinux:latest`) | the unit suites *and* a real core install + `doctor` inside the distro (pacman branch), plus a second real install with moved `XDG` directories and `doctor` against it (`§7`) | green |
 | `install` | Ubuntu, macOS | core install in isolated HOME + `doctor` exit 0 + idempotent reinstall | green |
 
 All six jobs are green on the `main` commit this file was last updated from;
@@ -138,4 +138,64 @@ HOME=/tmp/verify-home bash bootstrap.sh --ref v0.3.0 --yes
 An isolated `HOME` is not isolation on its own: the host session's `XDG_*`
 variables leak, so `nvim` and `doctor` looked at the real
 `~/.local/share/nvim` until `XDG_CONFIG_HOME`/`XDG_DATA_HOME` were pointed
-under `/tmp` as well. Worth knowing before trusting a "clean HOME" run.
+under `/tmp` as well. Worth knowing before trusting a "clean HOME" run. That
+leak is also what the suites were fixed to avoid in v0.3.1 (they `unset
+XDG_*`/`ZDOTDIR` in `setup()`); §7 uses the leak deliberately, as the test
+environment.
+
+## 7. A real install with moved XDG directories (2026-10-18, v0.3.1)
+
+The environment ADR-005 exists for: a desktop session that exports `XDG_*`
+(and a user who moved them). Everything runs under `/tmp`; the variables point
+*into* the isolated tree, which is the interesting case.
+
+```sh
+REPO=$PWD; E=/tmp/opencode/xdg-e2e
+export HOME=$E/home XDG_CONFIG_HOME=$E/config XDG_DATA_HOME=$E/data \
+       XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state
+YADR_HOME=$REPO bash bootstrap.sh --local --yes
+```
+
+- The install links follow the tools, not `$HOME`:
+
+  ```text
+  $E/config/nvim              -> $REPO/nvim
+  $E/config/mise/config.toml  -> $REPO/runtime/mise.toml
+  $E/config/yadr/aliases.zsh  -> $REPO/shell/aliases.zsh
+  $E/home/.gitconfig          -> $REPO/git/gitconfig      (git reads it anyway)
+  $E/home/.tmux.conf          -> $REPO/tmux/tmux.conf     (tmux reads it anyway)
+  ```
+
+  Nothing is left in the un-moved location (`$HOME/.config/nvim` does not
+  exist), and Neovim's own resolution agrees with the links:
+
+  ```sh
+  $ nvim --clean --headless -c 'lua io.write(vim.fn.stdpath("config") .. " " .. vim.fn.stdpath("data"))' -c qa
+  /tmp/opencode/xdg-e2e/config/nvim /tmp/opencode/xdg-e2e/data/nvim
+  ```
+
+- **The silent skip is gone.** Before the fix, `ensure_nvim_plugins` gated on
+  `$HOME/.local/share/nvim/lazy/lazy.nvim`; in this tree that path does not
+  exist while `$XDG_DATA_HOME/nvim/lazy/lazy.nvim` does, so the restore
+  returned 0 without a word. After the first `nvim` start (which bootstraps
+  lazy and the 25 pinned plugins) a second `yadr install core` prints the work
+  it used to hide:
+
+  ```text
+  » restoring Neovim plugins to lockfile (Lazy! restore)…
+  ✓ plugins match the lock.
+  » cleaning orphan plugins (Lazy! clean)…
+  ```
+
+- **The warning that could never be cleared now clears.** `yadr doctor`
+  before that first `nvim` start: `0 errors, 7 warnings`, including
+  `⚠ neovim plugins not installed`. After it: `0 errors, 5 warnings`, with
+  `✓ nvim plugins (lockfile OK)` and `✓ treesitter (parsers nvim)`, and the
+  remaining warnings are the honest machine-local ones (two distro-provided zsh
+  plugins, no `sudo` here; LSP servers, `yadr install typescript` not run; git
+  identity in an isolated `HOME`; and a dirty checkout, because the run was
+  made from the working tree before the release commit).
+- Caveats, stated rather than implied: the run inherits the host's `PATH`, so
+  `fd` resolves to the host's mise shim (the Linux `fd/fzf` packages need
+  `sudo`, which this machine does not have); and this is one machine, one
+  distro — the moved-`XDG` install also runs in the `arch-container` lane.
