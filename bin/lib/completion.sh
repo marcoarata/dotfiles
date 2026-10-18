@@ -33,7 +33,7 @@ _yadr_complete() {
   COMPREPLY=()
   cur="${COMP_WORDS[COMP_CWORD]}"
   cmd="${COMP_WORDS[1]}"
-  local commands="apply backup benchmark completion diff doctor export gitsigns help install migrate pack runtime theme uninstall update version"
+  local commands="backup benchmark completion diff doctor gitsigns help install migrate pack runtime theme uninstall update version"
 
   if [[ "$cur" == -* ]]; then
     COMPREPLY=( $(compgen -W '--yes --help -y -h' -- "$cur") )
@@ -47,8 +47,6 @@ _yadr_complete() {
     install)   words='core node typescript ruby python rust lazygit tools development macos-extras' ;;
     uninstall) words='--dry-run --purge' ;;
     migrate)   words='--dry-run' ;;
-    export)    words='--out' ;;
-    apply)     words='--dry-run' ;;
     pack)      words='list add' ;;
     theme)     words='list use current' ;;
     gitsigns)  words='on off status' ;;
@@ -70,15 +68,13 @@ YADR_COMPLETION_BASH
 _yadr() {
   local -a sub
   if (( CURRENT == 2 )); then
-    compadd -- apply backup benchmark completion diff doctor export gitsigns help install migrate pack runtime theme uninstall update version
+    compadd -- backup benchmark completion diff doctor gitsigns help install migrate pack runtime theme uninstall update version
     return
   fi
   case "${words[2]}" in
     install)   sub=(core node typescript ruby python rust lazygit tools development macos-extras) ;;
     uninstall) sub=(--dry-run --purge) ;;
     migrate)   sub=(--dry-run) ;;
-    export)    sub=(--out) ;;
-    apply)     sub=(--dry-run) ;;
     pack)      sub=(list add) ;;
     theme)     sub=(list use current) ;;
     gitsigns)  sub=(on off status) ;;
@@ -95,13 +91,11 @@ YADR_COMPLETION_ZSH
 # Install:  yadr completion fish > "${XDG_CONFIG_HOME:-$HOME/.config}/fish/completions/yadr.fish"
 # Or just:  yadr install   (writes it there; fish loads it automatically)
 complete -c yadr -f
-complete -c yadr -n __fish_use_subcommand -a apply -d 'restore a bundle'
 complete -c yadr -n __fish_use_subcommand -a backup -d 'copy current dotfiles to the backup dir'
 complete -c yadr -n __fish_use_subcommand -a benchmark -d 'measure startup (shell|nvim|cd|prompt)'
 complete -c yadr -n __fish_use_subcommand -a completion -d 'print a shell completion script (bash|zsh|fish)'
 complete -c yadr -n __fish_use_subcommand -a diff -d 'show what would change, modifies nothing'
 complete -c yadr -n __fish_use_subcommand -a doctor -d 'check the environment with hints'
-complete -c yadr -n __fish_use_subcommand -a export -d 'save your user-owned state to a bundle'
 complete -c yadr -n __fish_use_subcommand -a gitsigns -d 'Git signs in Neovim (on|off|status)'
 complete -c yadr -n __fish_use_subcommand -a help -d 'show usage'
 complete -c yadr -n __fish_use_subcommand -a install -d 'install YADR (profile)'
@@ -115,8 +109,6 @@ complete -c yadr -n __fish_use_subcommand -a version -d 'print version'
 complete -c yadr -n '__fish_seen_subcommand_from install' -a 'core node typescript ruby python rust lazygit tools development macos-extras'
 complete -c yadr -n '__fish_seen_subcommand_from uninstall' -a '--dry-run --purge'
 complete -c yadr -n '__fish_seen_subcommand_from migrate' -a '--dry-run'
-complete -c yadr -n '__fish_seen_subcommand_from export' -a '--out'
-complete -c yadr -n '__fish_seen_subcommand_from apply' -a '--dry-run'
 complete -c yadr -n '__fish_seen_subcommand_from pack' -a 'list add'
 complete -c yadr -n '__fish_seen_subcommand_from theme' -a 'list use current'
 complete -c yadr -n '__fish_seen_subcommand_from gitsigns' -a 'on off status'

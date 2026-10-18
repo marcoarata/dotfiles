@@ -1,7 +1,7 @@
 # CLI contract — why `bin/yadr` stays dependency-free (`bin/` + `bin/lib/`)
 
 `bin/yadr` (dispatcher, bash 3.2-compatible) + `bin/lib/*.sh` (one file per
-area: paths, install, recover, doctor, runtime, benchmark, transfer, completion) stay dependency-free:
+area: paths, install, recover, doctor, runtime, benchmark, completion) stay dependency-free:
 they must run from `curl | sh` bootstraps, ancient macOS bash, and minimal
 Linux boxes with zero dependencies beyond bash/git. `lib/` is sourced via
 a `BIN_DIR`-resolved absolute path (symlink-aware, `YADR_LIB_DIR` override
@@ -27,9 +27,9 @@ the program that reads the file, falling back to the XDG spec default
 | zsh rc | `ZDOTDIR` when set | zsh reads `$ZDOTDIR/.zshrc` instead of `~/.zshrc` |
 | `~/.gitconfig`, `~/.tmux.conf`, `~/.local/bin` | nothing (HOME) | git and tmux always read them; XDG defines no binary directory |
 
-`install`, `doctor`, `diff`, `backup`, `uninstall --purge`, `export`/`apply` and
-`theme` all consume these helpers, and `share_dirs()` feeds the purge snapshot
-and the purge itself from one list. `platform/*.sh` compose the same defaults
+`install`, `doctor`, `diff`, `backup`, `uninstall --purge` and `theme` all
+consume these helpers, and `share_dirs()` feeds the purge snapshot and the
+purge itself from one list. `platform/*.sh` compose the same defaults
 inline because they run standalone; a test fails if `bin/`, `platform/` or
 `bootstrap.sh` hardcode one of these paths again. See
 `docs/adr-005-path-policy.md`.
@@ -66,8 +66,6 @@ Failure taxonomy used throughout:
 | `backup` | nothing | new dir under `backups/` + `last-backup` pointer | 0 |
 | `uninstall` | nothing | removes own symlinks, restores backup, optional purge | 0, or 0 on cancel |
 | `migrate` | nothing | copies into `~/.config/yadr/migrated/` + backup | 0 |
-| `export` | nothing | writes a bundle file at `--out` (default `$PWD`) | 0 (warns when there is nothing to export) |
-| `apply` | a YADR bundle | restores user state in `$HOME` after SHA-256 verification; backups first | 1 on tampered/foreign bundle, unsafe member or write failure |
 | `pack list|add` | list: nothing; add: same as profile install | 0; 1 on unknown pack |
 | `runtime *` | mise for use/list/current | global tool versions (`use`) | 1 without backend/spec |
 | `theme *` | nothing | `~/.config/yadr/solarized-bg` (use) | 1 on unknown name |

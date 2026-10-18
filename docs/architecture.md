@@ -114,12 +114,12 @@ trade a real robustness property for cosmetic DRY:
   it. It is *not* copied into `lib/`.
 - **`bin/lib/paths.sh` is the single source of truth for destinations**
   (ADR-005). It is sourced by `bin/yadr` before every other module, and
-  `managed_pairs`, the installer, `doctor`, the purge inventory, the
-  `export`/`apply` bundle and the theme all consume it, so the CLI and the tools
-  it configures cannot disagree about where a file lives. `platform/*.sh`
-  compose the same `${XDG_*:-$HOME/...}` defaults inline for the reason above
-  (they run standalone); a test rejects hardcoded XDG-derived paths in `bin/`,
-  `platform/` and `bootstrap.sh` so the two forms cannot drift.
+  `managed_pairs`, the installer, `doctor`, the purge inventory and the theme
+  all consume it, so the CLI and the tools it configures cannot disagree about
+  where a file lives. `platform/*.sh` compose the same `${XDG_*:-$HOME/...}`
+  defaults inline for the reason above (they run standalone); a test rejects
+  hardcoded XDG-derived paths in `bin/`, `platform/` and `bootstrap.sh` so the
+  two forms cannot drift.
 
 `shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
 `bootstrap.sh` file in CI as the coupling alarm for both points.
