@@ -78,10 +78,10 @@ grow, invariants do not.
 | `bats tests/bootstrap.bats` | Installer flags, the `curl \| bash -s` stdin path, tag/VERSION agreement, usage errors | 0 failures |
 | `bats tests/fault.bats` | Injected failures fail loudly and print no success line for work that did not happen | 0 failures |
 | `bash tests/coverage.sh` | Line coverage of `bin/` measured from the bats suite, against a floor | `core >= floor`, exit 0 |
-| `bootstrap.sh --ref vX.Y.Z` from a fresh `HOME` (the published tag, `YADR_HOME` elsewhere) | The tag installs itself detached and `VERSION` matches the tag name | `yadr version` prints `X.Y.Z`; `yadr doctor` 0/0 |
+| `bootstrap.sh --ref vX.Y.Z` from a fresh `HOME` (the published tag, `YADR_HOME` elsewhere) | The tag installs itself detached and `VERSION` matches the tag name | `yadr version` prints `X.Y.Z`; `yadr doctor` reports `0 errors` |
 | `shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash` | Shell hygiene of every shipped and test bash file | no output, exit 0 |
 | `bootstrap.sh --local --yes` with `HOME=/tmp/<fresh>` | Install from a clean HOME: symlinks, CLI on `PATH`, idempotent second run | exit 0 both times |
-| `HOME=/tmp/<fresh> bin/yadr doctor` | Environment contract after install | `0 errors, 0 warnings` |
+| `HOME=/tmp/<fresh> bin/yadr doctor` | Environment contract after install (run against the published tag on 2026-10-18) | `0 errors`; warnings name exactly what this machine still lacks -- identity, LSP servers, distro-provided shell plugins -- and each hint says how to add it. `0 warnings` needs the distro packages (sudo) and the documented install loop, which is what `docs/e2e-report.md` §2 records |
 | `bin/yadr diff` | Nothing changes silently | read-only; no writes |
 | `bin/yadr benchmark shell` | Startup budget (measured against the documented threshold) | `< 500ms` average |
 | `git rev-list --count HEAD`, `grep -c '":' nvim/lazy-lock.json` | Commit and pin counts quoted in README/docs | match the tagged revision |

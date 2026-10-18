@@ -101,7 +101,7 @@ bats tests/shell.bats                     # needs bats-core, zsh, git
 bats tests/fault.bats                     # injected failures
 bash tests/coverage.sh                    # coverage floor for bin/
 HOME=/tmp/fake-home YADR_HOME=<copy> ./bootstrap.sh --local --yes
-HOME=/tmp/fake-home ./bin/yadr doctor     # expect 0 errors, 0 warnings
+HOME=/tmp/fake-home ./bin/yadr doctor     # expect 0 errors; warnings name what this machine lacks
 ```
 
 `docs/evaluation.md` is the ledger: the rubric, the score history and the
@@ -110,3 +110,32 @@ command behind every claim (including the limits this release does not claim).
 `doctor`/`diff`/`backup`/`theme`/`uninstall --dry-run` are safe to run
 anytime (read-only or dry-run); nothing below touches a real `$HOME`
 when `HOME` points elsewhere.
+
+## 6. The published tag, verified after the fact (2026-10-18)
+
+Not the local checkout: `v0.3.0` itself, fetched and installed the way the
+installer documents it.
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh -o bootstrap.sh
+HOME=/tmp/verify-home bash bootstrap.sh --ref v0.3.0 --yes
+```
+
+- The clone is a detached `HEAD` on the tagged commit, and `bootstrap.sh`
+  refuses to continue unless the checkout's `VERSION` equals the tag name
+  (`tests/bootstrap.bats` covers both directions).
+- `yadr version` prints `0.3.0` -- the tag's version, not `main`'s.
+- `yadr install core` inside that isolated `HOME` restored the pinned plugins
+  (`✓ nvim plugins (lockfile OK)`, `✓ clean nvim startup`).
+- `yadr doctor` reported **0 errors**. Its warnings were the honest ones: the
+  two distro-provided zsh plugins (this machine has no `sudo`; the shell
+  fallback clones them), the LSP servers (`yadr install typescript`, not run),
+  and `git/gitconfig`, which this verification dirtied itself with a
+  `git config --global` because `~/.gitconfig` is a symlink into the checkout.
+  That last one is the fix recorded under `Unreleased` in the changelog: the
+  hint did not name the most likely cause.
+
+An isolated `HOME` is not isolation on its own: the host session's `XDG_*`
+variables leak, so `nvim` and `doctor` looked at the real
+`~/.local/share/nvim` until `XDG_CONFIG_HOME`/`XDG_DATA_HOME` were pointed
+under `/tmp` as well. Worth knowing before trusting a "clean HOME" run.

@@ -4,6 +4,22 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [Unreleased]
+
+### Fixed
+
+- `doctor`'s "live checkout has local modifications" hint now names the most
+  common cause first: `~/.gitconfig` is a symlink into the checkout, so a plain
+  `git config --global user.email` edits `git/gitconfig` in the repository and
+  makes later `yadr update` runs refuse to fast-forward. The hint now says to
+  keep the identity in `~/.gitconfig.user` (where `git/gitconfig` already
+  `include`s it). Found while verifying the v0.3.0 tag on a fresh `HOME`.
+- `docs/evaluation.md`: the `doctor` invariant read `0 errors, 0 warnings` as
+  if it held on any fresh `HOME`. It does not, and the tag itself shows why: a
+  fresh install reports `0 errors` and a warning per thing this machine cannot
+  provide (distro packages need `sudo`; LSP servers need `yadr install
+  typescript`). The row and the `--ref` row now state what was measured.
+
 ## [0.3.0] — 2026-10-18 — evidence you can re-run
 
 ### Added

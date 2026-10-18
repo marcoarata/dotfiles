@@ -36,7 +36,7 @@ do_doctor() {
   detect_rogue_checkouts
   local _dirty; _dirty="$(dirty_tree_list)"
   if [[ -n "$_dirty" ]]; then
-    dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (often nvim/lazy-lock.json from Lazy sync, or runtime/mise.toml from 'mise use -g'; put your own global tools in ~/.config/mise/conf.d/); updates may refuse to fast-forward"
+    dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (usually git/gitconfig from a 'git config --global' -- keep your identity in ~/.gitconfig.user instead; also nvim/lazy-lock.json from Lazy sync, or runtime/mise.toml from 'mise use -g'; put your own global tools in ~/.config/mise/conf.d/); updates may refuse to fast-forward"
   fi
   dc_cmd "zsh" zsh "sudo apt install zsh / brew install zsh; chsh -s \$(command -v zsh)"
   dc_cmd "git" git "sudo apt install git / brew install git"
