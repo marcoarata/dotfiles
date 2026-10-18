@@ -78,9 +78,14 @@ the MacPorts fallback on real hardware.
 ```bash
 bash tests/smoke.sh
 bats tests/shell.bats                     # needs bats-core, zsh, git
+bats tests/fault.bats                     # injected failures
+bash tests/coverage.sh                    # coverage floor for bin/
 HOME=/tmp/fake-home YADR_HOME=<copy> ./bootstrap.sh --local --yes
 HOME=/tmp/fake-home ./bin/yadr doctor     # expect 0 errors, 0 warnings
 ```
+
+`docs/evaluation.md` is the ledger: the rubric, the score history and the
+command behind every claim (including the limits this release does not claim).
 
 `doctor`/`diff`/`backup`/`theme`/`uninstall --dry-run` are safe to run
 anytime (read-only or dry-run); nothing below touches a real `$HOME`

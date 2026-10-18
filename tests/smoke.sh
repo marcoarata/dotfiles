@@ -20,6 +20,7 @@ check_file docs/adr-002-runtime-manager.md
 check_file docs/adr-003-purge-inventory.md
 check_file docs/adr-004-failure-policy.md
 check_file docs/e2e-report.md
+check_file docs/evaluation.md
 check_file shell/zshrc
 check_file shell/aliases.zsh
 check_file shell/keybindings.zsh

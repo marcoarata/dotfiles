@@ -293,11 +293,12 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ├── nvim/ / vim/      # shared Editor Layer
 ├── tmux/              # Vim-key tmux.conf
 ├── runtime/           # Runtime Layer: mise.toml, node/python/ruby/rust
-├── packs/             # optional packs (rails, node, python...)
+├── packs/             # optional packs (typescript, python, ruby, rust, javascript)
 ├── platform/          # macos/ linux/ wsl/ tools/ common/
 ├── custom/            # optional before/ after/ hooks (user-owned; never touched by update)
-├── docs/              # architecture, mappings, migration, troubleshooting
-└── tests/             # smoke.sh, shell.bats, fixtures/
+├── docs/              # architecture + ADRs, cli-contract, mappings, migration,
+│                       troubleshooting, releases, e2e-report, evaluation
+└── tests/             # smoke.sh, shell.bats, fault.bats, coverage.sh, fixtures/
 ```
 
 ## Packs
@@ -306,11 +307,13 @@ Packs = optional on-demand installable layers:
 
 ```bash
 yadr pack list
-yadr pack add node-typescript
-yadr pack add ruby-rails
+yadr pack add typescript
+yadr pack add ruby
 ```
 
-Each pack ships a `mise.toml` fragment, aliases, and editor config. Core never depends on a pack. See `docs/architecture.md`.
+Each pack ships a `mise.toml` fragment, aliases, and editor config. Core never
+depends on a pack. `yadr pack list` prints the packs this checkout ships
+(`javascript`, `typescript`, `python`, `ruby`, `rust`). See `docs/architecture.md`.
 
 ## Damoekri
 
