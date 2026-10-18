@@ -123,7 +123,7 @@ jobs:
           echo "::notice::tools: $(for t in nvim tmux rg fd fzf mise zsh; do printf '%s ' "$(command -v "$t" 2>/dev/null || echo MISSING)"; done)"
           echo "::notice::nvim: $(nvim --version | head -n1)"
           echo "::notice::zsh: $(zsh --version)"
-          echo "::notice::fontconfig entries matching a Nerd Font: $(fc-list 2>/dev/null | grep -ci -e nerd -e jetbrains || true)"
+          echo "::notice::Nerd Font: $(find /tmp/yadr-home/.local/share/fonts -type f 2>/dev/null | wc -l) file(s) under HOME, $(fc-list 2>/dev/null | grep -ci -e nerd -e jetbrains || true) visible to fontconfig (a headless container often sees 0: install_fonts warns in that case, it never fails)"
           echo "::notice::symlinks into HOME: $(find /tmp/yadr-home -maxdepth 1 -type l | wc -l)"
           [ -z "$missing" ] || { echo "::error::install did not provide:$missing"; exit 1; }
 

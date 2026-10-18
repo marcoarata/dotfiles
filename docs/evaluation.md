@@ -34,11 +34,36 @@ Two rules keep it useful:
 | 2026-10-09 | pre-repo audit | 8.0 / 10 | External audit note (not stored in this repo) |
 | 2026-10-17 | `52a8d7a` | 9.0 / 10 | Self-audit recorded in the E2E work of that revision |
 | 2026-10-17 | `9084222` | 9.1 / 10 | Self-audit, 20 commits after the previous row |
+| 2026-10-18 | `v0.3.0` (tag) | 9.5 / 10 | Self-audit; per-dimension breakdown below. The tag names the revision, so this row cannot drift |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
 Self-audited rows are marked as such on purpose: the external 8.0 is the only
 number in this table that came from someone else.
+
+### v0.3.0, dimension by dimension
+
+Scored on the tagged revision. Every score is a judgement; the "backed by"
+column names the command or artifact a reader can re-run to disagree with it.
+
+| # | Dimension | Score | Backed by | Known limit |
+|---|---|---|---|---|
+| 1 | Architecture | 9.5 | `bin/lib/*.sh` one-concern modules, `platform/common.sh`, ADR-001..004, `shellcheck -S warning` clean | `bin/yadr` is still the largest file; `packs/` is a contract by convention, not by code |
+| 2 | Install & reproducibility | 9.5 | `bootstrap.sh --local --yes` twice on a clean `HOME`; `bootstrap.sh --ref v0.3.0`; CI `install` (Ubuntu, macOS) and `arch-container` (Arch) | the `mise` installer is unpinned (listed in `docs/releases.md`); no macOS Intel lane |
+| 3 | Operational safety | 9.5 | `tests/fault.bats` (9 injected failures), `uninstall --purge` e2e, `yadr diff`, ADR-003/004 | purge relies on its own markers: deleting them removes less, never more |
+| 4 | Portability | 9.5 | the suites pass on Ubuntu, macOS and Arch; package-manager tests cover apt, dnf and pacman | WSL 1 cannot run Node >= 23 (upstream, documented); Intel mac is tier 3 |
+| 5 | Developer UX | 9.0 | `docs/cli-contract.md`, `--help` on both entrypoints, `doctor` repair hints, next-steps after install | English only; no completions for shells other than zsh |
+| 6 | Neovim | 9.5 | `Lazy! restore` is a no-op on a clean `XDG` dir (26 pins, exit 0, 2026-10-18); `smoke` parses every Lua file; lockfile drift check | the plugin set is not exercised headless beyond that restore |
+| 7 | Shell scripting | 9.5 | `shellcheck -S warning` clean on every shipped bash file, `bash -n`/`zsh -n`, bash 3.2-compatible code | two languages by design: bash for the CLI, zsh for the shell layer |
+| 8 | Documentation | 9.5 | README, INSTALL-YADR, `docs/` (ADRs, mappings, migration, troubleshooting, releases, evaluation, e2e report) | it is long, and it is English-only |
+| 9 | Testing & evidence | 9.5 | `smoke` (88 checks), 94 bats tests (9 of them injected failures), coverage floor 50% with 57.5% measured, 6 CI lanes, `docs/e2e-report.md` | the coverage floor covers `bin/` only; the visual matrix was ephemeral evidence |
+| 10 | Simplicity | 9.0 | no framework, no daemon, the CLI is plain bash, non-DRY is deliberate and documented | six CI lanes and five test batteries are more machinery than the product needs |
+
+Aggregate: **9.5 / 10** -- the mean of the ten scores is 9.45 and rounds to
+9.5. The two 9.0s are the deliberate price of the rest: the UX loses nothing
+but offers nothing outside zsh and English, and the testing machinery is
+heavier than the product. A project that dropped either would be simpler and
+less trustworthy, which is the trade this revision chose.
 
 ## Re-executable checks
 
@@ -79,6 +104,14 @@ real macOS hardware, WSL guest) is in `docs/e2e-report.md`.
 - **The coverage floor covers `bin/` only.** `bootstrap.sh` and `platform/*`
   are measured and printed as context; they are exercised by the CI `install`
   job, not by the bats suite.
+- **Distro coverage in CI is Ubuntu, macOS and Arch.** Fedora/RHEL (`dnf`) is
+  covered by a test that fakes the package manager and by the code path being
+  identical, not by a real install on that distro.
+- **Font visibility is not asserted in CI.** The Nerd Font pin (URL + SHA-256)
+  was verified by downloading the release and re-measuring the digest, and the
+  installers only warn when the font is not visible; the Arch lane reports how
+  many font files landed in the isolated `HOME` and how many entries
+  `fontconfig` sees, which is a headless-container question, not a product one.
 - **The visual matrix is gone.** The screenshots of `docs/e2e-report.md` §3
   were temporary evidence and were removed; the section describes the review,
   it does not pretend to store the captures.

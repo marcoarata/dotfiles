@@ -3,7 +3,8 @@
 ## First Neovim start: Lazy panel shows (normal)
 
 On first `nvim` open you will see the **Lazy** manager window installing
-the ~27 plugins from the lockfile. This is expected behavior, not an error:
+the plugins pinned in `nvim/lazy-lock.json` (26 pins; 25 install by default,
+`gitsigns.nvim` is opt-in). This is expected behavior, not an error:
 when it finishes, `:q` closes it and your file remains. The second start is
 direct. Real problem signals (then it is a bug): persistent `Failed`,
 `■ build failed` or `Error detected` lines after retry
