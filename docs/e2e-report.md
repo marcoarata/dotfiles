@@ -248,3 +248,15 @@ env -u XDG_CONFIG_HOME -u XDG_DATA_HOME -u XDG_CACHE_HOME -u XDG_STATE_HOME \
   `XDG_*`, and the completions landed in the real `~/.local/share` and
   `~/.config` — the same leak §5 warns about, seen from the writing side. The
   files were removed by hand; the command above is the one that is correct.
+
+> **`v0.4.1`, verified the same way (2026-10-18).** The patch changes no
+> shipped code, so this run confirms the tag rather than re-testing the
+> feature: `bootstrap.sh --ref v0.4.1` cloned the tag detached (`VERSION`
+> 0.4.1, `cloning … @ v0.4.1`) with the `XDG_*` variables moved, `install
+> core` wrote the three completion files under the relocated directories
+> (nothing under the un-moved ones), and `yadr doctor` reported **0 errors**
+> (6 warnings, the state before the first `nvim` start). `v0.4.0`'s tag, by
+> contrast, had two CI jobs red — the completion tests used `diff`/`cmp`
+> (absent on Arch) and the CI assertion assumed the default `XDG_CONFIG_HOME`
+> — which is why this patch exists; see the correction in
+> `docs/evaluation.md`.
