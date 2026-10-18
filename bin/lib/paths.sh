@@ -1,27 +1,11 @@
 #!/usr/bin/env bash
 # YADR 2027 — lib/paths.sh: one place for every filesystem path policy (ADR-005)
-# Sourced by bin/yadr before any other module (and by tests);
-# never executed directly. Bash 3.2-compatible, no new dependencies.
-#
-# Why this file exists: the installer, `doctor`, the purge inventory and the
-# tools YADR configures all have an opinion about where a file lives. When those
-# opinions differ, the failure is silent (a symlink nobody reads, a warning that
-# cannot be cleared, a purge that leaves data behind). Every destination is
-# therefore computed here, following the same environment variables as the tool
-# that reads it:
-#
-#   YADR's own files        XDG_CONFIG_HOME/yadr, XDG_STATE_HOME/yadr
-#   Neovim (config/data)    XDG_CONFIG_HOME/nvim, XDG_DATA_HOME/nvim, ...
-#   mise / zoxide data      XDG_DATA_HOME/<tool>
-#   zsh rc                  $ZDOTDIR/.zshrc (zsh's own variable, not XDG)
-#   shell completions       XDG_DATA_HOME/bash-completion, XDG_DATA_HOME/zsh,
-#                           XDG_CONFIG_HOME/fish: each shell's own directory
-#   git / tmux              ~/.gitconfig, ~/.tmux.conf: read by the tool even
-#                           when XDG is set, so they stay HOME-based
-#   YADR's own binaries     ~/.local/bin (no XDG equivalent for executables)
-#
-# Every helper falls back to the XDG spec default ($HOME/.config, ...), so a
-# machine that does not set the variables behaves exactly as before.
+# Sourced by bin/yadr before any other module (and by tests); never executed
+# directly. Bash 3.2-compatible, no new dependencies.
+# Every destination is computed here, following the same variable as the tool
+# that reads the file (a mismatch fails silently: a symlink nobody reads, a
+# warning that cannot be cleared, a purge that leaves data behind). Per-file
+# table: docs/cli-contract.md; rationale and defaults: docs/adr-005-path-policy.md.
 
 xdg_config() { printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 xdg_data()   { printf '%s' "${XDG_DATA_HOME:-$HOME/.local/share}"; }

@@ -1,20 +1,11 @@
 #!/usr/bin/env bash
 # YADR 2027 — lib/completion.sh: `yadr completion <shell>` and where the files go
-# Sourced by bin/yadr into the same shell (and by tests);
-# never executed directly. Bash 3.2-compatible, no new dependencies.
-#
-# The three scripts are written out in full on purpose. They are small, a human
-# reads them, and every shell's completion syntax is different enough that
-# "sharing" them would mean inventing a language of our own — the same
-# deliberate non-DRY the CLI contract already documents.
-#
-#   yadr completion bash|zsh|fish   prints one script to stdout (wire by hand)
-#   yadr completion --install       writes all three where each shell reads them
-#   yadr install                    does the same write, plus the dotfiles
-#
-# Destinations come from bin/lib/paths.sh (ADR-005): every shell's own XDG
-# directory, so a machine with moved XDG_* still loads them. shell/zshrc puts
-# the zsh directory on $fpath; bash-completion and fish discover theirs.
+# Sourced by bin/yadr into the same shell (and by tests); never executed
+# directly. Bash 3.2-compatible, no new dependencies.
+# The three scripts are written out in full on purpose (the deliberate non-DRY
+# the CLI contract documents): each shell's syntax differs enough that sharing
+# them would mean inventing our own language. Destinations come from
+# bin/lib/paths.sh, so a moved XDG_* still loads them.
 
 completion_scripts() { # "shell<TAB>file" for every completion YADR installs
   printf '%s\t%s\n' bash "$(bash_completion_file)"
