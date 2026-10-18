@@ -176,10 +176,15 @@ jobs:
       - name: shell completions written for bash, zsh and fish
         run: |
           export HOME="$RUNNER_TEMP/yadr-home"
-          for p in "$HOME/.local/share/bash-completion/completions/yadr" "$HOME/.local/share/zsh/site-functions/_yadr" "$HOME/.config/fish/completions/yadr.fish"; do
+          # Resolve the destinations the way the install did (paths.sh follows
+          # the ambient XDG_*), instead of assuming the default directories:
+          # this runner exports a non-default XDG_CONFIG_HOME, so the fish file
+          # is not under $HOME/.config.
+          source "$GITHUB_WORKSPACE/bin/lib/paths.sh"
+          for p in "$(bash_completion_file)" "$(zsh_completion_file)" "$(fish_completion_file)"; do
             if [ ! -s "$p" ]; then echo "::error::missing shell completion: $p"; exit 1; fi
+            echo "::notice::completion: $p"
           done
-          echo "::notice::completions written: bash, zsh, fish"
       - name: reinstall is a no-op (idempotence)
         run: |
           export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"

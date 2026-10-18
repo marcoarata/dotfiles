@@ -1311,7 +1311,8 @@ EOF
 
 @test "completions: the three scripts name exactly the commands the CLI dispatches" {
   # Drift guard: the source of truth is what `yadr --help` lists. Add a command
-  # without completing it (or vice versa) and this test fails.
+  # without completing it (or vice versa) and this test fails. No diff/cmp here:
+  # Arch's base container does not ship diffutils (the suites must run there).
   local d="$BATS_TMPDIR/completion-drift-$$"; rm -rf "$d"; mkdir -p "$d"
   yadr_cli --help | sed -n 's/^  \([a-z-]*\).*/\1/p' | grep -v ':$' | sort -u > "$d/usage"
   [ -s "$d/usage" ] || fail "could not read the command list from yadr --help"
@@ -1319,7 +1320,10 @@ EOF
   yadr_cli completion zsh  | sed -n 's/^    compadd -- \(.*\)$/\1/p' | tr ' ' '\n' | sort -u > "$d/zsh"
   yadr_cli completion fish | sed -n 's/^complete -c yadr -n __fish_use_subcommand -a \([a-z]*\) .*/\1/p' | sort -u > "$d/fish"
   for f in bash zsh fish; do
-    diff -u "$d/usage" "$d/$f" >&2 || fail "$f completion drifted from yadr --help"
+    if [ "$(cat "$d/usage")" != "$(cat "$d/$f")" ]; then
+      printf 'expected (from --help):\n%s\ngot (%s):\n%s\n' "$(cat "$d/usage")" "$f" "$(cat "$d/$f")" >&2
+      fail "$f completion drifted from yadr --help"
+    fi
   done
 }
 
@@ -1339,7 +1343,9 @@ EOF
   [ ! -e "$TEST_HOME/.local/share/bash-completion/completions/yadr" ]
   [ ! -e "$TEST_HOME/.config/fish/completions/yadr.fish" ]
   # What install writes is byte-identical to what `completion <shell>` prints.
-  cmp -s "$x/printed.bash" "$x/data/bash-completion/completions/yadr" || fail "installed bash script differs from the printed one"
+  # file_sha, not cmp: Arch's base container ships neither diffutils nor cmp.
+  [ "$(file_sha "$x/printed.bash")" = "$(file_sha "$x/data/bash-completion/completions/yadr")" ] \
+    || fail "installed bash script differs from the printed one"
   # Removal takes exactly those files back (empty dirs included).
   run bash -c "
     export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config' XDG_DATA_HOME='$x/data'
