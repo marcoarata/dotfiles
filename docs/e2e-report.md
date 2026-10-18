@@ -132,8 +132,17 @@ HOME=/tmp/verify-home bash bootstrap.sh --ref v0.3.0 --yes
   fallback clones them), the LSP servers (`yadr install typescript`, not run),
   and `git/gitconfig`, which this verification dirtied itself with a
   `git config --global` because `~/.gitconfig` is a symlink into the checkout.
-  That last one is the fix recorded under `Unreleased` in the changelog: the
-  hint did not name the most likely cause.
+  That last one is the fix released in v0.3.1: the hint did not name the most
+  likely cause.
+
+> **v0.3.1, verified the same way (2026-10-18).** The tag was cloned detached
+> (`cloning … @ v0.3.1`, `VERSION` 0.3.1), `yadr install core` restored the
+> pinned plugins (`✓ plugins match the lock`, `✓ no orphans`), and `yadr doctor`
+> reported **0 errors / 4 warnings** (git identity, the two distro zsh plugins,
+> the LSP servers — the same honest machine-local set, with the plugin warning
+> gone). This run also moved `XDG_*` under `/tmp`, so it doubles as the
+> tag-side of §7: the "clone into …" hint pointed at
+> `<E>/data/yadr-plugins/`, the directory the tools actually read.
 
 An isolated `HOME` is not isolation on its own: the host session's `XDG_*`
 variables leak, so `nvim` and `doctor` looked at the real
