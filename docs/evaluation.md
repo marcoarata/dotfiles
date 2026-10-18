@@ -132,7 +132,8 @@ the breakdown actually supports, and it happens to round back to the 9.5 that
 revision wanted. Every half point is named; none is rounded.
 
 > **Correction (appended 2026-10-18, after the tag).** The `v0.4.0` revision was
-> tagged before its CI finished, and two of its eight jobs came back red.
+> tagged before its CI finished, and two of its eight job instances (six lanes;
+> `test` and `install` each run on two OSes) came back red.
 > `arch-container`: the new completion tests used `diff -u` and `cmp -s` to
 > compare the command lists and the installed script, and Arch's base container
 > ships neither (no diffutils) — `tests/helpers.bash` already documents that

@@ -21,8 +21,9 @@ product, and this patch fixes them:
   file was looked for in the wrong place. The step now resolves the paths with
   `bin/lib/paths.sh`, exactly as the install did, and prints each one.
 
-No shipped code changes: `v0.4.0` and `v0.4.1` are byte-identical outside
-`tests/` and `.github/`. This is the tag whose eight CI jobs are green.
+No shipped code changes: `v0.4.0` and `v0.4.1` differ only in `tests/`,
+`.github/`, this file, `VERSION` and `docs/`. This is the tag whose eight CI
+jobs are green.
 
 ## [0.4.0] — 2026-10-18 — yadr completes itself
 
