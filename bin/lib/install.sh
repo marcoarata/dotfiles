@@ -249,11 +249,17 @@ links_uptodate() { # 0 when every managed pair is already as it should be (silen
 }
 
 ensure_profile_payload() { # runtimes + editor for one profile (shared by fast/full paths)
-  local profile="$1" tools
+  # Returns non-zero when a runtime could not be ensured. Callers must not
+  # claim success then: a failed `mise install` used to end in
+  # "install [node] complete" + exit 0, which is a lie the user only notices
+  # in `yadr doctor` (or when the prompt shows nothing).
+  local profile="$1" tools rc=0
   tools="$(runtime_tool_for "$profile")"
   if [[ -n "$tools" ]]; then
     info "profile ${profile}: ensuring runtimes (${tools})…"
-    for t in $tools; do cmd_runtime_use "$t" || warn "could not ensure ${t}; install with: yadr runtime use ${t}"; done
+    for t in $tools; do
+      cmd_runtime_use "$t" || { warn "could not ensure ${t}; install with: yadr runtime use ${t}"; rc=1; }
+    done
   fi
   # Neovim plugins matching lockfile (all profiles with nvim).
   ensure_nvim_plugins || true
@@ -261,6 +267,7 @@ ensure_profile_payload() { # runtimes + editor for one profile (shared by fast/f
   if [[ "$profile" == "typescript" || "$profile" == "development" ]]; then
     ensure_lsp_servers || true
   fi
+  return "$rc"
 }
 
 do_install() {
@@ -298,10 +305,15 @@ do_install() {
     # Anything else (or stale links) keeps the full safe flow.
     if links_uptodate; then
       info "core links up to date — fast path (no platform, symlinks or confirmations)."
-      ensure_profile_payload "$profile"
-      ok "install [${profile}] complete (fast path). Run 'yadr doctor' to verify."
+      if ensure_profile_payload "$profile"; then
+        ok "install [${profile}] complete (fast path). Run 'yadr doctor' to verify."
+        next_steps
+        return 0
+      fi
+      err "install [${profile}] incomplete: some runtimes did not install (see above)."
+      info "retry with: yadr install ${profile} (or 'yadr runtime use <tool>' for one tool)."
       next_steps
-      return 0
+      return 1
     fi
     info "links out of date — full install (with backup and confirmation)."
     ;;
@@ -311,7 +323,8 @@ do_install() {
   else warn "platform script not found: ${plat}; continuing."
   fi
   # Profile runtimes via `runtime` abstraction (mise inside)
-  ensure_profile_payload "$profile"
+  local payload_rc=0
+  ensure_profile_payload "$profile" || payload_rc=1
   info "change preview (diff):"
   do_diff
   confirm "Apply symlinks (with prior automatic backup)?" || { info "install cancelled; nothing modified."; return 0; }
@@ -324,9 +337,15 @@ do_install() {
     link_one "$src" "$dst"; n=$((n+1))
   done < <(managed_pairs)
   ensure_login_shell
-  success_msg
-  info "install complete: ${n} links, ${skipped} pending from repo. Run 'yadr doctor' to verify."
+  if [[ "$payload_rc" == "0" ]]; then
+    success_msg
+    info "install complete: ${n} links, ${skipped} pending from repo. Run 'yadr doctor' to verify."
+  else
+    err "symlinks applied (${n} links) but some runtimes did not install (see above)."
+    info "retry with: yadr install ${profile} (or 'yadr runtime use <tool>' for one tool)."
+  fi
   next_steps
+  return "$payload_rc"
 }
 
 dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty when clean/no-git

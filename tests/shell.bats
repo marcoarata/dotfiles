@@ -608,6 +608,36 @@ platform_funcs() {
   [[ "$output" == *"ok"* ]]
 }
 
+@test "install fast path fails loudly when a runtime does not install" {
+  # A failed `mise install` must not end in "install [x] complete" + exit 0
+  # (it did on WSL1, where node ≥23 cannot exec: user saw success, doctor saw nothing).
+  local home="$BATS_TMPDIR/install-lie-$$" fake="$BATS_TMPDIR/install-lie-bin-$$" repo="$BATS_TMPDIR/install-lie-repo-$$"
+  rm -rf "$home" "$fake" "$repo"; mkdir -p "$home/.local/bin" "$fake" "$repo"
+  printf 'x\n' > "$repo/pair-src"
+  ln -s "$repo/pair-src" "$home/.local/bin/yadr"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$fake/mise"; chmod +x "$fake/mise"
+  run bash -c "
+    export HOME='$home' PATH='$fake:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.local/bin/yadr\"; }
+    do_install node"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"incomplete"* ]]
+  [[ "$output" != *"complete (fast path)"* ]]
+  # Same run with a working backend: the honest success path stays intact.
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/mise"
+  run bash -c "
+    export HOME='$home' PATH='$fake:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.local/bin/yadr\"; }
+    do_install node"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"install [node] complete"* ]]
+  rm -rf "$home" "$fake" "$repo"
+}
+
 @test "uninstall --purge removes YADR state, keeps pre-existing data" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-clone-$$"
   # Fake checkout (isolated): --purge would rm -rf $YADR_HOME, never the real repo.
