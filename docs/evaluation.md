@@ -48,10 +48,12 @@ grow, invariants do not.
 
 | Command | Proves | Must |
 |---|---|---|
-| `bash tests/smoke.sh` | Structure, shipped-file presence, `zsh -n`/`bash -n`, nvim Lua parse, lockfile pins | `fail=0` |
-| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, CLI contract, benchmarks | only environment-dependent skips (see limits) |
+| `bash tests/smoke.sh` | Structure, shipped-file presence, `zsh -n`/`bash -n`, nvim Lua parse, lockfile pins, `VERSION` is semver and `CHANGELOG.md` has an entry for it | `fail=0` |
+| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, CLI contract, benchmarks, `export`/`apply` round-trip and tamper rejection, package-manager selection (apt/dnf/pacman) | only environment-dependent skips (see limits) |
+| `bats tests/bootstrap.bats` | Installer flags, the `curl \| bash -s` stdin path, tag/VERSION agreement, usage errors | 0 failures |
 | `bats tests/fault.bats` | Injected failures fail loudly and print no success line for work that did not happen | 0 failures |
 | `bash tests/coverage.sh` | Line coverage of `bin/` measured from the bats suite, against a floor | `core >= floor`, exit 0 |
+| `bootstrap.sh --ref vX.Y.Z` from a fresh `HOME` (the published tag, `YADR_HOME` elsewhere) | The tag installs itself detached and `VERSION` matches the tag name | `yadr version` prints `X.Y.Z`; `yadr doctor` 0/0 |
 | `shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash` | Shell hygiene of every shipped and test bash file | no output, exit 0 |
 | `bootstrap.sh --local --yes` with `HOME=/tmp/<fresh>` | Install from a clean HOME: symlinks, CLI on `PATH`, idempotent second run | exit 0 both times |
 | `HOME=/tmp/<fresh> bin/yadr doctor` | Environment contract after install | `0 errors, 0 warnings` |
