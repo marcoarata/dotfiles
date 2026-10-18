@@ -27,6 +27,18 @@ Philosophy:
 > your terminal emulator before checking the prompt. Without it, everything
 > still works (degrades to plain glyphs).
 
+## Scope
+
+YADR 2027 is a **personal** Zsh + Tmux + Neovim environment — installable by third
+parties on macOS (Intel included), Linux (Debian/Ubuntu), WSL and headless SSH. Its
+lifecycle is `install` → use → `update` → `uninstall` / `backup` / `doctor`.
+
+It is deliberately **not**: a general dotfile framework, a secrets manager, a package
+or runtime manager (those belong to your package manager and to `mise`, which stays
+optional), a Windows-native setup (WSL only), or a way to move state between machines.
+A subsystem is kept only if it prevents a real problem or a test fails without it —
+see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
+
 ## Installation — YADR 2027
 
 ### 1) macOS

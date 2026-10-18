@@ -136,3 +136,4 @@ rejected and the consequences accepted:
 | [ADR-003](adr-003-purge-inventory.md) | `--purge` deletes only what YADR added (pre-install snapshot; refuses blind wipes) |
 | [ADR-004](adr-004-failure-policy.md) | Runtime failures are fatal; editor failures are advisory |
 | [ADR-005](adr-005-path-policy.md) | Paths follow the variables of the tool that reads the file (`XDG_*`, `ZDOTDIR`) |
+| [ADR-006](adr-006-scope.md) | Scope and non-goals: personal first, installable by third parties; the YAGNI admission rule |
