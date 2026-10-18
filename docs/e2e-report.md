@@ -31,6 +31,13 @@ deliberate omission: GitHub-hosted Windows + WSL is slow and flaky, and
 `platform/wsl.sh` mostly delegates to `linux.sh`, which the Ubuntu job
 already exercises. Revisit only if a reliable hosted WSL runner appears.
 
+The WSL path was additionally exercised end-to-end on 2026-10-17 in a real
+Windows 11 guest (quickemu, WSL 2 with nested VT-x): `yadr install node`
+installed node 24.22.0 via mise and `yadr doctor` finished **0 errors,
+0 warnings**. The same install on **WSL 1** fails for a host-side reason
+(official Node ≥23 cannot `execve` there, microsoft/WSL#8151); that case is
+documented, not worked around in code: see `docs/troubleshooting.md`.
+
 ## 2. Ephemeral Ubuntu 24.04 VM (quickemu, 2vCPU/4GB, all under `/tmp`)
 
 Full matrix with isolated HOME, project copied in, `--local` mode:

@@ -26,6 +26,30 @@ the file directly (YADR configures Neovim, not Vim).
 - Headless SSH: `bin/yadr` and `shell/zshrc` prepend `~/.local/bin` and the mise shims to PATH.
 - Do not mix external version managers: use only the Runtime Layer (`yadr runtime`).
 
+## WSL: `yadr install node` fails with `Syntax error: ")" unexpected`
+
+- Symptom: the runtime never lands (`mise ls --current` shows
+  `node 24.22.0 (missing)`) and running node by hand prints
+  `/…/bin/node: 1: Syntax error: ")" unexpected` (exit 2).
+- Cause: the distro runs **WSL 1**. Its kernel cannot `execve` official
+  Node ≥23 binaries (upstream: microsoft/WSL#8151); the shell then falls back
+  to `/bin/sh` and dash chokes on the ELF. Nothing to fix in YADR or mise.
+- Fix (preferred): move the distro to WSL 2 — check `wsl -l -v` (VERSION
+  column), then `wsl --set-version <distro> 2` — and run `yadr install node`
+  again. WSL 2 needs hardware virtualization: inside a VM (quickemu,
+  VirtualBox, VMware…) expose VT-x/AMD-V to the guest first. quickemu example
+  (add to `<vm>.conf`, the generated launcher is rewritten on every start):
+  `extra_args="-cpu host,+vmx"`.
+- Fallback on WSL 1 (no hardware virtualization available): stay on a Node
+  major that still runs there (22.x; ≥23 cannot), or keep the official build
+  and wrap it with the loader (upstream workaround): rename `bin/node` to
+  `bin/node-orig` and make `bin/node` run
+  `exec /lib64/ld-linux-x86-64.so.2 "$(dirname "$0")/node-orig" "$@"`, then
+  `mise reshim`. Only `bin/node` is a binary; `npm`/`npx` are scripts that
+  resolve node via PATH, so the wrapper is enough.
+- Check: WSL 2 reports `-microsoft-standard-WSL2` in `uname -r`; WSL 1 reports
+  a `4.4.0-…-Microsoft` kernel.
+
 ## LSP not starting (Neovim)
 
 - Old system binary (e.g. apt 0.6.1 on Ubuntu 22.04): outside YADR zsh, the
