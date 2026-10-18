@@ -115,3 +115,15 @@ trade a real robustness property for cosmetic DRY:
 
 `shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
 `bootstrap.sh` file in CI as the coupling alarm for both points.
+
+## Decisions (ADRs)
+
+The choices that shape the project, each with the alternatives that were
+rejected and the consequences accepted:
+
+| ADR | Decision |
+|---|---|
+| [ADR-001](adr-001-symlink-manager.md) | Own `bin/yadr` orchestrator instead of chezmoi / stow / dotbot |
+| [ADR-002](adr-002-runtime-manager.md) | `mise` as the runtime backend, never required by Core |
+| [ADR-003](adr-003-purge-inventory.md) | `--purge` deletes only what YADR added (pre-install snapshot; refuses blind wipes) |
+| [ADR-004](adr-004-failure-policy.md) | Runtime failures are fatal; editor failures are advisory |
