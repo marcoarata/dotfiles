@@ -108,7 +108,24 @@ jobs:
       - name: doctor must pass clean
         run: |
           export PATH="/tmp/yadr-home/.local/bin:$PATH"
+          HOME=/tmp/yadr-home bash "$GITHUB_WORKSPACE/bin/yadr" version
           HOME=/tmp/yadr-home bash "$GITHUB_WORKSPACE/bin/yadr" doctor
+      - name: what the install actually provided (readable without a login)
+        run: |
+          # A green lane should show its evidence. These lines become
+          # annotations, which anyone can read; job logs need an account. A
+          # "the install worked" that cannot be inspected is not evidence.
+          export PATH="/tmp/yadr-home/.local/bin:$PATH"
+          missing=""
+          for t in nvim tmux rg fd fzf mise zsh; do
+            command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
+          done
+          echo "::notice::tools: $(for t in nvim tmux rg fd fzf mise zsh; do printf '%s ' "$(command -v "$t" 2>/dev/null || echo MISSING)"; done)"
+          echo "::notice::nvim: $(nvim --version | head -n1)"
+          echo "::notice::zsh: $(zsh --version)"
+          echo "::notice::fontconfig entries matching a Nerd Font: $(fc-list 2>/dev/null | grep -ci -e nerd -e jetbrains || true)"
+          echo "::notice::symlinks into HOME: $(find /tmp/yadr-home -maxdepth 1 -type l | wc -l)"
+          [ -z "$missing" ] || { echo "::error::install did not provide:$missing"; exit 1; }
 
   install:
     strategy:

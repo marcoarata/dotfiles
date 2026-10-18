@@ -1,7 +1,7 @@
 # E2E evidence report
 
 How YADR 2027 is proven to work. Evidence over prose: every claim below
-links a reproducible run. Last verified: 2026-10-17 (CI all green).
+links a reproducible run. Last verified: 2026-10-18 (CI all green).
 
 ## 1. CI matrix (GitHub Actions, `.github/workflows/ci.yml`)
 
@@ -11,15 +11,25 @@ Runs on every `main` push + PR:
 |---|---|---|---|
 | `lint` | Ubuntu | `shellcheck -S warning` + `zsh -n` + `bash -n` clean | green |
 | `test` | Ubuntu, macOS | `smoke.sh` + `bats` (`shell.bats`, `bootstrap.bats`) green on both OSes | green |
-| `coverage` | Ubuntu | line coverage of `bin/` measured from the bats suite, against a floor | pending first CI run |
-| `fault-injection` | Ubuntu | injected failures fail loudly and never print success for work that did not happen (`tests/fault.bats`) | pending first CI run |
-| `arch-container` | Arch (`archlinux:latest`) | the unit suites *and* a real core install + `doctor` inside the distro (pacman branch) | pending first CI run |
+| `coverage` | Ubuntu | line coverage of `bin/` measured from the bats suite, against a floor | green |
+| `fault-injection` | Ubuntu | injected failures fail loudly and never print success for work that did not happen (`tests/fault.bats`) | green |
+| `arch-container` | Arch (`archlinux:latest`) | the unit suites *and* a real core install + `doctor` inside the distro (pacman branch) | green |
 | `install` | Ubuntu, macOS | core install in isolated HOME + `doctor` exit 0 + idempotent reinstall | green |
 
-The three newer lanes pass locally (see `docs/evaluation.md` for the exact
-commands); their rows are marked green only once the corresponding CI run is
-observed on `main`. `docs/releases.md` documents what each job blocks before
-a tag.
+All six jobs are green on the `main` commit this file was last updated from;
+`docs/releases.md` documents what each one blocks before a tag.
+
+The Arch lane earned its place before it went green. Its first runs failed
+and named, one at a time, four defects that a Debian-plus-macOS matrix had
+tolerated: a test that needed `python3` to build a fixture (Arch's base has
+none), a `fail` helper that bats-core does not ship (so assertions reported
+`command not found` instead of their message), a byte comparison that used
+`cmp` from diffutils (absent from Arch's `base`), and a `set -e` trap where
+a failed `dirname`/`cd` aborted a platform script before its documented
+"missing common.sh" warning could run. The lane also had to be made
+diagnosable: GitHub keeps job logs behind a login, so the bats step now
+re-emits failing tests and assertion lines as annotations, which are public.
+A lane whose failures cannot be read is not evidence.
 
 History: the first green run followed 4 test failures with diagnosed
 root causes (CWD assumed outside repos, shared `TEST_HOME` pollution,
@@ -34,13 +44,6 @@ unreachable source (no leftovers), and `do_update` without a git checkout
 (warns, exits 0). The dedicated lane in `tests/fault.bats` goes further:
 it breaks a runtime, the editor, the network, the plugin cache and the
 purge snapshots on purpose and asserts the absence of success lines.
-
-Graceful-failure paths are covered by `bats` in isolated `HOME`/`YADR_HOME`:
-`uninstall --purge` end-to-end (managed symlinks go; user files and
-pre-existing shared data stay; YADR-added share entries and the tools
-`conf.d` fragment go; clone and state removed), `fetch_verified_zip` on an
-unreachable source (no leftovers), and `do_update` without a git checkout
-(warns, exits 0).
 
 WSL is covered at the **logic level** (platform selection from the version
 string, and the three clipboard branches), not with a full runner. This is a
