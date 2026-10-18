@@ -3,6 +3,24 @@
 # The loading file must define, in its setup(): YADR_ROOT and TEST_HOME.
 # Helpers never touch the real $HOME: TEST_HOME is the isolated one.
 
+fail() { # fail <message>: fail the test with a readable message
+  # bats-core has no `fail` helper: calling it is "command not found" (127),
+  # which fails the test for the wrong reason and loses the message -- so the
+  # message matters. Defined here because every test file loads this file.
+  printf 'FAIL: %s\n' "$*" >&2
+  return 1
+}
+
+file_sha() { # file_sha <file>: sha256 hex, coreutils or BSD shasum
+  # `cmp` would be nicer but lives in diffutils, which Arch's base does not
+  # ship; sha256sum is coreutils (always present) and shasum covers macOS.
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+
 load_aliases() {
   # Source shell/aliases.zsh with the modern tools hidden from PATH.
   # zsh itself is required (no silent fallback: a missing zsh must fail loudly).

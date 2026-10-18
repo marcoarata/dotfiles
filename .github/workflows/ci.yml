@@ -91,10 +91,11 @@ jobs:
           rc=$?
           if [ "$rc" -ne 0 ]; then
             # Job logs need a GitHub login; annotations do not. Surface the
-            # failing tests and their messages so a red lane is diagnosable
-            # from the public checks page instead of only from a log nobody
-            # without an account can open.
-            grep -E '^(not ok|# )' "$RUNNER_TEMP/bats.log" | sed 's/^/::error::/' | head -n 20
+            # failing tests and their assertion lines so a red lane is
+            # diagnosable from the public checks page instead of only from a
+            # log nobody without an account can open.
+            grep -E '^(not ok|# .*(failed|not found|in test file))' "$RUNNER_TEMP/bats.log" \
+              | sed 's/^/::error::/' | head -n 20
             tail -n 40 "$RUNNER_TEMP/bats.log"
           fi
           exit "$rc"

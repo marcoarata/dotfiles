@@ -547,9 +547,7 @@ macos_funcs() {
   # Arch lane has no python3.
   local z="$YADR_ROOT/tests/fixtures/font-sample.zip" dest="$TEST_HOME/fonts"
   [ -f "$z" ] || fail "missing fixture: tests/fixtures/font-sample.zip"
-  local sha
-  if command -v sha256sum >/dev/null 2>&1; then sha="$(sha256sum "$z" | awk '{print $1}')"
-  else sha="$(shasum -a 256 "$z" | awk '{print $1}')"; fi
+  local sha; sha="$(file_sha "$z")"
   run bash -c "
     export HOME='$TEST_HOME'
     export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
@@ -847,7 +845,7 @@ EOF
   [[ "$output" == *"apply complete"* ]]
   local f
   for f in .gitconfig.user .config/yadr/solarized-bg .config/yadr/migrated/vimrc.after .config/mise/conf.d/mine.toml; do
-    cmp -s "$a/$f" "$b/$f" || fail "restored file differs from the source: $f"
+    [ "$(file_sha "$a/$f")" = "$(file_sha "$b/$f")" ] || fail "restored file differs from the source: $f"
   done
   rm -rf "$a" "$b" "$pkg"
 }

@@ -14,6 +14,8 @@ setup() {
 
 load helpers
 
+load helpers
+
 make_fixture_repo() {
   # make_fixture_repo <dir> <version>: throwaway project repo tagged v<version>
   # whose bin/yadr prints a marker instead of installing anything.
