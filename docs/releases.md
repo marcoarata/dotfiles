@@ -14,13 +14,17 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    (coverage floor), `shellcheck -S warning` on
    `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh
    tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
-   `yadr doctor` 0/0 on a fresh isolated HOME.
+   `yadr doctor` reports 0 errors on a fresh isolated HOME (its warnings name
+   what that machine still lacks; `0 warnings` needs the distro packages and
+   the documented install loop).
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
    pin-sensitive users install the tag instead:
    `bootstrap.sh --ref vX.Y.Z` (checks out the tag detached and refuses to
    continue when the tag and its `VERSION` file disagree), then verify both
-   sides: `yadr version` prints `X.Y.Z` and `yadr doctor` reports 0/0.
+   sides: `yadr version` prints `X.Y.Z` and `yadr doctor` reports 0 errors
+   (on a fresh `HOME` that is what it can be -- see the note above; and see
+   `docs/e2e-report.md` §6 for the v0.3.0 run itself).
 
 ## What CI enforces on every push
 
@@ -40,6 +44,11 @@ fault, coverage) run by hand exactly as CI runs them; `tests/coverage.sh`,
 green" is not evidence on its own.
 
 ## Pinned inventory (verify before tagging)
+
+Re-verified for `v0.3.0` on 2026-10-18: the Nerd Font release was downloaded
+again and its SHA-256 re-measured against `manifest.env`, and `Lazy! restore`
+on a clean `XDG` directory left `nvim/lazy-lock.json` byte-identical (26 pins,
+25 installed, `gitsigns.nvim` opt-in).
 
 | Artifact | Pin | Verified by |
 |---|---|---|
