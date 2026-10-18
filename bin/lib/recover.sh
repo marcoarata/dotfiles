@@ -127,6 +127,8 @@ do_uninstall() {
   printf '\n%sWould remove %d symlinks:%s\n' "$BOLD" "${#linked[@]}" "$RESET"
   printf '  %s\n' "${linked[@]:-(none)}"
   if [[ ${#foreign[@]} -gt 0 ]]; then printf '%sKept (not YADR):%s\n' "$DIM" "$RESET"; printf '  %s\n' "${foreign[@]}"; fi
+  local comp_files; comp_files="$(completions_inventory)"
+  if [[ -n "$comp_files" ]]; then printf '%sWould remove shell completions:%s\n' "$BOLD" "$RESET"; printf '%s\n' "$comp_files"; fi
   [[ -n "$last" && -d "$last" ]] && info "Would restore backup: ${last}" || warn "No prior backup to restore."
   if [[ "${SHELL:-}" == *zsh* && -n "$prev" && "$prev" != *zsh* ]]; then
     info "Would revert login shell to: ${prev}"
@@ -136,6 +138,7 @@ do_uninstall() {
   # 2. Remove symlinks + restore backup.
   local d
   for d in "${linked[@]}"; do rm -f "$d" && info "  removed: ${d}"; done
+  remove_completions
   if [[ -n "$last" && -d "$last" ]]; then
     while IFS=: read -r _rel dst; do
       [[ -z "$dst" ]] && continue

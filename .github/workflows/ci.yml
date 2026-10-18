@@ -144,6 +144,9 @@ jobs:
           for p in "$XDG_CONFIG_HOME/nvim" "$XDG_CONFIG_HOME/mise/config.toml" "$XDG_CONFIG_HOME/yadr/aliases.zsh"; do
             if [ ! -L "$p" ]; then echo "::error::not linked where the tool reads it: $p"; fail=1; fi
           done
+          for p in "$XDG_DATA_HOME/bash-completion/completions/yadr" "$XDG_DATA_HOME/zsh/site-functions/_yadr" "$XDG_CONFIG_HOME/fish/completions/yadr.fish"; do
+            if [ ! -s "$p" ]; then echo "::error::completion not written under the moved XDG dir: $p"; fail=1; fi
+          done
           if [ -e "$HOME/.config/nvim" ]; then
             echo "::error::nvim config left in the HOME default ($HOME/.config/nvim)"; fail=1
           fi
@@ -170,6 +173,13 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"
           HOME="$RUNNER_TEMP/yadr-home" bash "$GITHUB_WORKSPACE/bin/yadr" doctor
+      - name: shell completions written for bash, zsh and fish
+        run: |
+          export HOME="$RUNNER_TEMP/yadr-home"
+          for p in "$HOME/.local/share/bash-completion/completions/yadr" "$HOME/.local/share/zsh/site-functions/_yadr" "$HOME/.config/fish/completions/yadr.fish"; do
+            if [ ! -s "$p" ]; then echo "::error::missing shell completion: $p"; exit 1; fi
+          done
+          echo "::notice::completions written: bash, zsh, fish"
       - name: reinstall is a no-op (idempotence)
         run: |
           export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"

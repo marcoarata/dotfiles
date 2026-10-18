@@ -1287,3 +1287,81 @@ EOF
     "$YADR_ROOT/bin" "$YADR_ROOT/platform" "$YADR_ROOT/bootstrap.sh"
   [ "$status" -ne 0 ]
 }
+
+# Shell completions (`yadr completion`, v0.4.0). The scripts are static text, so
+# the risk is drift: a command added to the CLI but not to the three scripts, or
+# a script that stops parsing. Each shell is checked with its own parser when it
+# is present, and the command lists are compared against `--help`.
+
+@test "completions: yadr completion prints a script that parses in its shell" {
+  local d="$BATS_TMPDIR/completion-parse-$$"; rm -rf "$d"; mkdir -p "$d"
+  yadr_cli completion bash > "$d/yadr.bash" || fail "completion bash failed"
+  grep -q 'complete -F _yadr_complete yadr' "$d/yadr.bash" || fail "bash: complete -F missing"
+  bash -n "$d/yadr.bash" || fail "bash: generated script does not parse"
+  yadr_cli completion zsh > "$d/_yadr" || fail "completion zsh failed"
+  [ "$(head -n1 "$d/_yadr")" = "#compdef yadr" ] || fail "zsh: #compdef header missing"
+  command -v zsh >/dev/null 2>&1 && { zsh -n "$d/_yadr" || fail "zsh: generated script does not parse"; }
+  yadr_cli completion fish > "$d/yadr.fish" || fail "completion fish failed"
+  grep -q '__fish_use_subcommand' "$d/yadr.fish" || fail "fish: no subcommand completions"
+  if command -v fish >/dev/null 2>&1; then fish --no-execute "$d/yadr.fish" || fail "fish: generated script does not parse"; fi
+  run yadr_cli completion tcsh
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown shell"* ]]
+}
+
+@test "completions: the three scripts name exactly the commands the CLI dispatches" {
+  # Drift guard: the source of truth is what `yadr --help` lists. Add a command
+  # without completing it (or vice versa) and this test fails.
+  local d="$BATS_TMPDIR/completion-drift-$$"; rm -rf "$d"; mkdir -p "$d"
+  yadr_cli --help | sed -n 's/^  \([a-z-]*\).*/\1/p' | grep -v ':$' | sort -u > "$d/usage"
+  [ -s "$d/usage" ] || fail "could not read the command list from yadr --help"
+  yadr_cli completion bash | sed -n 's/^  local commands="\(.*\)"$/\1/p' | tr ' ' '\n' | sort -u > "$d/bash"
+  yadr_cli completion zsh  | sed -n 's/^    compadd -- \(.*\)$/\1/p' | tr ' ' '\n' | sort -u > "$d/zsh"
+  yadr_cli completion fish | sed -n 's/^complete -c yadr -n __fish_use_subcommand -a \([a-z]*\) .*/\1/p' | sort -u > "$d/fish"
+  for f in bash zsh fish; do
+    diff -u "$d/usage" "$d/$f" >&2 || fail "$f completion drifted from yadr --help"
+  done
+}
+
+@test "completions: --install writes them under the moved XDG dirs and removes them" {
+  local x="$BATS_TMPDIR/completion-xdg-$$"; rm -rf "$x"; mkdir -p "$x"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config' XDG_DATA_HOME='$x/data'
+    export XDG_CACHE_HOME='$x/cache' XDG_STATE_HOME='$x/state' PATH='/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    ensure_completions >/dev/null
+    completion_script bash > '$x/printed.bash'"
+  [ "$status" -eq 0 ]
+  [ -e "$x/data/bash-completion/completions/yadr" ]
+  [ -e "$x/data/zsh/site-functions/_yadr" ]
+  [ -e "$x/config/fish/completions/yadr.fish" ]
+  # Nothing lands in the un-moved location (a shell would never read it there).
+  [ ! -e "$TEST_HOME/.local/share/bash-completion/completions/yadr" ]
+  [ ! -e "$TEST_HOME/.config/fish/completions/yadr.fish" ]
+  # What install writes is byte-identical to what `completion <shell>` prints.
+  cmp -s "$x/printed.bash" "$x/data/bash-completion/completions/yadr" || fail "installed bash script differs from the printed one"
+  # Removal takes exactly those files back (empty dirs included).
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_CONFIG_HOME='$x/config' XDG_DATA_HOME='$x/data'
+    export XDG_CACHE_HOME='$x/cache' XDG_STATE_HOME='$x/state' PATH='/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    remove_completions >/dev/null
+    for f in bash_completion_file zsh_completion_file fish_completion_file; do
+      if [ -e \"\$(\$f)\" ]; then echo \"still present: \$(\$f)\"; exit 1; fi
+    done"
+  [ "$status" -eq 0 ]
+  rm -rf "$x"
+}
+
+@test "completions: install wires the write and uninstall the cleanup" {
+  # Structural guard for the two call sites code cannot be executed here without
+  # a full install (neovim restore, platform packages): the write runs on both
+  # the full and the fast path, the cleanup on uninstall.
+  run grep -c 'ensure_completions' "$YADR_ROOT/bin/lib/install.sh"
+  [ "$status" -eq 0 ]
+  [ "$output" -ge 2 ]
+  run grep -q 'remove_completions' "$YADR_ROOT/bin/lib/recover.sh"
+  [ "$status" -eq 0 ]
+  run grep -q 'completions_inventory' "$YADR_ROOT/bin/lib/recover.sh"
+  [ "$status" -eq 0 ]
+}

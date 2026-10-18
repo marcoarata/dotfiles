@@ -14,6 +14,8 @@
 #   Neovim (config/data)    XDG_CONFIG_HOME/nvim, XDG_DATA_HOME/nvim, ...
 #   mise / zoxide data      XDG_DATA_HOME/<tool>
 #   zsh rc                  $ZDOTDIR/.zshrc (zsh's own variable, not XDG)
+#   shell completions       XDG_DATA_HOME/bash-completion, XDG_DATA_HOME/zsh,
+#                           XDG_CONFIG_HOME/fish: each shell's own directory
 #   git / tmux              ~/.gitconfig, ~/.tmux.conf: read by the tool even
 #                           when XDG is set, so they stay HOME-based
 #   YADR's own binaries     ~/.local/bin (no XDG equivalent for executables)
@@ -39,6 +41,14 @@ nvim_state_dir()  { printf '%s/nvim' "$(xdg_state)"; }
 mise_config_dir() { printf '%s/mise' "$(xdg_config)"; }
 mise_data_dir()   { printf '%s/mise' "$(xdg_data)"; }
 zoxide_data_dir() { printf '%s/zoxide' "$(xdg_data)"; }
+
+# Shell completions: each shell loads its own directory. bash-completion reads
+# $XDG_DATA_HOME/bash-completion/completions, fish reads
+# $XDG_CONFIG_HOME/fish/completions, and zsh needs the file on $fpath (the
+# same XDG data dir, added by shell/zshrc) — all three honour XDG.
+bash_completion_file() { printf '%s/bash-completion/completions/yadr' "$(xdg_data)"; }
+fish_completion_file() { printf '%s/fish/completions/yadr.fish' "$(xdg_config)"; }
+zsh_completion_file()  { printf '%s/zsh/site-functions/_yadr' "$(xdg_data)"; }
 
 # zsh reads $ZDOTDIR/.zshrc when the variable is set, ~/.zshrc otherwise.
 zshrc_path() { printf '%s/.zshrc' "${ZDOTDIR:-$HOME}"; }

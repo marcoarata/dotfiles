@@ -337,6 +337,7 @@ do_install() {
     # Anything else (or stale links) keeps the full safe flow.
     if links_uptodate; then
       info "core links up to date — fast path (no platform, symlinks or confirmations)."
+      ensure_completions
       if ensure_profile_payload "$profile"; then
         ok "install [${profile}] complete (fast path). Run 'yadr doctor' to verify."
         next_steps
@@ -368,6 +369,7 @@ do_install() {
     if [[ ! -e "$src" && ! -L "$src" ]]; then warn "  skipping ${rel} (not in checkout)"; skipped=$((skipped+1)); continue; fi
     link_one "$src" "$dst"; n=$((n+1))
   done < <(managed_pairs)
+  ensure_completions
   ensure_login_shell
   if [[ "$payload_rc" == "0" ]]; then
     success_msg

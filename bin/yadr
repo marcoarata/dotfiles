@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # YADR 2027 — bin/yadr
-# CLI: install update doctor diff backup runtime version benchmark
+# CLI: install update doctor diff backup runtime version benchmark completion
 # Non-destructive without confirmation. Abstracts runtimes via `runtime` (mise inside,
 # never exposed as public API).
 set -euo pipefail
@@ -112,7 +112,7 @@ EOF
 # Command implementations live in lib/ (sourced into this same shell,
 # so behavior is identical to a single file). YADR_LIB_DIR override
 # exists only for tests (and is resolved above, before paths.sh).
-for _lib in install recover doctor runtime benchmark transfer; do
+for _lib in install recover doctor runtime benchmark transfer completion; do
   # shellcheck disable=SC1090
   source "${YADR_LIB_DIR}/${_lib}.sh" || { echo "cannot load lib/${_lib}.sh" >&2; exit 1; }
 done
@@ -170,6 +170,8 @@ usage: yadr <command> [args]
   runtime doctor     runtime backend health
   version            prints version
   benchmark shell|nvim|cd|prompt  measures startup (shell/nvim) or cd/prompt cost
+  completion <shell> prints a shell completion script (bash|zsh|fish; --install)
+  help               shows this help
 
 options: --yes/-y (skip confirmations), --help/-h
 EOF
@@ -224,6 +226,7 @@ case "$cmd" in
     esac ;;
   version)   version_str; echo ;;
   benchmark) do_benchmark "${1:-shell}" ;;
+  completion) cmd_completion "${1:-}" ;;
   ""|--help|-h|help) usage ;;
   *) usage; die "unknown command: $cmd" ;;
 esac

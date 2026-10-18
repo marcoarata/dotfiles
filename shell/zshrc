@@ -54,6 +54,9 @@ setopt PROMPT_SUBST           # required for dynamic prompt
 setopt INTERACTIVE_COMMENTS
 
 # --- Native completion (no plugins) ---
+# YADR ships the `yadr` completion as a site function (yadr install writes it
+# under $XDG_DATA_HOME/zsh/site-functions); it must be on fpath before compinit.
+fpath=("${XDG_DATA_HOME}/zsh/site-functions" $fpath)
 autoload -Uz compinit
 # -d: dump outside $HOME. Fresh dump (<24h) -> -C (skips security
 # scan, much faster); else full compinit regenerates it.
