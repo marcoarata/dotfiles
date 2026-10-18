@@ -250,6 +250,11 @@ One-page quick install: `INSTALL-YADR.md`.
 - `yadr theme [list|use <name>|current]` — Solarized background (light|dark|none, default none).
 - `yadr gitsigns [on|off|status]` — Git signs in Neovim (default: off).
 - `yadr migrate [--dry-run]` — imports `.vimrc.before/.after`, `.vundles.local`… (idempotent).
+- `yadr export [--out FILE]` — bundles the state git cannot carry for you:
+  `~/.gitconfig.user`, the theme, mise `conf.d` pins and migrated classic files.
+- `yadr apply FILE [--dry-run]` — restores such a bundle on another machine.
+  It verifies every file against the bundle's SHA-256 manifest (and refuses
+  unknown members) *before* writing anything, and backs up what it overwrites.
 - `yadr version` — prints the version.
 
 > **Global toolchains.** Your custom tool pins live in

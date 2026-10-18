@@ -36,6 +36,16 @@ yadr_cli() {
   HOME="$TEST_HOME" PATH="/usr/bin:/bin" bash "$YADR_ROOT/bin/yadr" "$@"
 }
 
+make_user_state() {
+  # make_user_state <home>: the four kinds of state git cannot carry for you.
+  local home="$1"
+  mkdir -p "$home/.config/yadr/migrated" "$home/.config/mise/conf.d"
+  printf '[user]\n\temail = yadr@example.com\n' > "$home/.gitconfig.user"
+  printf 'dark\n' > "$home/.config/yadr/solarized-bg"
+  printf 'set number\n' > "$home/.config/yadr/migrated/vimrc.after"
+  printf '[tools]\nnode = "24"\n' > "$home/.config/mise/conf.d/mine.toml"
+}
+
 fake_mise() {
   # fake_mise <dir> [<tool-that-fails>] — stub `mise` that logs every call to
   # $HOME/mise.log and can fail for a single tool. Echoes the stub dir.

@@ -103,7 +103,7 @@ EOF
 # so behavior is identical to a single file). YADR_LIB_DIR override
 # exists only for tests.
 YADR_LIB_DIR="${YADR_LIB_DIR:-${BIN_DIR}/lib}"
-for _lib in install recover doctor runtime benchmark; do
+for _lib in install recover doctor runtime benchmark transfer; do
   # shellcheck disable=SC1090
   source "${YADR_LIB_DIR}/${_lib}.sh" || { echo "cannot load lib/${_lib}.sh" >&2; exit 1; }
 done
@@ -149,6 +149,8 @@ usage: yadr <command> [args]
   backup             copies current dotfiles to ~/.local/state/yadr/backups/<timestamp>/
   uninstall [--dry-run] [--purge]  reverts install and restores your backup
   migrate [--dry-run] imports classic YADR customization (idempotent)
+  export [--out FILE]  saves your user-owned state (identity, theme, mise pins, migrated files) to a bundle
+  apply <FILE> [--dry-run]  restores such a bundle (SHA-256 verified before anything is written)
   pack list          lists installable optional packs
   pack add <name>    installs a pack (same as its install profile)
   theme [list|use <name>|current]  Solarized background (light|dark|none, default none)
@@ -180,6 +182,8 @@ case "$cmd" in
   backup)    do_backup ;;
   uninstall) do_uninstall "$@" ;;
   migrate)   do_migrate "${1:-}" ;;
+  export)    do_export "$@" ;;
+  apply)     do_apply "$@" ;;
   pack)
     sub="${1:-}"; shift || true
     case "$sub" in
