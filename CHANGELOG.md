@@ -4,6 +4,26 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.4.1] — 2026-10-18 — evidence that runs everywhere
+
+`v0.4.0` was tagged before its CI finished and came back with two of eight jobs
+red. Both were defects of the evidence added in that release, not of the
+product, and this patch fixes them:
+
+### Fixed
+
+- The completion tests compared the command lists and the installed script with
+  `diff -u` and `cmp -s`; Arch's base container ships neither (no diffutils).
+  The drift test now compares the two sorted lists as strings, and the
+  byte-identical check uses `file_sha` (coreutils `sha256sum`).
+- The CI `install` assertion assumed the three files land under the default XDG
+  directories. That runner exports a non-default `XDG_CONFIG_HOME`, so the fish
+  file was looked for in the wrong place. The step now resolves the paths with
+  `bin/lib/paths.sh`, exactly as the install did, and prints each one.
+
+No shipped code changes: `v0.4.0` and `v0.4.1` are byte-identical outside
+`tests/` and `.github/`. This is the tag whose eight CI jobs are green.
+
 ## [0.4.0] — 2026-10-18 — yadr completes itself
 
 ### Added

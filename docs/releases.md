@@ -57,6 +57,9 @@ on a clean `XDG` directory left `nvim/lazy-lock.json` byte-identical (26 pins,
 is empty (checked before tagging). `v0.4.0` (shell completions) touches none of
 them either:
 `git diff v0.3.1..v0.4.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging), and `v0.4.1` changes no shipped code
+(`tests/`, `.github/` and the release docs only):
+`git diff v0.4.0..v0.4.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

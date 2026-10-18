@@ -37,7 +37,8 @@ Two rules keep it useful:
 | 2026-10-18 | `v0.3.0` (tag) | 9.5 / 10 | Self-audit; per-dimension breakdown below. The tag names the revision, so this row cannot drift |
 | 2026-10-18 | `ac7b346` (post-tag `main`) | 9.4 / 10 | Re-audit of the tag published the same day: the release verification showed that `doctor` and `install` assumed `$HOME/.local/share` for Neovim's data, so a machine with moved `XDG` directories was silently broken (skipped plugin restore, unclearable warning, purge leaving data behind). Portability 9.5 → 9.0, mean 9.35. Self-audited |
 | 2026-10-18 | `v0.3.1` (tag) | 9.4 / 10 | Self-audit; ADR-005 closes the split (Portability back to 9.5, mean 9.40) and the arithmetic of the v0.3.0 row is corrected without rewriting it. Per-dimension breakdown below. The tag names the revision |
-| 2026-10-18 | `v0.4.0` (tag) | 9.45 / 10 | Self-audit; `yadr completion` closes dimension 5's standing limit ("no completions for shells other than zsh"), so Developer UX 9.0 -> 9.5 and the mean moves 9.40 -> 9.45. Written as 9.45, not rounded up to 9.5: this file names every half point it counts. Per-dimension breakdown below. The tag names the revision |
+| 2026-10-18 | `v0.4.0` (tag) | 9.45 / 10 | Self-audit; `yadr completion` closes dimension 5's standing limit ("no completions for shells other than zsh"), so Developer UX 9.0 -> 9.5 and the mean moves 9.40 -> 9.45. Written as 9.45, not rounded up to 9.5: this file names every half point it counts. Per-dimension breakdown below. The tag names the revision. **Two of its eight CI jobs were red** (evidence defects, not product); see the correction below |
+| 2026-10-18 | `v0.4.1` (tag) | 9.45 / 10 | Self-audit, no re-score: the patch that makes the `v0.4.0` evidence green. The product is byte-identical to `v0.4.0` (only a test and a CI assertion changed), so the verdict stands and this is the tag whose eight jobs are green. Per-dimension breakdown: the `v0.4.0` table below, unchanged |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
@@ -129,6 +130,22 @@ written as 9.45 and not as 9.5, on purpose: the v0.3.0 row once quoted 9.5 for
 a table that averaged 9.40 (see the correction above). 9.45 is the first number
 the breakdown actually supports, and it happens to round back to the 9.5 that
 revision wanted. Every half point is named; none is rounded.
+
+> **Correction (appended 2026-10-18, after the tag).** The `v0.4.0` revision was
+> tagged before its CI finished, and two of its eight jobs came back red.
+> `arch-container`: the new completion tests used `diff -u` and `cmp -s` to
+> compare the command lists and the installed script, and Arch's base container
+> ships neither (no diffutils) — `tests/helpers.bash` already documents that
+> trap for `cmp`. `install (ubuntu-24.04)`: the new CI assertion assumed the
+> default `XDG_CONFIG_HOME`, and that runner exports a non-default one, so the
+> bash and zsh files (under `XDG_DATA_HOME`) were found and the fish file (under
+> `XDG_CONFIG_HOME`) was not. Both are defects of the evidence added in that
+> release, not of the product: `yadr` itself completed correctly on both
+> runners. They are fixed after the tag — the drift test compares the two lists
+> as strings, the byte-identical check uses `file_sha`, and the CI step resolves
+> its paths with `bin/lib/paths.sh` exactly as the install did — and every job
+> is green on the fixed revision. That fix is the only content of the `v0.4.1`
+> row above; the `v0.4.0` row and its table are left exactly as published.
 
 ## Re-executable checks
 
