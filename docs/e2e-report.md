@@ -208,3 +208,43 @@ YADR_HOME=$REPO bash bootstrap.sh --local --yes
   `fd` resolves to the host's mise shim (the Linux `fd/fzf` packages need
   `sudo`, which this machine does not have); and this is one machine, one
   distro — the moved-`XDG` install also runs in the `arch-container` lane.
+
+## 8. Shell completions, installed and removed (2026-10-18, v0.4.0)
+
+`yadr completion` is new; what matters is that a plain install writes the three
+files where each shell reads them, and that `uninstall` takes them back.
+
+```sh
+E=/tmp/opencode/comp-install
+env -u XDG_CONFIG_HOME -u XDG_DATA_HOME -u XDG_CACHE_HOME -u XDG_STATE_HOME \
+  HOME="$E/home" YADR_HOME="$PWD" PATH=/usr/bin:/bin bash bootstrap.sh --local --yes
+```
+
+- The install reports and writes exactly three files, all under `$HOME`'s XDG
+  defaults (the run unsets the host's `XDG_*` on purpose):
+
+  ```text
+  » shell completions installed: 3 (bash, zsh, fish)
+  .local/share/bash-completion/completions/yadr     1316 bytes
+  .local/share/zsh/site-functions/_yadr               979 bytes
+  .config/fish/completions/yadr.fish                 2682 bytes
+  ```
+
+- `yadr uninstall --yes` removes exactly those files (nothing else in those
+  directories existed to begin with, and the now-empty dirs go too):
+
+  ```text
+  »   removed: .../.local/share/bash-completion/completions/yadr
+  »   removed: .../.local/share/zsh/site-functions/_yadr
+  »   removed: .../.config/fish/completions/yadr.fish
+  ✓ uninstall complete. Restart your terminal.
+  ```
+
+- Each script parses in its own shell (`bash -n`, `zsh -n`; `fish
+  --no-execute` is skipped here because this machine has no fish — the bats
+  test guards it and CI's Ubuntu image has no fish either, so the fish syntax
+  check runs wherever fish exists, never as a silent pass).
+- Caveat, stated: the first attempt at this run did **not** unset the host's
+  `XDG_*`, and the completions landed in the real `~/.local/share` and
+  `~/.config` — the same leak §5 warns about, seen from the writing side. The
+  files were removed by hand; the command above is the one that is correct.

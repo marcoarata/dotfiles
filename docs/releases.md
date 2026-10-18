@@ -36,8 +36,8 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 | `test` | ubuntu, macos | `tests/smoke.sh` (structure, syntax, nvim lua parse, lockfile pins) + `bats tests/shell.bats tests/bootstrap.bats` |
 | `coverage` | ubuntu | line coverage of `bin/` from the bats suite, with a floor (`tests/coverage.sh`) |
 | `fault-injection` | ubuntu | injected failures: broken runtime, failing editor, failed pull, blind purge (`tests/fault.bats`) |
-| `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch), plus a second real install with moved `XDG` directories and `doctor` against it |
-| `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor` |
+| `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch), plus a second real install with moved `XDG` directories (links **and** shell completions) and `doctor` against it |
+| `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor`, and the bash/zsh/fish completion files |
 
 Runner images are pinned (`ubuntu-24.04`, deliberate bumps); see the header
 of `.github/workflows/ci.yml`. All five batteries (smoke, shell, bootstrap,
@@ -54,6 +54,9 @@ on a clean `XDG` directory left `nvim/lazy-lock.json` byte-identical (26 pins,
 
 `v0.3.1` changes no pinned artifact, so that verification still applies:
 `git diff v0.3.0..v0.3.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.4.0` (shell completions) touches none of
+them either:
+`git diff v0.3.1..v0.4.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

@@ -4,6 +4,31 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.4.0] — 2026-10-18 — yadr completes itself
+
+### Added
+
+- `yadr completion bash|zsh|fish` prints a completion script for that shell to
+  stdout; `yadr completion --install` writes all three. `yadr install` writes
+  them too, on both the full and the fast path, so a normal install gets them
+  without an extra step. Each file lands where its shell reads it:
+  `$XDG_DATA_HOME/bash-completion/completions`, `$XDG_DATA_HOME/zsh/site-functions`
+  and `$XDG_CONFIG_HOME/fish/completions`. `shell/zshrc` puts the zsh directory
+  on `$fpath` before `compinit`. A shell other than zsh can now complete `yadr`,
+  which was the standing Developer UX limit since v0.3.0.
+
+### Changed
+
+- `uninstall` removes the completion files it wrote (the `--dry-run` lists them
+  first). They are generated text, not symlinks, so they could not ride along
+  with the managed pairs.
+- `yadr --help` now lists `completion` and `help`, and a test keeps that list
+  and the three completion scripts in sync: adding a command without completing
+  it (or the reverse) fails the suite.
+- Coverage: core 59.3% -> 56.0%. No test was lost — the line recorder counts the
+  static payload of the three completion scripts as executable lines, and they
+  are data. The 50% floor still holds with margin.
+
 ## [0.3.1] — 2026-10-18 — paths that follow the tools
 
 ### Fixed

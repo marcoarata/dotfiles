@@ -70,7 +70,7 @@ Prezto is out as a framework. YADR natively reproduces only what it uses:
 |---|---|---|
 | `editor` (vi mode) | `bindkey -v`, `KEYTIMEOUT=1` | `shell/keybindings.zsh` |
 | `history` | 100k history + `SHARE_HISTORY` + XDG | `shell/zshrc` |
-| `completion` | `compinit` + fuzzy `matcher-list` | `shell/zshrc` |
+| `completion` | zsh `compinit` + fuzzy `matcher-list`; `yadr` CLI completions for bash/zsh/fish | `shell/zshrc` + `bin/lib/completion.sh` |
 | `syntax-highlighting` | optional `zsh-syntax-highlighting` with guard | `shell/plugins.zsh` |
 | `autosuggestions` | optional `zsh-autosuggestions` with guard | `shell/plugins.zsh` |
 | `prompt` (damoekri) | reimplemented, runtime-aware | `shell/damoekri.zsh` + `shell/runtime.zsh` |

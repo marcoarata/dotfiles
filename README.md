@@ -294,6 +294,8 @@ real manager is reachable while they run. What each CI job proves is listed in
   It verifies every file against the bundle's SHA-256 manifest (and refuses
   unknown members) *before* writing anything, and backs up what it overwrites.
 - `yadr version` — prints the version.
+- `yadr completion bash|zsh|fish` — prints that shell's completion script
+  (`yadr completion --install` writes all three; `yadr install` does it for you).
 
 > **Global toolchains.** Your custom tool pins live in
 > `~/.config/mise/conf.d/*.toml`; mise merges them over the base. Do not edit
@@ -309,7 +311,9 @@ real manager is reachable while they run. What each CI job proves is listed in
 > `stdpath()`), `mise`'s config follows `XDG_CONFIG_HOME`, the theme, the
 > migrated classic files and the gitsigns marker live in
 > `$XDG_CONFIG_HOME/yadr/`, and backups and the purge snapshots in
-> `$XDG_STATE_HOME/yadr/`. The zsh rc follows `$ZDOTDIR` when it is set.
+> `$XDG_STATE_HOME/yadr/`. The zsh rc follows `$ZDOTDIR` when it is set, and the
+> shell completions follow each shell's XDG directory
+> (`bash-completion/completions`, `zsh/site-functions`, `fish/completions`).
 > `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin` stay where those tools
 > always look for them. With the variables unset — the default on a fresh
 > machine — every path falls back to `~/.config`, `~/.local/share` and
@@ -343,7 +347,7 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ```text
 .
 ├── bootstrap.sh        # portable entrypoint
-├── bin/yadr + bin/lib/ # CLI dispatcher + modules (paths/install/recover/doctor/runtime/benchmark; see docs/cli-contract.md)
+├── bin/yadr + bin/lib/ # CLI dispatcher + modules (paths/install/recover/doctor/runtime/benchmark/completion; see docs/cli-contract.md)
 ├── shell/             # zshrc, aliases, functions, completion, damoekri prompt
 ├── git/               # base gitconfig + YADR aliases
 ├── nvim/ / vim/      # shared Editor Layer

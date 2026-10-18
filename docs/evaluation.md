@@ -37,6 +37,7 @@ Two rules keep it useful:
 | 2026-10-18 | `v0.3.0` (tag) | 9.5 / 10 | Self-audit; per-dimension breakdown below. The tag names the revision, so this row cannot drift |
 | 2026-10-18 | `ac7b346` (post-tag `main`) | 9.4 / 10 | Re-audit of the tag published the same day: the release verification showed that `doctor` and `install` assumed `$HOME/.local/share` for Neovim's data, so a machine with moved `XDG` directories was silently broken (skipped plugin restore, unclearable warning, purge leaving data behind). Portability 9.5 → 9.0, mean 9.35. Self-audited |
 | 2026-10-18 | `v0.3.1` (tag) | 9.4 / 10 | Self-audit; ADR-005 closes the split (Portability back to 9.5, mean 9.40) and the arithmetic of the v0.3.0 row is corrected without rewriting it. Per-dimension breakdown below. The tag names the revision |
+| 2026-10-18 | `v0.4.0` (tag) | 9.45 / 10 | Self-audit; `yadr completion` closes dimension 5's standing limit ("no completions for shells other than zsh"), so Developer UX 9.0 -> 9.5 and the mean moves 9.40 -> 9.45. Written as 9.45, not rounded up to 9.5: this file names every half point it counts. Per-dimension breakdown below. The tag names the revision |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
@@ -104,6 +105,31 @@ things are stated plainly instead of rounded away:
    rounding for it. The cheapest honest one is dimension 5: completions for
    bash/fish, which its v0.3.0 limit already lists.
 
+### v0.4.0, dimension by dimension
+
+Scored on the tagged revision (`yadr completion` added). Only dimension 5
+moves; every other cell repeats its v0.3.1 score, and the limit column keeps
+each standing limit honest. This is the half point the v0.3.1 section named.
+
+| # | Dimension | v0.3.1 | v0.4.0 | What moved it (and the standing limit) |
+|---|---|---|---|---|
+| 1 | Architecture | 9.5 | 9.5 | `bin/lib/completion.sh` is one more one-concern module; `bin/yadr` is still the largest file |
+| 2 | Install & reproducibility | 9.5 | 9.5 | `install` writes the completions on both the full and the fast path; the CI `install` lane asserts the three files after a real install |
+| 3 | Operational safety | 9.5 | 9.5 | `uninstall` removes exactly the three generated files (the dry-run lists them first); `share_dirs()` still feeds the snapshot and the purge from one list |
+| 4 | Portability | 9.5 | 9.5 | the completion files land under the moved `XDG` directories, asserted in CI's Arch lane. Limits unchanged: WSL 1 cannot run Node >= 23 (upstream), Intel mac is tier 3 |
+| 5 | Developer UX | 9.0 | **9.5** | `yadr completion bash\|zsh\|fish` prints a script, `install` writes all three where each shell reads them; the "no completions for shells other than zsh" limit is gone. The remaining "English only" is a deliberate repo-wide invariant, not a defect |
+| 6 | Neovim | 9.5 | 9.5 | unchanged |
+| 7 | Shell scripting | 9.5 | 9.5 | `shellcheck -S warning` clean including the new module; `bash -n`/`zsh -n`; bash 3.2-compatible code |
+| 8 | Documentation | 9.5 | 9.5 | `docs/cli-contract.md` gains a "Shell completions" section; README, architecture and `--help` updated |
+| 9 | Testing & evidence | 9.5 | 9.5 | `smoke` (90 checks), 105 bats tests (4 for completions: parse-in-shell, drift against `--help`, write+remove under moved `XDG`, install wiring), coverage floor 50% with 56.0% measured, 6 CI lanes. The dip from 59.3% is the recorder counting the static completion scripts as executable lines; the floor still covers `bin/` only |
+| 10 | Simplicity | 9.0 | 9.0 | unchanged: one more small module (`completion.sh`) inside the same 6 lanes |
+
+Aggregate: **9.45 / 10** -- the mean of the ten scores is exactly 9.45. It is
+written as 9.45 and not as 9.5, on purpose: the v0.3.0 row once quoted 9.5 for
+a table that averaged 9.40 (see the correction above). 9.45 is the first number
+the breakdown actually supports, and it happens to round back to the 9.5 that
+revision wanted. Every half point is named; none is rounded.
+
 ## Re-executable checks
 
 Every command below runs from the repository root and touches nothing outside an
@@ -113,13 +139,14 @@ grow, invariants do not.
 | Command | Proves | Must |
 |---|---|---|
 | `bash tests/smoke.sh` | Structure, shipped-file presence, `zsh -n`/`bash -n`, nvim Lua parse, lockfile pins, `VERSION` is semver and `CHANGELOG.md` has an entry for it | `fail=0` |
-| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, CLI contract, benchmarks, `export`/`apply` round-trip and tamper rejection, package-manager selection (apt/dnf/pacman) | only environment-dependent skips (see limits) |
+| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, CLI contract, shell completions, benchmarks, `export`/`apply` round-trip and tamper rejection, package-manager selection (apt/dnf/pacman) | only environment-dependent skips (see limits) |
 | `bats tests/bootstrap.bats` | Installer flags, the `curl \| bash -s` stdin path, tag/VERSION agreement, usage errors | 0 failures |
 | `bats tests/fault.bats` | Injected failures fail loudly and print no success line for work that did not happen | 0 failures |
 | `bash tests/coverage.sh` | Line coverage of `bin/` measured from the bats suite, against a floor | `core >= floor`, exit 0 |
 | `bootstrap.sh --ref vX.Y.Z` from a fresh `HOME` (the published tag, `YADR_HOME` elsewhere) | The tag installs itself detached and `VERSION` matches the tag name | `yadr version` prints `X.Y.Z`; `yadr doctor` reports `0 errors` |
 | `shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash` | Shell hygiene of every shipped and test bash file | no output, exit 0 |
 | `bats tests/shell.bats -f "path policy"` | Installer, `doctor`, the purge inventory and the theme resolve destinations the way the tools they configure do (`XDG_*`, `ZDOTDIR`), including Neovim's own `stdpath()`; and no shipped file hardcodes one of those paths again | 7 tests, 0 failures |
+| `bats tests/shell.bats -f "completions:"` | The three completion scripts parse in their own shell (`bash -n`, `zsh -n`, `fish --no-execute` when present) and name exactly the commands `yadr --help` lists; `--install` writes them under moved `XDG` dirs, byte-identical to `completion <shell>`, and removal takes them back | 4 tests, 0 failures |
 | `bootstrap.sh --local --yes` with `HOME=/tmp/<fresh>` | Install from a clean HOME: symlinks, CLI on `PATH`, idempotent second run | exit 0 both times |
 | `HOME=/tmp/<fresh> bin/yadr doctor` | Environment contract after install (run against the published tag on 2026-10-18) | `0 errors`; warnings name exactly what this machine still lacks -- identity, LSP servers, distro-provided shell plugins -- and each hint says how to add it. `0 warnings` needs the distro packages (sudo) and the documented install loop, which is what `docs/e2e-report.md` §2 records |
 | `bin/yadr diff` | Nothing changes silently | read-only; no writes |
@@ -168,6 +195,12 @@ real macOS hardware, WSL guest) is in `docs/e2e-report.md`.
 - **A real install with moved `XDG` directories runs in the Arch lane.** The
   Ubuntu/macOS `install` jobs install with the default paths; the moved-`XDG`
   behaviour is covered there by the bats suite.
+- **The coverage number counts static data as code.** The three completion
+  scripts live inside heredocs in `bin/lib/completion.sh`; the recorder counts
+  their lines as executable even though the suite never "executes" them as
+  code, which is what moved core coverage from 59.3% to 56.0% in v0.4.0. No
+  test was lost and the 50% floor holds; the number is read as movement, not as
+  a formal metric (see the header of `tests/coverage.sh`).
 
 ## Appending the next evaluation
 
