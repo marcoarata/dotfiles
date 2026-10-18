@@ -36,7 +36,7 @@ jobs:
       - name: smoke
         run: bash tests/smoke.sh
       - name: bats
-        run: bats tests/shell.bats
+        run: bats tests/shell.bats tests/bootstrap.bats
 
   coverage:
     runs-on: ubuntu-latest

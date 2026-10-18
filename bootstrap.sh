@@ -6,7 +6,13 @@ set -euo pipefail
 
 YADR_REPO_URL="${YADR_REPO_URL:-https://github.com/marcoarata/dotfiles.git}"
 YADR_LOCAL="${YADR_LOCAL:-0}"
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# SCRIPT_DIR is empty when this file arrives on stdin (`curl | bash -s`),
+# which is the documented install path: BASH_SOURCE is unset there and `set -u`
+# would make the first line of a new user's install print an error.
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+fi
 # When bootstrap.sh lives inside a checkout, that checkout IS YADR_HOME.
 if [[ -f "${SCRIPT_DIR}/bin/yadr" ]]; then
   DEFAULT_HOME="${SCRIPT_DIR}"
@@ -15,10 +21,39 @@ else
 fi
 YADR_HOME="${YADR_HOME:-${DEFAULT_HOME}}"
 YADR_BRANCH="${YADR_BRANCH:-main}"
+# --ref <tag>: install an exact release instead of the tip of a branch. The
+# checkout is verified against its own VERSION file, so a mislabelled tag
+# fails here instead of installing something nobody can identify later.
+YADR_REF="${YADR_REF:-}"
 
 log()  { printf '[yadr-bootstrap] %s\n' "$*"; }
 warn() { printf '[yadr-bootstrap] WARN: %s\n' "$*" >&2; }
 die()  { printf '[yadr-bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
+
+usage() {
+  cat <<EOF
+usage: bootstrap.sh [--local] [--ref <tag>] [--yes] [install-profile]
+
+  --local        use the current checkout as-is (no clone, no pull)
+  --ref <tag>    install an exact release tag (e.g. --ref v0.3.0) and verify
+                 that the checkout's VERSION file matches the tag
+  --yes          skip confirmations (passed to 'yadr install')
+  <profile>      profile for 'yadr install' (core|node|typescript|...)
+
+Everything that is not --local/--ref is handed to 'yadr install'.
+Env: YADR_HOME, YADR_BRANCH, YADR_REF, YADR_REPO_URL, YADR_LOCAL
+EOF
+}
+
+verify_pinned_version() {
+  # Only meaningful with --ref: the tag must match the VERSION it ships.
+  [[ -n "${YADR_REF:-}" ]] || return 0
+  local want="${YADR_REF#v}" got
+  got="$(tr -d ' \t\n' < "${YADR_HOME}/VERSION" 2>/dev/null || true)"
+  [[ -n "$got" ]] || die "ref ${YADR_REF}: no readable VERSION in ${YADR_HOME}."
+  [[ "$want" == "$got" ]] || die "ref ${YADR_REF}: VERSION says '${got}' — refusing to install a mislabelled tag."
+  log "pinned ref ${YADR_REF} verified (VERSION ${got})."
+}
 
 detect_os() {
   case "$(uname -s)" in
@@ -72,6 +107,26 @@ ensure_minimal_deps() {
 }
 
 sync_repo() {
+  if [[ -n "$YADR_REF" ]]; then
+    # Exact release: no branch tracking, no fast-forward. Detached HEAD is
+    # the honest state for "this is vX.Y.Z and nothing else".
+    if [[ -d "${YADR_HOME}/.git" ]]; then
+      log "pinning ${YADR_HOME} to ${YADR_REF}..."
+      git -C "$YADR_HOME" fetch --quiet --tags origin || warn "fetch failed (offline?). Continuing with local refs."
+      git -C "$YADR_HOME" checkout --quiet --detach "$YADR_REF" 2>/dev/null \
+        || git -C "$YADR_HOME" checkout --quiet --detach "refs/tags/${YADR_REF}" 2>/dev/null \
+        || die "could not check out ${YADR_REF} in ${YADR_HOME} (unknown tag?)."
+    elif [[ -f "${YADR_HOME}/bin/yadr" ]]; then
+      log "YADR_HOME=${YADR_HOME} (local checkout without .git, no clone)."
+    else
+      log "cloning ${YADR_REPO_URL} @ ${YADR_REF} -> ${YADR_HOME}..."
+      git clone --quiet --branch "$YADR_REF" --depth 1 "$YADR_REPO_URL" "$YADR_HOME" 2>/dev/null \
+        || { git clone --quiet "$YADR_REPO_URL" "$YADR_HOME" \
+             && git -C "$YADR_HOME" checkout --quiet --detach "$YADR_REF"; } \
+        || die "could not clone ${YADR_REF} from ${YADR_REPO_URL}."
+    fi
+    return 0
+  fi
   if [[ -d "${YADR_HOME}/.git" ]]; then
     log "updating ${YADR_HOME} (${YADR_BRANCH})..."
     git -C "$YADR_HOME" fetch --quiet origin || warn "fetch failed (offline?). Continuing."
@@ -93,17 +148,26 @@ main() {
   #   rsync -a --delete ./dotfiles/ vm:/tmp/yadr/
   #   YADR_HOME=/tmp/yadr ./bootstrap.sh --local
   # Also: YADR_LOCAL=1 ./bootstrap.sh
-  local os arch filtered=()
-  for a in "$@"; do
-    case "$a" in --local) YADR_LOCAL=1 ;; *) filtered+=("$a") ;; esac
+  local os arch
+  local filtered=()
+  # while, not `for a in "$@"`: shift inside a for-loop iterates a stale list.
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --local) YADR_LOCAL=1; shift ;;
+      --ref) YADR_REF="${2:-}"; [[ -n "$YADR_REF" ]] || die "--ref needs a tag (e.g. --ref v0.3.0)"; shift 2 ;;
+      --help|-h) usage; exit 0 ;;
+      *) filtered+=("$1"); shift ;;
+    esac
   done
   set -- ${filtered[@]+"${filtered[@]}"}
   os="$(detect_os)"; arch="$(detect_arch)"
   log "YADR 2027 bootstrap — os=${os} arch=${arch} home=${YADR_HOME}"
+  [[ -n "$YADR_REF" ]] && log "requested release: ${YADR_REF}"
   ensure_minimal_deps "$os"
   if [[ "$YADR_LOCAL" == "1" ]]; then
     log "--local mode: no clone or pull; using ${YADR_HOME} as-is."
     [[ -f "${YADR_HOME}/bin/yadr" ]] || die "bin/yadr missing in ${YADR_HOME}."
+    verify_pinned_version
     log "running: bin/yadr install"
     exec "${YADR_HOME}/bin/yadr" install "$@"
   fi
@@ -119,6 +183,7 @@ main() {
     fi
   fi
   [[ -f "${YADR_HOME}/bin/yadr" ]] || die "bin/yadr missing in ${YADR_HOME}."
+  verify_pinned_version
   log "running: bin/yadr install"
   exec "${YADR_HOME}/bin/yadr" install "$@"
 }

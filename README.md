@@ -149,7 +149,27 @@ zsh
 yadr doctor
 ```
 
-### 3) Post-install (explicit order, same steps the CLI prints)
+### 3) Pin a release (optional, recommended for servers)
+
+`bootstrap.sh` follows `main` by default. To install one exact release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh | bash -s -- --ref v0.3.0
+```
+
+or, from an existing checkout:
+
+```bash
+~/.yadr-2027/bootstrap.sh --ref v0.3.0
+```
+
+The tag is checked out detached (not a branch tip) and its `VERSION` file must
+match the tag: a mislabelled tag stops the bootstrap instead of installing
+something you cannot identify later. `--local --ref vX.Y.Z` applies the same
+verification to a checkout you copied by hand. Releases and their pins:
+`docs/releases.md`.
+
+### 4) Post-install (explicit order, same steps the CLI prints)
 
 **1. Enter a fresh shell (or reboot, then open a terminal)**
 

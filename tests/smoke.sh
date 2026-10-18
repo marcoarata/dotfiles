@@ -43,6 +43,7 @@ check_file docs/homebrew-intel.md
 check_file bin/yadr
 check_file bootstrap.sh
 check_file tests/shell.bats
+check_file tests/bootstrap.bats
 check_file tests/fault.bats
 check_file tests/helpers.bash
 check_file tests/coverage.sh

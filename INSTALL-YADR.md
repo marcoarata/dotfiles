@@ -28,7 +28,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main
 zsh
 ```
 
-**5. Verify (1st run slow once, 2nd run instant — see section 3)**
+**5. Verify (1st run slow once, 2nd run instant — see section 4)**
 
 ```bash
 yadr doctor
@@ -87,7 +87,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main
 zsh
 ```
 
-**5. Verify (1st run slow once, 2nd run instant — see section 3)**
+**5. Verify (1st run slow once, 2nd run instant — see section 4)**
 
 ```bash
 yadr doctor
@@ -112,7 +112,22 @@ zsh
 yadr doctor
 ```
 
-## 3) Verify (run doctor TWICE)
+## 3) Pin a release (optional, recommended for servers)
+
+`bootstrap.sh` follows `main` by default. To install one exact release:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh | bash -s -- --ref v0.3.0
+```
+
+or from an existing checkout: `~/.yadr-2027/bootstrap.sh --ref v0.3.0`.
+
+The tag is checked out detached and the checkout's `VERSION` file must match
+the tag; a mislabelled tag stops the bootstrap. `--local --ref vX.Y.Z` applies
+the same check to a checkout you copied by hand. Release process and pinned
+inventory: `docs/releases.md`.
+
+## 4) Verify (run doctor TWICE)
 
 ```bash
 exec zsh
@@ -138,7 +153,7 @@ yadr diff     # what would change, without modifying anything
 > while, that is lazy.nvim installing plugins in the background (one time
 > only); the second run reports without background work.
 
-## 4) Profiles, in order (after core)
+## 5) Profiles, in order (after core)
 
 `bootstrap` / `yadr install` already installed **core** (`install` with no
 profile means `core`). Then, only what you need:
@@ -198,21 +213,21 @@ links are already up to date — then they take the fast path with no prompts
 (same as `lazygit`). Nothing destructive runs without confirmation; use
 `--yes` (`yadr install node --yes`) to skip confirmations in scripts.
 
-## 5) What is NO LONGER done
+## 6) What is NO LONGER done
 
 - `gnupg2`, `rvm.io/mpapis.asc` key, `get.rvm.io`, `rvm install/use`, `gem install rake`: removed.
 - Legacy `skwp/dotfiles install.sh` + `rake install`: replaced by `bootstrap.sh -> bin/yadr install`.
 - Manual `promptinit / prompt damoekri / source ~/.zshrc`: automatic via `shell/zshrc` + `shell/damoekri.zsh`.
 - Damoekri shows `Node x.y` (or Ruby/Python per project) only when the runtime exists; without a runtime it works the same.
 
-## 6) Safety
+## 7) Safety
 
 - `yadr diff` before installing when coming from another dotfiles setup.
 - Automatic backup to `~/.local/state/yadr/backups/<timestamp>/`.
 - On classic YADR detection (`~/.yadr` + `Rakefile`), prompts: `migrate / parallel / cancel` (default: `parallel`).
 - Nothing destructive without confirmation.
 
-## 7) Uninstall
+## 8) Uninstall
 
 ```bash
 yadr uninstall --dry-run   # preview without touching anything

@@ -16,7 +16,10 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `yadr doctor` 0/0 on a fresh isolated HOME.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
-   pin-sensitive users install from the tag instead of `main`.
+   pin-sensitive users install the tag instead:
+   `bootstrap.sh --ref vX.Y.Z` (checks out the tag detached and refuses to
+   continue when the tag and its `VERSION` file disagree), then verify both
+   sides: `yadr version` prints `X.Y.Z` and `yadr doctor` reports 0/0.
 
 ## What CI enforces on every push
 
