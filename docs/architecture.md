@@ -51,16 +51,14 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 
 ## Why mise (experimental)
 
-RVM/Rake solved 2012: getting a Ruby to run the installer. That problem no longer exists.
-
-mise is evaluated as a replacement because:
-
-1. Single binary (Rust) for node/python/ruby/go/rust/java.
-2. Declarative per-repo `mise.toml` + `mise use node@lts`.
-3. Compatible with `asdf` `.tool-versions`.
-4. No heavy RVM shims, no `gem install rake` in bootstrap.
-
-It is **experimental/opt-in**: bootstrap never requires mise. `yadr doctor` marks it `optional`. If mise breaks or changes format, Core keeps working. The contract is: *YADR installs without Ruby; Ruby/Node/Python are packs*.
+RVM/Rake solved 2012: getting a Ruby to run the installer — a problem that no
+longer exists. `mise` is the reference backend: one Rust binary for
+node/python/ruby/go/rust/java, per-repo `mise.toml`, `asdf` `.tool-versions`
+compatibility, and no RVM shims or `gem install rake` in bootstrap. It is
+**opt-in** (bootstrap never requires it; `doctor` marks it `optional`), so if it
+breaks, Core keeps working. Decision and alternatives (fnm/nvm):
+[ADR-002](adr-002-runtime-manager.md). The contract: *YADR installs without Ruby;
+Ruby/Node/Python are optional profiles*.
 
 ## YADR Zsh Core — audited Prezto subset (frozen v0.1)
 

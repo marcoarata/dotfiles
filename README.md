@@ -41,219 +41,34 @@ see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
 
 ## Installation — YADR 2027
 
-### 1) macOS
-
-#### Option A — Automatic (recommended)
-
-**1. Homebrew (only if missing)**
+One command installs the core: it detects the platform, installs prerequisites,
+clones into `~/.yadr-2027` and runs `yadr install` with an automatic backup.
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-**2. Minimal dependencies**
-
-```bash
-brew install curl git zsh
-```
-
-**3. Install YADR 2027 (downloads bootstrap, detects macOS/arm64,
-   installs prerequisites via platform/macos.sh, clones into ~/.yadr-2027
-   and runs bin/yadr install with automatic backup)**
-
-```bash
+# macOS — Homebrew when present; Intel falls back to MacPorts
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-**4. Enter your environment**
-
 ```bash
-zsh
-```
-
-**5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)**
-
-```bash
-yadr doctor
-```
-
-> macOS Intel (Tier 3 since Homebrew 7.0.0, Sep 2026): Homebrew no longer
-> builds bottles for Intel and its installer is Apple Silicon only.
-> YADR detects Intel and installs via MacPorts first (`PORT_PACKAGES`,
-> `delta`→`git-delta`), with XDG clones for zsh plugins as no-sudo
-> fallback. Install MacPorts from https://www.macports.org first, then run
-> the same bootstrap. Field report: `docs/homebrew-intel.md`.
-
-#### Option B — Manual and auditable (no `curl | sh`)
-
-Use this path if you prefer to audit the source locally before running it.
-It is an alternative to Option A, not a step after it.
-
-```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
-```
-
-```bash
-~/.yadr-2027/bootstrap.sh
-```
-
-```bash
-zsh
-```
-
-```bash
-yadr doctor
-```
-
-### 2) Linux — Debian/Ubuntu, server, WSL
-
-#### Option A — Automatic (recommended)
-
-**1. System base**
-
-```bash
-sudo apt update && sudo apt upgrade -y
-```
-
-**2. Minimal dependencies**
-
-```bash
-sudo apt install zsh curl git -y
-```
-
-**3. Install YADR 2027 (detects linux/wsl, installs via
-   platform/linux.sh or platform/wsl.sh, clones into ~/.yadr-2027
-   and runs bin/yadr install with automatic backup)**
-
-```bash
+# Linux / WSL — Debian/Ubuntu (sudo for system packages)
+sudo apt update && sudo apt install zsh curl git -y
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
 ```
 
-**4. Enter your environment**
-
-```bash
-zsh
-```
-
-**5. Verify (1st run slow once: installs nvim plugins; 2nd run instant)**
-
-```bash
-yadr doctor
-```
-
-#### Option B — Manual and auditable (no `curl | sh`)
-
-Same alternative to Option A on Linux, WSL and servers:
-
-```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
-```
-
-```bash
-~/.yadr-2027/bootstrap.sh
-```
-
-```bash
-zsh
-```
-
-```bash
-yadr doctor
-```
-
-### 3) Pin a release (optional, recommended for servers)
-
-`bootstrap.sh` follows `main` by default. To install one exact release:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh | bash -s -- --ref v0.3.0
-```
-
-or, from an existing checkout:
-
-```bash
-~/.yadr-2027/bootstrap.sh --ref v0.3.0
-```
-
-The tag is checked out detached (not a branch tip) and its `VERSION` file must
-match the tag: a mislabelled tag stops the bootstrap instead of installing
-something you cannot identify later. `--local --ref vX.Y.Z` applies the same
-verification to a checkout you copied by hand. Releases and their pins:
-`docs/releases.md`.
-
-### 4) Post-install (explicit order, same steps the CLI prints)
-
-**1. Enter a fresh shell (or reboot, then open a terminal)**
+Then enter the shell and verify — the first `yadr doctor` is slow once (it
+installs the Neovim plugins); the second is instant and shows the real state:
 
 ```bash
 exec zsh
-```
-
-**2. First check (slow ONCE: downloads nvim plugins, toolchains, fonts)**
-
-```bash
 yadr doctor
 ```
 
-**3. Check again (instant now; shows the real state)**
+Prefer to audit the source first? `git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027 && ~/.yadr-2027/bootstrap.sh` — no `curl | sh`. To install one exact release, pass `--ref vX.Y.Z`: the tag is checked out detached and its `VERSION` must match.
 
-```bash
-yadr doctor
-```
-
-**4. Install whatever is still missing, until 0 errors / 0 warnings**
-
-```bash
-yadr install node
-```
-
-```bash
-yadr install python
-```
-
-```bash
-yadr install lazygit
-```
-
-```bash
-yadr install tools   # eza/bat/delta for the full modern shell (see below)
-```
-
-```bash
-yadr install typescript
-```
-
-```bash
-yadr theme list
-```
-
-### What is NO LONGER done (differences from classic YADR)
-
-- No `gnupg2` install for RVM.
-- No RVM or Ruby 3.1.0 install (`rvm install/use` removed).
-- No `gem install rake` (Rake is no longer the engine).
-- No legacy `install.sh` from `skwp/dotfiles`.
-- No manual Damoekri setup (`promptinit / prompt damoekri`):
-  `shell/zshrc` already sources `shell/damoekri.zsh`, with Git +
-  `yadr_runtime_context` (outside a project: global node; inside: only the
-  runtimes the project pins).
-- `yadr diff` shows what would change before touching anything;
-  `yadr backup` saves to `~/.local/state/yadr/backups/<timestamp>/`.
-
-### Verification
-
-```bash
-exec zsh
-yadr doctor   # 1st run slow once (installs nvim plugins); 2nd run instant
-yadr diff     # read-only, changes nothing
-```
-
-Post-install order (no guessing): `doctor` twice, then only the profiles
-you need — `yadr install node|python|typescript|ruby|rust|lazygit|tools`,
-`yadr theme [list|use light|dark|none]`. Full flow: `INSTALL-YADR.md`.
-
-Equivalence details: `docs/migration.md`.
-One-page quick install: `INSTALL-YADR.md`.
+**Full guide: [INSTALL-YADR.md](INSTALL-YADR.md)** — per-platform steps, WSL
+and macOS Intel (MacPorts) specifics, pinning a release, the profiles you add
+after core, and what is no longer done (no RVM, Ruby or Rake). Uninstall and
+safety: `yadr uninstall --dry-run`, `docs/troubleshooting.md`.
 
 ## Support matrix
 
@@ -312,20 +127,12 @@ real manager is reachable while they run. What each CI job proves is listed in
 > for you when it installs `eza`/`bat`/`delta` on Linux/WSL (on macOS they come
 > from Homebrew/MacPorts).
 
-> **Where files live (moved `XDG` directories).** YADR writes to the same places
-> the programs it configures read, so nothing silently misses: the Neovim config
-> and the plugin/Mason data follow `XDG_CONFIG_HOME`/`XDG_DATA_HOME` (exactly
-> `stdpath()`), `mise`'s config follows `XDG_CONFIG_HOME`, the theme, the
-> migrated classic files and the gitsigns marker live in
-> `$XDG_CONFIG_HOME/yadr/`, and backups and the purge snapshots in
-> `$XDG_STATE_HOME/yadr/`. The zsh rc follows `$ZDOTDIR` when it is set, and the
-> shell completions follow each shell's XDG directory
-> (`bash-completion/completions`, `zsh/site-functions`, `fish/completions`).
-> `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin` stay where those tools
-> always look for them. With the variables unset — the default on a fresh
-> machine — every path falls back to `~/.config`, `~/.local/share` and
-> `~/.local/state`, so nothing moves. Full policy:
-> `docs/adr-005-path-policy.md`.
+> **Where files live (moved `XDG` directories).** YADR writes where the programs
+> it configures read: Neovim and `mise` follow the `XDG_*` variables (Neovim via
+> exactly `stdpath()`), the zsh rc follows `$ZDOTDIR`, and the completions follow
+> each shell's own directory; `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin`
+> stay HOME-based. With the variables unset nothing moves. Full policy and the
+> per-file table: `docs/cli-contract.md`, `docs/adr-005-path-policy.md`.
 
 ## Classic YADR → 2027
 
@@ -344,7 +151,7 @@ real manager is reachable while they run. What each CI job proves is listed in
 | Prezto | YADR Zsh Core (audited subset) | no mandatory heavy framework |
 | Vim | Vim + Neovim (shared Editor Layer) | shared mappings |
 | tmux + Solarized + iTerm | tmux + Solarized/Damoekri + terminal abstraction | iTerm to `platform/macos/` |
-| `~/.vimrc.before/.after` | `custom/before/`, `custom/after/` hooks around the defaults | never need to fork; coexistence via parallel mode + backup (migrate on roadmap) |
+| `~/.vimrc.before/.after` | `custom/before/`, `custom/after/` hooks around the defaults | never need to fork; import classic files with `yadr migrate` |
 | `~/.gitconfig.user` | `~/.gitconfig.user` (unchanged) | included from the managed `git/gitconfig`, so your identity never lands in the repo |
 
 Full details: `docs/mappings.md`, `docs/migration.md`.

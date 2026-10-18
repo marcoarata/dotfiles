@@ -49,6 +49,16 @@
   6. **One-time tools are allowed but delimited.** `yadr migrate` addresses a
      single, real event (coming from classic YADR) and is kept for that event;
      it is documented as one-shot and is not a maintenance surface to grow.
+
+  7. **The written corpus follows the same rule.** Docs and comments are part of
+     the surface to maintain, not free explanation. A line stays only if it
+     carries information a reader cannot get elsewhere: a non-obvious constraint
+     or trap, a recorded decision, a value the code cannot show, or re-executable
+     evidence. Duplication across documents, restatement of what the code already
+     says, and decorative text go. Each topic has **one home**; every other place
+     links to it. The baseline this ADR was written against: 2348 lines of docs
+     against 1944 lines of shipped code — the explanation had grown larger than
+     the product, which is itself a scope failure.
 - Consequences:
   - The project loses surface that failed the admission rule, and gains a test
     a reviewer can apply: *name the problem or the failing test, or it does not

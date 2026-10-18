@@ -118,18 +118,12 @@ yadr diff | grep -E 'nvim|mise|yadr/|zshrc'   # where the links would go (read-o
   `shell/plugins.zsh` already checks before brew paths.
 - `fzf` from MacPorts lives under `/opt/local/share/fzf/`; `shell/zshrc`
   sources those paths plus the modern `fzf --zsh` hook, all guarded.
-- `vim` always resolves to YADR Neovim, including on macOS with genuine
-  Apple Vim (`/usr/bin/vim`): YADR creates `~/.local/bin/vim → nvim` with
-  a `provides-vim` marker (removed by `yadr uninstall --purge`).
-  Genuine Vim is never touched or uninstalled — the shim wins via PATH.
 - Full field report with verification: `docs/homebrew-intel.md`.
 
 ## Support matrix
 
-- macOS Apple Silicon: Homebrew (bottles), primary path.
-- macOS Intel: MacPorts first, Homebrew best-effort (Tier 3, may build
-  from source), XDG clones as no-sudo fallback.
-- Linux (Debian/Ubuntu), server, WSL: apt/dnf/pacman via `platform/`.
+Tiers by platform (how each one is verified): see the table in
+[README.md](../README.md#support-matrix).
 
 ## Headless SSH / minimal server
 
