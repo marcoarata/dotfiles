@@ -1,5 +1,8 @@
 name: ci
 
+# Pinned runner images: `ubuntu-latest` migrates to Ubuntu 26 on 2026-10-19.
+# A support claim should not change distro version under our feet, so the
+# version is bumped deliberately (and the lanes re-verified) instead.
 on:
   push:
     branches: [main]
@@ -7,7 +10,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
@@ -25,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +42,7 @@ jobs:
         run: bats tests/shell.bats tests/bootstrap.bats
 
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: bats + zsh
@@ -50,7 +53,7 @@ jobs:
         run: bash tests/coverage.sh
 
   fault-injection:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: bats + zsh
@@ -62,7 +65,7 @@ jobs:
     # Arch is a supported distro (platform/linux.sh drives pacman), and the
     # only way to test its branch for real is inside the distro. The unit
     # suites run here too, so portability claims cover Arch as well.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     container: archlinux:latest
     defaults:
       run:
@@ -93,7 +96,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

@@ -9,6 +9,7 @@ fail() { FAIL=$((FAIL+1)); echo "FAIL - $1"; }
 check_file() { [[ -f "$ROOT/$1" ]] && ok "$1" || fail "missing $1"; }
 
 check_file README.md
+check_file CHANGELOG.md
 check_file INSTALL-YADR.md
 check_file .gitignore
 check_file docs/architecture.md
@@ -103,6 +104,19 @@ else
   [[ -n "$_extra" ]] && fail "lock entries without spec: ${_extra//$'\n'/ }"
 fi
 rm -rf "$_tmp"
+
+# --- release hygiene: VERSION is semver and the changelog documents it ---
+_ver="$(cat "$ROOT/VERSION" 2>/dev/null)"
+if [[ "$_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  ok "VERSION is semver ($_ver)"
+else
+  fail "VERSION is not semver: '${_ver}'"
+fi
+if [[ -f "$ROOT/CHANGELOG.md" ]] && grep -qF "## [$_ver]" "$ROOT/CHANGELOG.md"; then
+  ok "CHANGELOG has an entry for $_ver"
+else
+  fail "CHANGELOG lacks an entry for ${_ver}"
+fi
 
 echo "---"
 echo "pass=$PASS fail=$FAIL"

@@ -9,6 +9,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `:Mason` per `packs/`), then `git diff -- nvim/lazy-lock.json` must
    contain only intended bumps. Commit the lockfile.
 3. Green locally: `bash tests/smoke.sh`, `bats tests/shell.bats`,
+   `bats tests/bootstrap.bats` (installer flags and release pinning),
    `bats tests/fault.bats` (injected failures), `bash tests/coverage.sh`
    (coverage floor), `shellcheck -S warning` on
    `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh
@@ -26,14 +27,17 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 | Job | Runs on | Blocks the release by measuring |
 |---|---|---|
 | `lint` | ubuntu | `shellcheck -S warning` on every shipped bash file + `zsh -n`/`bash -n` |
-| `test` | ubuntu, macos | `tests/smoke.sh` (structure, syntax, nvim lua parse, lockfile pins) + `bats tests/shell.bats` |
+| `test` | ubuntu, macos | `tests/smoke.sh` (structure, syntax, nvim lua parse, lockfile pins) + `bats tests/shell.bats tests/bootstrap.bats` |
 | `coverage` | ubuntu | line coverage of `bin/` from the bats suite, with a floor (`tests/coverage.sh`) |
 | `fault-injection` | ubuntu | injected failures: broken runtime, failing editor, failed pull, blind purge (`tests/fault.bats`) |
+| `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch) |
 | `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor` |
 
-The four bats/smoke batteries are also runnable by hand exactly as CI runs them;
-`tests/coverage.sh` and `tests/fault.bats` are the two that exist only because
-"the suite is green" is not evidence on its own.
+Runner images are pinned (`ubuntu-24.04`, deliberate bumps); see the header
+of `.github/workflows/ci.yml`. All five batteries (smoke, shell, bootstrap,
+fault, coverage) run by hand exactly as CI runs them; `tests/coverage.sh`,
+`tests/fault.bats` and `tests/bootstrap.bats` exist because "the suite is
+green" is not evidence on its own.
 
 ## Pinned inventory (verify before tagging)
 

@@ -803,11 +803,21 @@ EOF
 }
 
 @test "coverage harness refuses to report without bats" {
-  # No bats in PATH: the script must fail, never print a percentage.
-  run bash -c "cd '$YADR_ROOT' && PATH='/usr/bin:/bin' bash tests/coverage.sh"
+  # No bats reachable: the script must fail, never print a percentage.
+  # Whitelist PATH: Debian/Ubuntu install bats into /usr/bin, so the old
+  # `PATH=/usr/bin:/bin` hid nothing there and instead re-launched the whole
+  # suite from inside the suite (infinite recursion in CI, green on macOS
+  # where brew's bats is outside /usr/bin). Hide bats explicitly.
+  local fb real_bash
+  command -v bats >/dev/null 2>&1 || skip "bats is not in PATH at all: nothing to hide"
+  fb="$(fake_path_without "$BATS_TMPDIR/no-bats-$$" bats)"
+  real_bash="$(command -v bash)"
+  PATH="$fb" command -v bats >/dev/null 2>&1 && fail "the whitelist PATH still exposes bats"
+  run env -i PATH="$fb" HOME="$TEST_HOME" "$real_bash" "$YADR_ROOT/tests/coverage.sh"
   [ "$status" -ne 0 ]
   [[ "$output" == *"bats not found"* ]]
   [[ "$output" != *%* ]]
+  rm -rf "$fb"
 }
 
 @test "export/apply round-trips user state between two isolated HOMEs" {

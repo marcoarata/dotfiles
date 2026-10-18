@@ -66,3 +66,20 @@ EOF
   chmod +x "$dir/mise"
   printf '%s' "$dir"
 }
+
+fake_path_without() {
+  # fake_path_without <dir> <tool-to-hide> — a whitelist PATH with common tools
+  # but NOT the named one, for tests that must prove behavior when a tool is
+  # missing. Needed because dropping /usr/bin is not an option on Linux (bash
+  # and coreutils live there, and Debian ships bats there too, which is how a
+  # naive `PATH=/usr/bin:/bin` "hides" nothing at all).
+  local dir="$1" hide="$2" t p
+  rm -rf "$dir"; mkdir -p "$dir"
+  for t in bash sh env printf cat awk sed grep sort uname tr mktemp dirname \
+           basename head tail wc rm mkdir date id ln find xargs; do
+    [[ "$t" == "$hide" ]] && continue
+    p="$(command -v "$t" 2>/dev/null || true)"
+    case "$p" in /*) ln -sf "$p" "$dir/$t" ;; esac   # skip builtins ("printf")
+  done
+  printf '%s' "$dir"
+}
