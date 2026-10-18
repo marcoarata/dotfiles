@@ -249,9 +249,9 @@ Tiers say how a platform is verified, not just that it is "supported":
 
 | Tier | Meaning | Platforms |
 |---|---|---|
-| 1 | CI on every push: unit suites **and** a real install in an isolated `$HOME` + `doctor` | macOS arm64; Debian/Ubuntu (server, no GUI); WSL2 |
-| 2 | Dedicated CI lane; unit suites and a real install run there | Arch Linux (`archlinux:latest` container) |
-| 3 | The distro branch is covered by tests, but CI has no lane for it yet | Fedora/RHEL (`dnf`); macOS Intel (MacPorts path) |
+| 1 | CI on every push: unit suites, a real install in an isolated `$HOME`, and `doctor` | macOS arm64; Debian/Ubuntu (server, no GUI) |
+| 2 | Dedicated CI lane that does the same install inside the distro | Arch Linux (`archlinux:latest` container) |
+| 3 | Covered by tests and, where noted, by hand on real hardware; no dedicated CI lane yet | WSL2 (real Windows 11 guest with WSL 2, `docs/e2e-report.md` §1); Fedora/RHEL (`dnf` branch tested); macOS Intel (MacPorts path) |
 | 4 | Documented limits, deliberately not worked around | WSL 1 (Node ≥ 23 cannot exec, microsoft/WSL#8151) |
 
 Windows native is not supported — WSL is the Windows story, and `yadr` never

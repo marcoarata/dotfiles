@@ -14,7 +14,19 @@ have() { command -v "$1" >/dev/null 2>&1; }
 
 # Shared helpers (fonts download, version floor, purge markers).
 # PLATFORM_COMMON override exists only for tests.
-PLATFORM_COMMON="${PLATFORM_COMMON:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)/common.sh}"
+#
+# Resolve it next to this script without letting a failed `dirname`/`cd` kill
+# the script under `set -e`: the "missing common.sh" warning below is the
+# documented fallback, and a failed substitution here used to abort before
+# reaching it (found by the Arch lane: `cd ""` is not a no-op on every bash).
+if [[ -z "${PLATFORM_COMMON:-}" ]]; then
+  if _yadr_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"; then
+    PLATFORM_COMMON="${_yadr_dir}/common.sh"
+  else
+    PLATFORM_COMMON=""
+  fi
+  unset _yadr_dir
+fi
 # shellcheck disable=SC1090
 if [[ -f "$PLATFORM_COMMON" ]]; then source "$PLATFORM_COMMON" || { warn "cannot load platform/common.sh."; exit 1; }
 else warn "platform/common.sh missing; shared helpers unavailable."; fi

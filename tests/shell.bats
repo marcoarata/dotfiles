@@ -1062,6 +1062,7 @@ EOF
   chmod +x "$fb/uname" "$fb/pacman" "$fb/sudo"
   run bash -c "
     export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
     source '$(platform_funcs linux.sh)'
     main"
   [ "$status" -eq 0 ]
@@ -1084,6 +1085,7 @@ EOF
   chmod +x "$fb/uname" "$fb/apt-get" "$fb/sudo"
   run bash -c "
     export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
     source '$(platform_funcs linux.sh)'
     main"
   [ "$status" -eq 0 ]
@@ -1104,11 +1106,37 @@ EOF
   chmod +x "$fb/uname" "$fb/dnf" "$fb/sudo"
   run bash -c "
     export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
     source '$(platform_funcs linux.sh)'
     main"
   [ "$status" -eq 0 ]
   [[ "$output" == *"manager: dnf"* ]]
   grep -q '^dnf install -y' "$fb/calls.log"
   grep -q '\bgcc\b' "$fb/calls.log"                 # Fedora name for build tools
+  rm -rf "$fb"
+}
+
+@test "platform/linux.sh warns about a missing common.sh instead of dying" {
+  # Regression for a `set -e` trap: resolving PLATFORM_COMMON used a command
+  # substitution whose failure aborted the whole script, so the documented
+  # "missing common.sh" warning was unreachable and the platform step died
+  # with a confusing error instead. Found by the Arch lane, where `cd ""` is
+  # not a no-op. A fake `dirname` that points at a directory which does not
+  # exist reproduces that deterministically on any bash version.
+  local fb="$BATS_TMPDIR/pm-nocommon-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/bash\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac\n' > "$fb/uname"
+  printf '#!/bin/bash\necho /nonexistent-yadr-dir\n' > "$fb/dirname"
+  printf '#!/bin/bash\nprintf "pacman %%s\\\\n" "$*" >> "$FAKE_LOG"\n' > "$fb/pacman"
+  printf '#!/bin/bash\nprintf "sudo %%s\\\\n" "$*" >> "$FAKE_LOG"\n"$@"\n' > "$fb/sudo"
+  chmod +x "$fb/uname" "$fb/dirname" "$fb/pacman" "$fb/sudo"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    unset PLATFORM_COMMON
+    source '$(platform_funcs linux.sh)'
+    main"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"platform/common.sh missing"* ]]
+  [[ "$output" == *"linux ready"* ]]
   rm -rf "$fb"
 }

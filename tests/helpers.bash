@@ -41,7 +41,10 @@ yadr_funcs() {
 
 platform_funcs() {
   # source one platform script's functions without running its main()
-  # usage: platform_funcs <script>  (sets PLATFORM_COMMON to the real common.sh)
+  # usage: platform_funcs <script> — echoes the path of a copy with the final
+  # `main "$@"` removed. It does NOT resolve PLATFORM_COMMON: a caller that
+  # needs common.sh must export PLATFORM_COMMON="$YADR_ROOT/platform/common.sh"
+  # itself, otherwise the copy looks for common.sh in $BATS_TMPDIR.
   local script="$1" f="$BATS_TMPDIR/platform-${BATS_TEST_NUMBER:-$PPID}.sh"
   awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/${script}" > "$f"
   printf '%s' "$f"
