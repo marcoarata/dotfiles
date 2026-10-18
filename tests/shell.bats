@@ -701,6 +701,147 @@ platform_funcs() {
   rm -rf "$bin" "$home"
 }
 
+# Helper: run the REAL dispatcher in the isolated HOME, without a runtime
+# backend in PATH (deterministic on any machine; bin/yadr only adds
+# $HOME/.local/bin and mise shims, which the isolated HOME does not have).
+yadr_cli() {
+  HOME="$TEST_HOME" PATH="/usr/bin:/bin" bash "$YADR_ROOT/bin/yadr" "$@"
+}
+
+@test "CLI: version and help come from the real dispatcher" {
+  run yadr_cli version
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"$(tr -d ' \t\n' < "$YADR_ROOT/VERSION")"* ]]
+  run yadr_cli help
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"usage: yadr <command>"* ]]
+  [[ "$output" == *"benchmark"* ]]
+}
+
+@test "CLI: unknown command fails and shows the supported list" {
+  run yadr_cli definitely-not-a-command
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown command"* ]]
+  [[ "$output" == *"usage: yadr"* ]]
+}
+
+@test "CLI: diff reports what it would create and modifies nothing" {
+  run yadr_cli diff
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would create"* ]]
+  [[ "$output" == *"Nothing modified (read-only)"* ]]
+  [ ! -e "$TEST_HOME/.zshrc" ]
+}
+
+@test "CLI: theme round-trips and rejects unknown names" {
+  run yadr_cli theme current
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"none"* ]]
+  run yadr_cli theme use dark
+  [ "$status" -eq 0 ]
+  run yadr_cli theme current
+  [[ "$output" == *"dark"* ]]
+  run yadr_cli theme use not-a-theme
+  [ "$status" -ne 0 ]
+}
+
+@test "CLI: gitsigns is opt-in and toggles" {
+  run yadr_cli gitsigns status
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"disabled"* ]]
+  run yadr_cli gitsigns on
+  [ "$status" -eq 0 ]
+  run yadr_cli gitsigns status
+  [[ "$output" == *"enabled"* ]]
+  run yadr_cli gitsigns off
+  [ "$status" -eq 0 ]
+  run yadr_cli gitsigns status
+  [[ "$output" == *"disabled"* ]]
+}
+
+@test "CLI: pack list names the shipped packs" {
+  run yadr_cli pack list
+  [ "$status" -eq 0 ]
+  local p
+  for p in typescript python ruby rust javascript; do
+    [[ "$output" == *"$p"* ]] || fail "pack ${p} missing from 'pack list'"
+  done
+}
+
+@test "CLI: runtime without a backend fails with the install hint" {
+  run yadr_cli runtime current
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"no runtime backend"* ]]
+  [[ "$output" == *"mise.run"* ]]
+}
+
+@test "CLI: benchmark measures shell and prompt with thresholds" {
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_HOME='$YADR_ROOT'
+    source '$(yadr_funcs)'
+    do_benchmark shell"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"average"* ]]
+  [[ "$output" == *"threshold <500ms"* ]]
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_HOME='$YADR_ROOT'
+    source '$(yadr_funcs)'
+    do_benchmark prompt"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"outside git"* ]]
+  [[ "$output" == *"inside git"* ]]
+}
+
+@test "CLI: benchmark rejects an unknown target" {
+  run bash -c "
+    export HOME='$TEST_HOME' YADR_HOME='$YADR_ROOT'
+    source '$(yadr_funcs)'
+    do_benchmark bogus"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unknown benchmark"* ]]
+}
+
+@test "coverage harness records called lines and excludes untaken code" {
+  # Guards the harness itself: a coverage number is only evidence if it can
+  # tell executed code from dead code. Driven through a real BASH_ENV hook.
+  local dir="$BATS_TMPDIR/cov-probe-$$"
+  rm -rf "$dir"; mkdir -p "$dir/bin/lib"
+  cat > "$dir/bin/lib/probe.sh" <<'EOF'
+probe_called() {
+  echo one
+  if [[ "${1:-}" == "x" ]]; then
+    echo untaken
+  fi
+}
+probe_uncalled() {
+  echo never
+}
+EOF
+  cat > "$dir/driver.sh" <<EOF
+source "$dir/bin/lib/probe.sh"
+probe_called
+EOF
+  run bash -c "
+    export YADR_COV_LOG='$dir/log'
+    BASH_ENV='$YADR_ROOT/tests/coverage-hook.sh' bash '$dir/driver.sh'"
+  [ "$status" -eq 0 ]
+  local lines
+  lines="$(awk -F'\t' -v f="$dir/bin/lib/probe.sh" '$1 == f { print $2 }' "$dir/log" | sort -un | tr '\n' ' ')"
+  [ -n "$lines" ] || fail "the hook recorded nothing for the probe file"
+  [[ "$lines" == *"2"* ]] || fail "called body line not recorded: $lines"
+  [[ "$lines" != *"4"* ]] || fail "untaken branch reported as covered: $lines"
+  [[ "$lines" != *"8"* ]] || fail "never-called function reported as covered: $lines"
+  rm -rf "$dir"
+}
+
+@test "coverage harness refuses to report without bats" {
+  # No bats in PATH: the script must fail, never print a percentage.
+  run bash -c "cd '$YADR_ROOT' && PATH='/usr/bin:/bin' bash tests/coverage.sh"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"bats not found"* ]]
+  [[ "$output" != *%* ]]
+}
+
 @test "uninstall --purge removes YADR state, keeps pre-existing data" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-clone-$$"
   # Fake checkout (isolated): --purge would rm -rf $YADR_HOME, never the real repo.
