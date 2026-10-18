@@ -141,7 +141,14 @@ runtime_tool_for() { # profile -> "tool" list (mise). Never exposes mise to the 
 }
 
 lazy_restore() { # one headless `Lazy! restore`; 0 on success (caller reports)
-  run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1 | tail -n 5
+  # Return nvim's status explicitly instead of inheriting it from the caller's
+  # `set -o pipefail`: bin/yadr sets that option, but without it the pipeline
+  # silently reports `tail`'s status and a crashed or timed-out nvim would look
+  # like a clean restore. Capture the output to keep the last lines visible.
+  local out rc=0
+  out="$(run_timeout 600 nvim --headless "+Lazy! restore" +qa 2>&1)" || rc=$?
+  printf '%s\n' "$out" | tail -n 5
+  return "$rc"
 }
 
 # Set by ensure_nvim_plugins once it has run `Lazy! restore` in this process, so

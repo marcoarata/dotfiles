@@ -668,6 +668,39 @@ platform_funcs() {
   rm -rf "$home" "$bin" "$repo"
 }
 
+@test "lazy_restore reports a failing nvim without relying on pipefail" {
+  # bin/yadr sets `set -o pipefail`, but the helper must not depend on that
+  # global option: with it off, `... | tail -n 5` reports tail's status and a
+  # crashed or timed-out nvim looks like a clean restore. The policy stays
+  # advisory: editor failures warn, they never fail the install.
+  local bin="$BATS_TMPDIR/lazy-rc-bin-$$" home="$BATS_TMPDIR/lazy-rc-$$"
+  rm -rf "$bin" "$home"; mkdir -p "$bin" "$home/.local/share/nvim/lazy/lazy.nvim"
+  printf '#!/usr/bin/env bash\necho "lazy: broken"\nexit 3\n' > "$bin/nvim"; chmod +x "$bin/nvim"
+  run bash -c "
+    export HOME='$home' PATH='$bin:/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    set +o pipefail
+    if lazy_restore; then echo 'status=0 (masked)'; else echo 'status=non-zero (honest)'; fi
+    ensure_nvim_plugins && echo 'advisory: install continues'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"status=non-zero (honest)"* ]]
+  [[ "$output" == *"restore incomplete"* ]]
+  [[ "$output" == *"advisory: install continues"* ]]
+  # A healthy nvim keeps the success path.
+  printf '#!/usr/bin/env bash\necho "lazy: ok"\nexit 0\n' > "$bin/nvim"
+  run bash -c "
+    export HOME='$home' PATH='$bin:/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    set +o pipefail
+    lazy_restore || echo 'lazy_restore failed (bad)'
+    ensure_nvim_plugins && echo 'healthy path continues'"
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"lazy_restore failed (bad)"* ]]
+  [[ "$output" == *"plugins match the lock"* ]]
+  [[ "$output" == *"healthy path continues"* ]]
+  rm -rf "$bin" "$home"
+}
+
 @test "uninstall --purge removes YADR state, keeps pre-existing data" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-clone-$$"
   # Fake checkout (isolated): --purge would rm -rf $YADR_HOME, never the real repo.
