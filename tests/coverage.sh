@@ -1,28 +1,13 @@
 #!/usr/bin/env bash
-# coverage.sh — measured line coverage of YADR's shipped bash code, with a
-# floor. No external dependency (no kcov): tests/coverage-hook.sh records every
-# executed line through BASH_ENV + a DEBUG trap while the bats suite runs.
-#
-# Two groups, on purpose:
-#   core    — bin/yadr + bin/lib/*.sh. This is what the bats suite owns, so the
-#             floor applies here.
-#   context — bootstrap.sh + platform/*.sh. The suite barely touches these:
-#             they are exercised by the CI `install` job (bootstrap in an
-#             isolated HOME on Linux and macOS), which is not measured here.
-#             Printed for visibility, never used for the floor.
-#
-# The denominator is an *approximation* of executable lines (non-blank,
-# non-comment, non-closer). That is stated on purpose: this number is evidence
-# of movement and of dead code, not a formal coverage metric. The ceiling is
-# real too — platform branches (macOS installs, sudo paths, real downloads)
-# cannot run inside the suite.
-#
-# Env:
-#   YADR_COV_FLOOR   minimum core percentage (default 50)
-#   YADR_COV_REQUIRE set to 1 to fail when the harness cannot measure at all
-#   YADR_COV_ALLOW_FAIL set to 1 to measure even when the suite has failures
-#                    (local convenience only; CI leaves both unset so a broken
-#                    suite or a silent 0% can never look like evidence)
+# coverage.sh — line coverage of YADR's shipped bash code, with a floor. No
+# external dependency: tests/coverage-hook.sh records executed lines via
+# BASH_ENV + a DEBUG trap during the bats run.
+# core = bin/yadr + bin/lib/*.sh (the bats suite owns it: the floor applies);
+# context = bootstrap.sh + platform/*.sh (the CI install job exercises it:
+# printed, never counted). The denominator approximates executable lines on
+# purpose — evidence of movement and dead code, not a formal metric.
+# Env: YADR_COV_FLOOR (default 50), YADR_COV_REQUIRE=1 (fail if unmeasurable),
+# YADR_COV_ALLOW_FAIL=1 (measure despite failures; local only).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
