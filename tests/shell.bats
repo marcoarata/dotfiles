@@ -542,14 +542,19 @@ macos_funcs() {
 }
 
 @test "fetch_verified_zip extracts verified zips, rejects bad sha" {
-  local dest="$TEST_HOME/fonts"
-  python3 -c "import zipfile; z=zipfile.ZipFile('$TEST_HOME/a.zip','w'); z.writestr('f.ttf','x'); z.close()"
-  local sha; sha="$(sha256sum "$TEST_HOME/a.zip" | awk '{print $1}')"
+  # The zip is a committed fixture (109 bytes) instead of something built at
+  # test time with python3: the suite must run on a minimal machine, and the
+  # Arch lane has no python3.
+  local z="$YADR_ROOT/tests/fixtures/font-sample.zip" dest="$TEST_HOME/fonts"
+  [ -f "$z" ] || fail "missing fixture: tests/fixtures/font-sample.zip"
+  local sha
+  if command -v sha256sum >/dev/null 2>&1; then sha="$(sha256sum "$z" | awk '{print $1}')"
+  else sha="$(shasum -a 256 "$z" | awk '{print $1}')"; fi
   run bash -c "
     export HOME='$TEST_HOME'
     export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
     source '$(platform_funcs linux.sh)' >/dev/null 2>&1
-    fetch_verified_zip 'file://$TEST_HOME/a.zip' '$sha' '$dest' '*.ttf' && echo fetched-ok"
+    fetch_verified_zip 'file://$z' '$sha' '$dest' '*.ttf' && echo fetched-ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"fetched-ok"* ]]
   [ -f "$dest/f.ttf" ]
@@ -557,7 +562,7 @@ macos_funcs() {
     export HOME='$TEST_HOME'
     export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
     source '$(platform_funcs linux.sh)' >/dev/null 2>&1
-    fetch_verified_zip 'file://$TEST_HOME/a.zip' 'deadbeef' '$TEST_HOME/other' '*.ttf'"
+    fetch_verified_zip 'file://$z' 'deadbeef' '$TEST_HOME/other' '*.ttf'"
   [ "$status" -ne 0 ]
   [ ! -e "$TEST_HOME/other/f.ttf" ]
 }

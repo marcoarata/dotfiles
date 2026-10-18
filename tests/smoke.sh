@@ -55,6 +55,7 @@ check_file tests/fixtures/typescript-project/mise.toml
 check_file tests/fixtures/typescript-project/tsconfig.json
 check_file tests/fixtures/typescript-project/pnpm-lock.yaml
 check_file tests/fixtures/typescript-project/src/index.ts
+check_file tests/fixtures/font-sample.zip   # zip fixture: keeps python3 out of the suite
 
 # zsh syntax (only when zsh exists). Absolute glob: independent of CWD.
 # shell/zshrc has no .zsh suffix: listed explicitly.

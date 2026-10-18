@@ -76,11 +76,16 @@ jobs:
           pacman -Sy --noconfirm --needed git \
             || { pacman-key --init; pacman-key --populate archlinux; pacman -Sy --noconfirm --needed git; }
       - uses: actions/checkout@v4
-      - name: suites on Arch
+      - name: suite dependencies on Arch
         run: |
-          pacman -S --noconfirm --needed bats zsh
-          bash tests/smoke.sh
-          bats tests/shell.bats tests/fault.bats tests/bootstrap.bats
+          # bricks the suites actually need: bats, zsh, curl and unzip
+          # (fetch_verified_zip). Nothing else: the point is that they run on a
+          # minimal machine.
+          pacman -Syu --noconfirm --needed bats zsh curl unzip
+      - name: smoke on Arch
+        run: bash tests/smoke.sh
+      - name: bats on Arch (shell, bootstrap, fault-injection)
+        run: bats tests/shell.bats tests/bootstrap.bats tests/fault.bats
       - name: real install in an isolated HOME (pacman branch)
         run: |
           export FAKE_HOME=/tmp/yadr-home
