@@ -111,6 +111,10 @@ detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
 README/docs resolves every file and anchor. `INSTALL-YADR.md` and the four
 folded ADRs are absent from the tag.
 
+> **Update (2026-10-19):** the runs were reviewed afterwards — `ci` is green on
+> the release commit (`a880ba0`, run 39316124354) and on the post-tag commit
+> (`1c80a13`, run 39318747340). `a880ba0` is the commit the `v0.6.1` tag names.
+
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
 `$E/home/.gitconfig` and `$E/home/.tmux.conf` stay HOME-based; nothing is left
