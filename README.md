@@ -264,12 +264,17 @@ More details: `README.md`, `docs/migration.md`, `docs/troubleshooting.md`.
 
 **Environment and profiles**
 
-- `yadr install [profile]` — symlinks, backup and dependencies.
+- `yadr install [profile]` — symlinks, backup and dependencies. It prints the
+  diff and the planned side effects first, and only touches the system after you
+  confirm; `--dry-run` (or `yadr plan`) stops there and writes nothing.
   Profiles: `core|node|javascript|typescript|ruby|python|rust|lazygit|tools|development|macos-extras`
   (no profile = `core`).
+- `yadr plan [profile]` — alias for `install --dry-run`: prints the diff and the
+  planned side effects, writes nothing.
 - `yadr update` — `git pull` + `mise upgrade` (with backup and confirmation).
-  When the pull fails it keeps your checkout as it was, says so and exits
-  non-zero (it never prints a success line for an update that did not happen).
+  The two phases are reported separately: when the pull fails it keeps your
+  checkout as it was, skips the runtime upgrade, says so and exits non-zero (it
+  never prints a success line for an update that did not happen).
 - `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores your
   backup and reverts the login shell.
 - `yadr runtime current|list|use|doctor` — runtime abstraction (mise underneath).

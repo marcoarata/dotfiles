@@ -37,6 +37,21 @@ yadr diff                 # must read: 0 with changes
 Keep a single sanctioned checkout: edit in your dev clone, commit, push, and run
 `yadr update` on the install.
 
+## `yadr install`: plan, cancel, and what it touches
+
+`install` is read-only until you approve the plan: it prints the diff, the
+platform step, the runtimes and the link count, then asks. Answering `n` leaves
+the system as it was — no packages, no state, no links. Use `yadr plan` (or
+`yadr install --dry-run`) to see that plan and stop there.
+
+If `~/.local/nvim-upstream` exists and YADR cannot prove it created it (no
+`provides-nvim-upstream` marker), the installer moves it to
+`~/.local/state/yadr/backups/` instead of deleting it. Move it back if it was
+yours.
+
+`yadr update` reports two phases. A failed pull skips the runtime upgrade on
+purpose (the checkout did not move); fix the checkout and rerun.
+
 ## Slow shell (<500ms slow VM / <300ms workstation; see `yadr benchmark shell`)
 
 1. `yadr benchmark shell` (isolated HOME, does not touch your `~`).

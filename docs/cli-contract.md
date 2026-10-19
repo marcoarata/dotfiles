@@ -59,8 +59,9 @@ Failure taxonomy used throughout:
 
 | Command | Preconditions | Modifies | Exit codes |
 |---|---|---|---|
-| `install [profile]` | checkout present | platform packages (sudo), symlinks, backup, login shell, toolchains | 0 ok (warnings allowed); 1 on bad profile |
-| `update` | git checkout | repo pull, backup, plugins, mise upgrade | 0 (warns); 1 when the pull failed or a runtime did not install |
+| `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), symlinks, backup, login shell, toolchains — **only after the confirmation** | 0 ok (warnings allowed); 1 on a bad profile or a failed optional profile (`lazygit`/`tools`/`macos-extras`) |
+| `plan [profile]` | checkout present | nothing (alias of `install --dry-run`) | 0; 1 on a bad profile |
+| `update` | git checkout | repo pull, backup, plugins; runtimes only when the pull moved | 0; 1 when the pull or the runtime phase failed (reported separately) |
 | `doctor` | nothing | nothing (read-only; first nvim start installs plugins once) | 1 when any FAIL row, else 0 |
 | `diff` | nothing | nothing, always | 0 |
 | `backup` | nothing | new dir under `backups/` + `last-backup` pointer | 0 |
