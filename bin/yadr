@@ -151,7 +151,8 @@ usage() {
 ${BOLD}YADR 2027 $(version_str)${RESET} — ${DIM}${YADR_HOME}${RESET}
 usage: yadr <command> [args]
 
-  install [profile]  base + profile (core|node|javascript|typescript|ruby|python|rust|lazygit|tools|development|macos-extras; no profile = core)
+  install [profile] [--dry-run]  base + profile (core|node|javascript|typescript|ruby|python|rust|lazygit|tools|development|macos-extras; no profile = core); --dry-run prints the plan and writes nothing
+  plan [profile]     alias for 'install --dry-run'
   update             git pull + runtime upgrades (with backup and confirmation)
   doctor             checks the environment with hints (pass/warn/fail)
   diff               shows what would change, modifies nothing
@@ -182,7 +183,8 @@ set -- ${ARGS[@]+"${ARGS[@]}"}
 
 cmd="${1:-}"; shift || true
 case "$cmd" in
-  install)   do_install "${1:-core}" ;;
+  install)   do_install "$@" ;;
+  plan)      do_install --dry-run "$@" ;;
   update)    do_update ;;
   doctor)    do_doctor ;;
   diff)      do_diff ;;

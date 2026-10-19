@@ -273,6 +273,12 @@ purge_dir_keep_preexisting() { # $1 = dir, $2 = snapshot tag: deletes all but re
   rmdir "$dir" 2>/dev/null || true
 }
 
+managed_pair_count() { # number of destinations the install manages
+  local rel n=0
+  while IFS=: read -r rel _; do [[ -n "$rel" ]] && n=$((n+1)); done < <(managed_pairs)
+  printf '%s' "$n"
+}
+
 links_uptodate() { # 0 when every managed pair is already as it should be (silent)
   local rel dst src
   while IFS=: read -r rel dst; do
@@ -317,40 +323,82 @@ normalize_profile() { # javascript -> node: same runtime, one vocabulary
 }
 
 do_install() {
-  local profile
-  profile="$(normalize_profile "${1:-core}")"
+  local dry=0 profile="" a
+  for a in "$@"; do
+    case "$a" in
+      --dry-run) dry=1 ;;
+      --*) die "install: unknown flag '$a' (--dry-run)" ;;
+      *)
+        [[ -z "$profile" ]] || die "install: unexpected argument '$a' (one profile at a time)"
+        profile="$a"
+        ;;
+    esac
+  done
+  profile="$(normalize_profile "${profile:-core}")"
   case "$profile" in core|node|typescript|ruby|python|rust|development|macos-extras|lazygit|tools) ;; *) die "unknown profile: $profile (core|node|javascript|typescript|ruby|python|rust|development|macos-extras|lazygit|tools)" ;; esac
-  handle_legacy_yadr
+  # Read-only from here to the confirmation: no state, no packages, no links.
   detect_rogue_checkouts
   info "YADR 2027 $(version_str) — install [${profile}] in ${YADR_HOME}"
-  # Save the previous login shell once (uninstall restores it exactly).
-  if [[ ! -f "${STATE_DIR}/prev-shell" ]]; then
-    mkdir -p "$STATE_DIR" 2>/dev/null || true
-    printf '%s' "${SHELL:-unknown}" > "${STATE_DIR}/prev-shell" 2>/dev/null || true
-  fi
-  snapshot_share_dirs
+
   if [[ "$profile" == "macos-extras" ]]; then
     [[ "$(uname -s)" == "Darwin" ]] || die "macos-extras on macOS only."
+    if [[ "$dry" == "1" ]]; then
+      info "plan: run platform/macos-extras.sh (optional macOS defaults)"
+      info "dry-run: nothing modified."
+      return 0
+    fi
     confirm "Apply optional macOS defaults (platform/macos-extras.sh)?" || { info "cancelled."; return 0; }
-    bash "${YADR_HOME}/platform/macos-extras.sh" || warn "extras returned an error."
-    ok "macos-extras applied (optional, outside core)."
-    return 0
+    if bash "${YADR_HOME}/platform/macos-extras.sh"; then
+      ok "macos-extras applied (optional, outside core)."
+      return 0
+    else
+      local rc=$?
+      err "macos-extras failed (see above)."
+      return "$rc"
+    fi
   fi
   if [[ "$profile" == "lazygit" ]]; then
+    if [[ "$dry" == "1" ]]; then
+      info "plan: run platform/lazygit.sh"
+      info "dry-run: nothing modified."
+      return 0
+    fi
     info "installing lazygit (per-OS logic in platform/lazygit.sh)…"
-    bash "${YADR_HOME}/platform/lazygit.sh" && ok "lazygit ready." || warn "lazygit failed (see above)."
-    return 0
+    if bash "${YADR_HOME}/platform/lazygit.sh"; then
+      ok "lazygit ready."
+      return 0
+    else
+      local rc=$?
+      err "lazygit failed (see above)."
+      return "$rc"
+    fi
   fi
   if [[ "$profile" == "tools" ]]; then
+    if [[ "$dry" == "1" ]]; then
+      info "plan: run platform/tools.sh"
+      info "dry-run: nothing modified."
+      return 0
+    fi
     info "installing modern CLI tools (eza/bat/delta via platform/tools.sh)…"
-    bash "${YADR_HOME}/platform/tools.sh" && ok "CLI tools ready." || warn "CLI tools failed (see above)."
-    return 0
+    if bash "${YADR_HOME}/platform/tools.sh"; then
+      ok "CLI tools ready."
+      return 0
+    else
+      local rc=$?
+      err "CLI tools failed (see above)."
+      return "$rc"
+    fi
   fi
   case "$profile" in node|typescript|ruby|python|rust|development)
     # Fast path: core links already correct → only the profile payload
     # (runtimes + editor), no platform rerun, no diff/confirm/backup/relink.
     # Anything else (or stale links) keeps the full safe flow.
     if links_uptodate; then
+      if [[ "$dry" == "1" ]]; then
+        info "plan: core links are up to date; would ensure completions + the ${profile} payload"
+        info "dry-run: nothing modified."
+        return 0
+      fi
       info "core links up to date — fast path (no platform, symlinks or confirmations)."
       ensure_completions
       if ensure_profile_payload "$profile"; then
@@ -367,15 +415,37 @@ do_install() {
     ;;
   esac
   local plat; plat="$(detect_platform_script)"
+  local tools; tools="$(runtime_tool_for "$profile")"
+  # The plan is entirely read-only: diff + the side effects the user is about
+  # to approve. Cancelling here must leave the system untouched (it used to run
+  # the platform script and the payload first, then say "nothing modified").
+  info "change preview (diff):"
+  do_diff
+  info "planned side effects:"
+  info "  platform: ${plat}"
+  if [[ -n "$tools" ]]; then info "  runtimes: ${tools}"; else info "  runtimes: none"; fi
+  info "  links: $(managed_pair_count) from ${YADR_HOME}"
+  info "  backup: ${BACKUP_ROOT}/<timestamp>"
+  if [[ "$dry" == "1" ]]; then
+    info "dry-run: nothing modified."
+    return 0
+  fi
+  confirm "Install dependencies and apply links (with prior automatic backup)?" || { info "install cancelled; nothing modified."; return 0; }
+
+  # --- side effects start here (nothing above this line writes) ---
+  handle_legacy_yadr
+  # Save the previous login shell once (uninstall restores it exactly).
+  if [[ ! -f "${STATE_DIR}/prev-shell" ]]; then
+    mkdir -p "$STATE_DIR" 2>/dev/null || true
+    printf '%s' "${SHELL:-unknown}" > "${STATE_DIR}/prev-shell" 2>/dev/null || true
+  fi
+  snapshot_share_dirs
   if [[ -f "$plat" ]]; then info "platform: ${plat}"; bash "$plat" || warn "platform script errored; continuing with symlinks."
   else warn "platform script not found: ${plat}; continuing."
   fi
   # Profile runtimes via `runtime` abstraction (mise inside)
   local payload_rc=0
   ensure_profile_payload "$profile" || payload_rc=1
-  info "change preview (diff):"
-  do_diff
-  confirm "Apply symlinks (with prior automatic backup)?" || { info "install cancelled; nothing modified."; return 0; }
   do_backup
   local n=0 skipped=0
   while IFS=: read -r rel dst; do
