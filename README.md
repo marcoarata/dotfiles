@@ -22,18 +22,6 @@ Philosophy:
 - **Customization without forking.** `before / after` hooks around the defaults.
 - **Damoekri is sacred.** The prompt is modernized internally, its personality stays unchanged.
 
-## Scope
-
-YADR 2027 is a **personal** Zsh + Tmux + Neovim environment — installable by third
-parties on macOS (Intel included), Linux (Debian/Ubuntu), WSL and headless SSH. Its
-lifecycle is `install` → use → `update` → `uninstall` / `backup` / `doctor`.
-
-It is deliberately **not**: a general dotfile framework, a secrets manager, a package
-or runtime manager (those belong to your package manager and to `mise`, which stays
-optional), a Windows-native setup (WSL only), or a way to move state between machines.
-A subsystem is kept only if it prevents a real problem or a test fails without it —
-see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
-
 ## Installation — YADR 2027
 
 One command installs the core: it detects the platform, installs prerequisites,
@@ -133,6 +121,18 @@ real manager is reachable while they run. What each CI job proves is listed in
 > each shell's own directory; `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin`
 > stay HOME-based. With the variables unset nothing moves. Full policy and the
 > per-file table: `docs/cli-contract.md`, `docs/adr-005-path-policy.md`.
+
+## Scope
+
+YADR 2027 is a **personal** Zsh + Tmux + Neovim environment — installable by third
+parties on macOS (Intel included), Linux (Debian/Ubuntu), WSL and headless SSH. Its
+lifecycle is `install` → use → `update` → `uninstall` / `backup` / `doctor`.
+
+It is deliberately **not**: a general dotfile framework, a secrets manager, a package
+or runtime manager (those belong to your package manager and to `mise`, which stays
+optional), a Windows-native setup (WSL only), or a way to move state between machines.
+A subsystem is kept only if it prevents a real problem or a test fails without it —
+see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
 
 ## Classic YADR → 2027
 
