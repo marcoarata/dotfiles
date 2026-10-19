@@ -437,6 +437,34 @@ EOF
   [[ "$output" == *"git identity configured"* ]]
 }
 
+@test "doctor counts rogue/foreign symlinks as one warning (detail stays uncounted)" {
+  local h="$BATS_TMPDIR/rogue-$$"
+  rm -rf "$h"; mkdir -p "$h/.config"
+  ln -s /tmp/not-yadr "$h/.config/nvim"          # managed destination pointing outside YADR_HOME
+  # `count` (the doctor path) adds exactly one warning regardless of how many links are foreign.
+  run bash -c "
+    export HOME='$h'
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME ZDOTDIR
+    source '$(yadr_funcs)'
+    YADR_HOME='$YADR_ROOT'
+    DOCTOR_WARN=0
+    detect_rogue_checkouts count >/dev/null 2>&1
+    printf 'COUNT=%s\n' \"\$DOCTOR_WARN\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"COUNT=1"* ]]
+  # Without `count` (the install path) the doctor total is not touched.
+  run bash -c "
+    export HOME='$h'
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME ZDOTDIR
+    source '$(yadr_funcs)'
+    YADR_HOME='$YADR_ROOT'
+    DOCTOR_WARN=0
+    detect_rogue_checkouts >/dev/null 2>&1
+    printf 'COUNT=%s\n' \"\$DOCTOR_WARN\""
+  [[ "$output" == *"COUNT=0"* ]]
+  rm -rf "$h"
+}
+
 @test "dirty_tree_list reports modifications, empty when clean" {
   local repo="$BATS_TMPDIR/dirtyrepo-$$"
   rm -rf "$repo"; mkdir -p "$repo"

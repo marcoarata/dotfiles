@@ -33,7 +33,7 @@ version_at_least() { # version_at_least <"M.m..."> <maj> <min> — YADR floor ch
 do_doctor() {
   DOCTOR_FAIL=0; DOCTOR_WARN=0
   printf '%sYADR doctor %s%s\n' "$BOLD" "$(version_str)" "$RESET"
-  detect_rogue_checkouts
+  detect_rogue_checkouts count
   # Where Neovim keeps config/data: XDG-aware, the same paths nvim resolves via
   # stdpath(), so a moved XDG directory cannot produce false warnings (ADR-005).
   local _nvdata _nvconf

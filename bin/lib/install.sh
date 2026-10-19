@@ -3,11 +3,17 @@
 # Sourced by bin/yadr into the same shell (and by tests);
 # never executed directly. Bash 3.2-compatible, no new dependencies.
 
-detect_rogue_checkouts() {
+# shellcheck disable=SC2120  # $1 is optional: the doctor passes "count", install passes nothing
+detect_rogue_checkouts() { # $1=count → also adds ONE warning to the doctor total
   # A single sanctioned checkout: $YADR_HOME. Hand-made versioned copies
   # (~/yadr2027v4.0, ~/dotfiles-old…) plus cross symlinks produce ghost
   # states: nvim loads config from another checkout and nothing is
   # reproducible. This detects it before it bites.
+  #
+  # The per-link lines are detail; the count below is what the doctor summary
+  # adds, once, no matter how many links are foreign (calling `detect_rogue_checkouts`
+  # from `do_install` passes no argument and leaves DOCTOR_WARN untouched).
+  local count="${1:-}"
   local found=0 d target rel link
   for d in "${HOME}"/yadr* "${HOME}"/dotfiles*; do
     [[ -e "$d" || -L "$d" ]] || continue
@@ -30,7 +36,11 @@ detect_rogue_checkouts() {
     fi
   done < <(managed_pairs)
   if [[ "$found" == "1" ]]; then
-    warn "rogue checkout/symlinks outside ${YADR_HOME}: use a single clone; the rest confuses nvim/lazy."
+    if [[ "$count" == "count" ]]; then
+      dc_warn "rogue checkout/symlinks outside ${YADR_HOME}: use a single clone; the rest confuses nvim/lazy."
+    else
+      warn "rogue checkout/symlinks outside ${YADR_HOME}: use a single clone; the rest confuses nvim/lazy."
+    fi
   fi
   return 0
 }
