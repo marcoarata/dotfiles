@@ -4,7 +4,8 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 
 ## Process
 
-1. Bump `VERSION` (`X.Y.Z`, semver: breaking installer/config change = major).
+1. Bump `VERSION` (`X.Y.Z`, semver: before 1.0 a breaking change bumps the
+   minor — `0.4.x → 0.5.0`; at 1.0+ it is the major).
 2. Sync pins from a clean checkout: open `nvim` once (`Lazy! restore` +
    the `:Mason` servers the profiles declare), then `git diff -- nvim/lazy-lock.json` must
    contain only intended bumps. Commit the lockfile.
@@ -60,6 +61,9 @@ them either:
 is empty (checked before tagging), and `v0.4.1` changes no shipped code
 (`tests/`, `.github/` and the release docs only):
 `git diff v0.4.0..v0.4.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.5.0` removes commands and deduplicates
+docs; it touches none of them either:
+`git diff v0.4.1..v0.5.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

@@ -39,6 +39,7 @@ Two rules keep it useful:
 | 2026-10-18 | `v0.3.1` (tag) | 9.4 / 10 | Self-audit; ADR-005 closes the split (Portability back to 9.5, mean 9.40) and the arithmetic of the v0.3.0 row is corrected without rewriting it. Per-dimension breakdown below. The tag names the revision |
 | 2026-10-18 | `v0.4.0` (tag) | 9.45 / 10 | Self-audit; `yadr completion` closes dimension 5's standing limit ("no completions for shells other than zsh"), so Developer UX 9.0 -> 9.5 and the mean moves 9.40 -> 9.45. Written as 9.45, not rounded up to 9.5: this file names every half point it counts. Per-dimension breakdown below. The tag names the revision. **Two of its eight CI jobs were red** (evidence defects, not product); see the correction below |
 | 2026-10-18 | `v0.4.1` (tag) | 9.45 / 10 | Self-audit, no re-score: the patch that makes the `v0.4.0` evidence green. The product is byte-identical to `v0.4.0` (only a test and a CI assertion changed), so the verdict stands and this is the tag whose eight jobs are green. Per-dimension breakdown: the `v0.4.0` table below, unchanged |
+| 2026-10-19 | `v0.5.0` (tag) | 9.5 / 10 | Self-audit; ADR-006 declares the scope and non-goals the project never wrote down, and applies the rule retroactively — `export`/`apply` and the `pack` command are removed, the JS pack is installed with `yadr install javascript`, and the docs are deduplicated. Simplicity 9.0 → 9.5; the mean is exactly 9.50. Two things are stated, not rounded: the doc-line target (−30–40%) was not reached (8.8% cut — the rest is rationale and evidence), and the CI/test machinery is unchanged. Per-dimension breakdown below. The tag names the revision |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
@@ -148,6 +149,43 @@ revision wanted. Every half point is named; none is rounded.
 > is green on the fixed revision. That fix is the only content of the `v0.4.1`
 > row above; the `v0.4.0` row and its table are left exactly as published.
 
+### v0.5.0, dimension by dimension
+
+Scored on the tagged revision (ADR-006 "Scope and non-goals" applied). Only
+dimension 10 moves; the other cells keep their previous score, and the limit
+column states what did **not** change.
+
+| # | Dimension | v0.4.1 | v0.5.0 | What moved it (and the standing limit) |
+|---|---|---|---|---|
+| 1 | Architecture | 9.5 | 9.5 | one concern fewer with the removal of `bin/lib/transfer.sh`; `bin/yadr` is still the largest file |
+| 2 | Install & reproducibility | 9.5 | 9.5 | unchanged: `bootstrap.sh --local --yes` idempotent, CI `install` + `arch-container` |
+| 3 | Operational safety | 9.5 | 9.5 | unchanged: `share_dirs()` still feeds the snapshot and the purge from one list; the purge e2e is intact |
+| 4 | Portability | 9.5 | 9.5 | unchanged: the suites pass on Ubuntu/macOS/Arch; package-manager tests cover apt/dnf/pacman. `packs/` stays as per-project reference material, installed with `install <name>` |
+| 5 | Developer UX | 9.5 | 9.5 | three fewer commands and one vocabulary for installing a layer; the completions list `install javascript`; English-only remains |
+| 6 | Neovim | 9.5 | 9.5 | unchanged: 26 pins, `Lazy! restore` a no-op on a clean `XDG` dir |
+| 7 | Shell scripting | 9.5 | 9.5 | unchanged: `shellcheck -S warning` clean, `bash -n`/`zsh -n`, bash 3.2-compatible |
+| 8 | Documentation | 9.5 | 9.5 | ADR-006 declares scope, non-goals and the one-home-per-topic rule; `docs/` 2348 → 2141 lines. Limit: still long and English-only |
+| 9 | Testing & evidence | 9.5 | 9.5 | 99 bats tests (6 removed with `export`/`apply`; the `pack` test replaced by the `javascript`-alias one), coverage floor 50% with 53.5% measured, the same 6 lanes. Limit: the floor still covers `bin/` only; the dip is the removal of a well-covered module |
+| 10 | Simplicity | 9.0 | **9.5** | the product surface shrank (3 commands, 1 module, 259 code lines) and the scope is now declared instead of implicit, retiring the "undeclared scope" debt. Limit stated plainly: the CI/test machinery is unchanged (6 lanes, 5 batteries) and is the recorded price of dimensions 8/9; and the doc-line reduction fell short of the target — the remaining text is rationale and evidence, not duplication |
+
+Aggregate: **9.5 / 10** — the mean of the ten scores is exactly 9.50, written as
+9.5 because ten 9.5s average 9.50 with nothing rounded up. Two things are stated
+instead of implied:
+
+1. **The doc-line target (−30–40%) was not reached: `docs/` shrank 8.8%.** What
+   was cut is the real duplication — the install guide written four times, a
+   fourth copy of the Intel callout, the support matrix, a stale
+   "(migrate on roadmap)". The rest is comments that explain a non-obvious
+   "why" (ghost checkouts, WSL 1, regression causes, ADR references, test
+   seams) and evidence (`e2e-report`, this ledger, `CHANGELOG`, ADRs); removing
+   those would trade dimensions 8/9 for a smaller number.
+2. **The Simplicity half point rests on the product surface, not the
+   machinery.** Fewer commands, one fewer module and a declared scope are the
+   change; the CI/test machinery is unchanged. A reader who counts the
+   machinery as the product's cost can hold Simplicity at 9.0 and the mean at
+   9.45 — the evidence behind both readings is the same, and the limit column
+   says so.
+
 ## Re-executable checks
 
 Every command below runs from the repository root and touches nothing outside an
@@ -157,7 +195,7 @@ grow, invariants do not.
 | Command | Proves | Must |
 |---|---|---|
 | `bash tests/smoke.sh` | Structure, shipped-file presence, `zsh -n`/`bash -n`, nvim Lua parse, lockfile pins, `VERSION` is semver and `CHANGELOG.md` has an entry for it | `fail=0` |
-| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, CLI contract, shell completions, benchmarks, `export`/`apply` round-trip and tamper rejection, package-manager selection (apt/dnf/pacman) | only environment-dependent skips (see limits) |
+| `bats tests/shell.bats` | Aliases, runtime prompt, theme, font, purge, install honesty, the `javascript` profile alias, CLI contract, shell completions, benchmarks, package-manager selection (apt/dnf/pacman) | only environment-dependent skips (see limits) |
 | `bats tests/bootstrap.bats` | Installer flags, the `curl \| bash -s` stdin path, tag/VERSION agreement, usage errors | 0 failures |
 | `bats tests/fault.bats` | Injected failures fail loudly and print no success line for work that did not happen | 0 failures |
 | `bash tests/coverage.sh` | Line coverage of `bin/` measured from the bats suite, against a floor | `core >= floor`, exit 0 |
@@ -219,6 +257,9 @@ real macOS hardware, WSL guest) is in `docs/e2e-report.md`.
   code, which is what moved core coverage from 59.3% to 56.0% in v0.4.0. No
   test was lost and the 50% floor holds; the number is read as movement, not as
   a formal metric (see the header of `tests/coverage.sh`).
+- **`docs/` is still long.** ADR-006 point 7 deduplicated it (2348 → 2141 lines)
+  but did not reduce it to a brochure: what remains is rationale and evidence,
+  and cutting it further would cost dimensions 8/9.
 
 ## Appending the next evaluation
 

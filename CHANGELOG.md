@@ -4,6 +4,46 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.5.0] — 2026-10-19 — declared scope, one vocabulary
+
+Two commands leave the core because they failed the scope rule ADR-006 now
+writes down: a subsystem stays only if it prevents a real problem, or a test
+fails without it.
+
+### Removed
+
+- **`yadr export` / `yadr apply`** (and `bin/lib/transfer.sh`, 194 lines).
+  Moving user state between machines is not the lifecycle — a machine is
+  reproduced by installing again, not by copying state — and the author never
+  used them. If a third party needs it, it returns as an opt-in pack with a
+  demonstrated request.
+- **`yadr pack list` / `yadr pack add`.** `pack add X` only called
+  `install X`: a second vocabulary for one action. Install a layer the normal
+  way: `yadr install <name>`.
+
+### Changed
+
+- `yadr install javascript` is now an alias of the `node` profile
+  (`normalize_profile`), so the memorable name survives without a `pack`
+  command. `usage()` and the three completion scripts list it, and the drift
+  test keeps them in sync.
+- `yadr migrate` is documented as a one-shot classic-YADR import (ADR-006),
+  not a maintenance surface.
+- Docs follow **one home per topic** (ADR-006 point 7): the README install
+  section now points at `INSTALL-YADR.md`, `migration.md` keeps the classic→2027
+  map instead of repeating the install, and the duplicated Intel/Homebrew and
+  support-matrix text is gone. `docs/` 2348 → 2141 lines.
+
+### Migration
+
+- Replace `yadr pack add <name>` with `yadr install <name>`.
+- `export`/`apply` have no replacement in core. Reinstalling reproduces a
+  machine; `~/.gitconfig.user`, `~/.tmux.conf.user` and `~/.secrets` stay
+  user-owned and are read in place (`docs/migration.md`).
+
+No shipped runtime behaviour changed beyond the command set: the installer,
+`doctor`, the purge inventory and the theme are untouched.
+
 ## [0.4.1] — 2026-10-18 — evidence that runs everywhere
 
 `v0.4.0` was tagged before its CI finished and came back with two of eight jobs
