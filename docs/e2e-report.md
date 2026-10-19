@@ -260,3 +260,36 @@ env -u XDG_CONFIG_HOME -u XDG_DATA_HOME -u XDG_CACHE_HOME -u XDG_STATE_HOME \
 > (absent on Arch) and the CI assertion assumed the default `XDG_CONFIG_HOME`
 > — which is why this patch exists; see the correction in
 > `docs/evaluation.md`.
+
+## 9. The published `v0.5.0` tag, verified after the fact (2026-10-19)
+
+Not the local checkout: `v0.5.0` itself, fetched and installed the way the
+installer documents it, with the `XDG_*` variables moved under `/tmp` (the case
+ADR-005 exists for).
+
+```sh
+E=/tmp/opencode/v050-verify
+HOME=$E/home XDG_CONFIG_HOME=$E/config XDG_DATA_HOME=$E/data \
+  XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state \
+  bash bootstrap.sh --ref v0.5.0 --yes
+```
+
+- The clone is a detached `HEAD` on the tagged commit (`git describe` → `v0.5.0`,
+  `rev-parse --short HEAD` → `0947ec8`) and `VERSION` says `0.5.0`; `yadr version`
+  prints `0.5.0`.
+- `yadr install core` linked 10 pairs under the moved `XDG` directories and wrote
+  the three completion files; a second run is idempotent (10 links, 0 pending
+  from the repo).
+- `yadr doctor` reported **0 errors, 6 warnings** before the first `nvim` start
+  (the honest machine-local set: no git identity in an isolated `HOME`; no LSP
+  servers, since `yadr install typescript` was not run; and the two
+  distro-provided zsh plugins, with no `sudo` on this machine), and **0 errors,
+  4 warnings** after it — the plugin warning cleared (`✓ nvim plugins (lockfile
+  OK)`, `✓ treesitter (parsers nvim)`).
+- Under the moved `XDG` directories the second `install core` prints the plugin
+  restore it used to hide (`» restoring Neovim plugins to lockfile`,
+  `✓ plugins match the lock`, `» cleaning orphan plugins` … `✓ no orphans`), the
+  behaviour §7 records for `v0.3.1`.
+- This is the tag `docs/evaluation.md` scores: the command removals land here
+  (`export`/`apply` and `pack` are gone from `yadr --help`), and it is the tag
+  whose eight CI jobs are green.
