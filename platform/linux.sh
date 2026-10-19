@@ -74,7 +74,7 @@ ensure_nvim() {
   mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
   # Full relocatable install: the binary resolves its runtime
   # relative to its real location (resolves the symlink).
-  rm -rf "${HOME}/.local/nvim-upstream" 2>/dev/null || true
+  claim_owned_dir "${HOME}/.local/nvim-upstream" nvim-upstream || { rm -rf "$tmp"; return 1; }
   cp -a "$tmp"/nvim-linux-*/ "${HOME}/.local/nvim-upstream/" || { warn "copy failed."; rm -rf "$tmp"; return 1; }
   ln -sfn "${HOME}/.local/nvim-upstream/bin/nvim" "${HOME}/.local/bin/nvim"
   rm -rf "$tmp"

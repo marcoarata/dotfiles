@@ -13,6 +13,27 @@ yadr_marker() { # $1 = short name: records provides-<name> for purge
   touch "${dir}/provides-$1" 2>/dev/null || true
 }
 
+claim_owned_dir() { # <dir> <marker-name>: 0 when safe to (re)create the dir
+  # Never delete a directory YADR cannot prove it installed. Owned dirs (the
+  # provides-<name> marker exists) are replaced; unowned ones are moved to the
+  # backup root so anything the user put there survives.
+  local dir="$1" name="$2" state bak
+  state="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  [[ -e "$dir" || -L "$dir" ]] || return 0
+  if [[ -f "${state}/provides-${name}" ]]; then
+    rm -rf "$dir" 2>/dev/null || true
+    return 0
+  fi
+  bak="${state}/backups/${name}-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$(dirname "$bak")" 2>/dev/null || true
+  if mv "$dir" "$bak" 2>/dev/null; then
+    warn "existing ${dir} was not installed by YADR; moved to ${bak}"
+    return 0
+  fi
+  warn "existing ${dir} is not YADR's and could not be moved; refusing to overwrite."
+  return 1
+}
+
 nvim_version_ok() { # $1 = nvim binary: echoes "M.m", exit 0 when >=0.11
   local ver maj min
   ver="$("$1" --version 2>/dev/null | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)"
