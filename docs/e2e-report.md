@@ -293,3 +293,38 @@ HOME=$E/home XDG_CONFIG_HOME=$E/config XDG_DATA_HOME=$E/data \
 - This is the tag `docs/evaluation.md` scores: the command removals land here
   (`export`/`apply` and `pack` are gone from `yadr --help`), and it is the tag
   whose eight CI jobs are green.
+
+## 10. The published `v0.6.0` tag, verified after the fact (2026-10-19)
+
+`v0.6.0` adds `yadr --version`, renders the Damoekri `RPROMPT` git and runtime
+segments in bold, and moves the Nerd Font note under the installation steps.
+It is verified the same way as §9, cloning the tag itself into a fresh
+`YADR_HOME` under `/tmp` (with the `XDG_*` variables moved, the case ADR-005
+exists for):
+
+```sh
+E=/tmp/opencode/v060-verify
+YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
+  XDG_DATA_HOME=$E/data XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state \
+  bash bootstrap.sh --ref v0.6.0 --yes
+```
+
+- The clone is a detached `HEAD` on the tagged commit (`git describe` → `v0.6.0`,
+  `rev-parse --short HEAD` → `d2f7317`) and `VERSION` says `0.6.0`; `yadr version`
+  and `yadr --version` both print `0.6.0`.
+- `yadr install core` linked 10 pairs under the moved `XDG` directories and wrote
+  the three completion files; a second run is idempotent (10 links, 0 pending
+  from the repo).
+- `yadr doctor` reported **0 errors, 6 warnings** before the first `nvim` start
+  (no LSP servers, since `yadr install typescript` was not run, and the two
+  distro-provided zsh plugins, with no `sudo` on this machine) and **0 errors,
+  4 warnings** after it — the plugin warning cleared (`✓ nvim plugins (lockfile
+  OK)`, `✓ treesitter (parsers nvim)`). The set matches §9.
+- No pinned artifact changed between `v0.5.0` and `v0.6.0`:
+  `git diff v0.5.0..v0.6.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+  is empty.
+- Local suites on the release revision are green (`smoke` 91/0, 100 bats tests,
+  `shellcheck -S warning` clean). **CI is not claimed green here**: the run for
+  the release commit could not be read when this was written (the unauthenticated
+  GitHub API was rate-limited and the runner queue was backed up); the run on
+  `main` must be reviewed before the tag is called CI-verified.
