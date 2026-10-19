@@ -127,8 +127,9 @@ in `PAC_PKGS`.
 
 > **Update (2026-10-19):** `ci` is green on the release commit (`d5b1947`, run
 > 39326365131, 8/8 jobs: `lint`, `test`/`install` on Ubuntu and macOS,
-> `arch-container`, `fault-injection`, `coverage`). Tags do not trigger CI, so
-> that run is the one the `v0.6.2` tag names.
+> `arch-container`, `fault-injection`, `coverage`) and on the post-tag commit
+> (`71cc1d6`, run 39327307697, 8/8). Tags do not trigger CI, so the release-commit
+> run is the one the `v0.6.2` tag names.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
