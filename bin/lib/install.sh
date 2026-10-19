@@ -476,8 +476,9 @@ dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty whe
 
 do_update() {
   info "updating YADR 2027…"
-  local rc=0
+  local rc=0 has_repo=0 repo_updated=0
   if [[ -d "${YADR_HOME}/.git" ]]; then
+    has_repo=1
     local _dirty; _dirty="$(dirty_tree_list)"
     if [[ -n "$_dirty" ]]; then
       warn "live checkout has local modifications (pull --ff-only may refuse):"
@@ -488,6 +489,7 @@ do_update() {
     do_backup
     if git -C "$YADR_HOME" pull --ff-only; then
       ok "repo updated."
+      repo_updated=1
       # Editor sync only makes sense on a checkout that actually moved; when the
       # pull failed there is nothing new to restore to.
       ensure_nvim_plugins || true
@@ -501,6 +503,21 @@ do_update() {
   else
     warn "no .git in ${YADR_HOME}; nothing to update (local checkout)."
   fi
-  if have mise; then mise upgrade 2>/dev/null || mise up 2>/dev/null || warn "mise upgrade failed."; fi
+  # Two phases, reported separately: the config and the runtimes do not move
+  # atomically, so a failed pull must not silently advance the runtimes while
+  # the checkout stays behind.
+  if [[ "$has_repo" == "1" && "$repo_updated" == "0" ]]; then
+    info "runtimes: skipped (repo unchanged)."
+    return "$rc"
+  fi
+  if have mise; then
+    info "updating runtimes (mise)…"
+    if mise upgrade 2>/dev/null || mise up 2>/dev/null; then
+      ok "runtimes updated."
+    else
+      warn "runtime update failed."
+      rc=1
+    fi
+  fi
   return "$rc"
 }
