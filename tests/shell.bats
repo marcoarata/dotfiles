@@ -1015,6 +1015,7 @@ EOF
   grep -q '^apt-get update$' "$fb/calls.log"
   grep -q '\bfd-find\b' "$fb/calls.log"             # Debian name
   grep -q '\bbuild-essential\b' "$fb/calls.log"
+  ! grep -q '\bneovim\b' "$fb/calls.log"            # upstream tarball is the floor, not apt
   rm -rf "$fb"
 }
 
@@ -1034,6 +1035,7 @@ EOF
   [[ "$output" == *"manager: dnf"* ]]
   grep -q '^dnf install -y' "$fb/calls.log"
   grep -q '\bgcc\b' "$fb/calls.log"                 # Fedora name for build tools
+  ! grep -q '\bneovim\b' "$fb/calls.log"            # upstream tarball is the floor, not dnf
   rm -rf "$fb"
 }
 

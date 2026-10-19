@@ -27,8 +27,12 @@ fi
 if [[ -f "$PLATFORM_COMMON" ]]; then source "$PLATFORM_COMMON" || { warn "cannot load platform/common.sh."; exit 1; }
 else warn "platform/common.sh missing; shared helpers unavailable."; fi
 
-APT_PKGS=(git zsh tmux neovim ripgrep fd-find fzf curl build-essential zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
-DNF_PKGS=(git zsh tmux neovim ripgrep fd-find fzf curl gcc make zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
+# neovim is intentionally absent from apt/dnf: both usually ship <0.11 (the YADR
+# floor), so ensure_nvim() installs the pinned upstream tarball anyway -- pulling
+# it from the distro first only downloaded a second, unused copy. pacman keeps it:
+# Arch is rolling and already ships >=0.11.
+APT_PKGS=(git zsh tmux ripgrep fd-find fzf curl build-essential zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
+DNF_PKGS=(git zsh tmux ripgrep fd-find fzf curl gcc make zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 PAC_PKGS=(git zsh tmux neovim ripgrep fd fzf curl base-devel zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 
 install_mise() {
@@ -46,7 +50,9 @@ install_zoxide() {
 }
 
 # Neovim >=0.11 is the YADR floor (treesitter/gitsigns/lspconfig HEAD require it;
-# Ubuntu LTS ships 0.9.x). When apt falls short, use the official tarball into ~/.local/bin.
+# Ubuntu LTS ships 0.9.x). This is the single source of the floor: apt/dnf no
+# longer install neovim (see the package lists above); when it is missing or
+# short, use the official tarball into ~/.local/bin.
 ensure_nvim() {
   if have nvim; then
     local ver
