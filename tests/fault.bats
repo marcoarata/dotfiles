@@ -201,3 +201,162 @@ load helpers
   [ ! -e "$clone" ]                          # YADR's own clone still goes
   rm -rf "$clone"
 }
+
+# --- install: plan first, write only after the confirmation ----------------
+
+@test "fault: install --dry-run writes nothing" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/fault-dry-repo-$$"
+  local plat="$BATS_TMPDIR/fault-dry-plat-$$.sh" marker="$BATS_TMPDIR/fault-dry-ran-$$"
+  rm -rf "$repo" "$plat" "$marker"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  printf '#!/usr/bin/env bash\ntouch "%s"\n' "$marker" > "$plat"
+  chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/zsh
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install --dry-run core"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run: nothing modified"* ]]
+  [ ! -e "$marker" ]                              # platform never ran
+  [ ! -e "$home/.zshrc" ]                         # no link
+  [ ! -e "$home/.local/state/yadr/prev-shell" ]   # no state written
+  [ ! -e "$home/.local/state/yadr/preexisting-share-nvim" ]
+  rm -rf "$repo" "$plat" "$marker"
+}
+
+@test "fault: cancelling before apply leaves the system untouched" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/fault-cancel-repo-$$"
+  local plat="$BATS_TMPDIR/fault-cancel-plat-$$.sh" marker="$BATS_TMPDIR/fault-cancel-ran-$$"
+  rm -rf "$repo" "$plat" "$marker"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  printf '#!/usr/bin/env bash\ntouch "%s"\n' "$marker" > "$plat"
+  chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' SHELL=/bin/zsh
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core <<< n"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"install cancelled; nothing modified"* ]]
+  [ ! -e "$marker" ]                              # platform never ran
+  [ ! -e "$home/.zshrc" ]                         # no link
+  [ ! -e "$home/.local/state/yadr/prev-shell" ]   # no state written
+  rm -rf "$repo" "$plat" "$marker"
+}
+
+@test "fault: a failing optional profile returns non-zero" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/fault-prof-repo-$$"
+  rm -rf "$repo"; mkdir -p "$repo/platform"
+  printf '#!/usr/bin/env bash\necho "lazygit: boom" >&2\nexit 7\n' > "$repo/platform/lazygit.sh"
+  printf '#!/usr/bin/env bash\necho "tools: boom" >&2\nexit 9\n' > "$repo/platform/tools.sh"
+  chmod +x "$repo/platform/lazygit.sh" "$repo/platform/tools.sh"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_install lazygit"
+  [ "$status" -eq 7 ]
+  [[ "$output" == *"lazygit failed"* ]]
+  [[ "$output" != *"lazygit ready"* ]]
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_install tools"
+  [ "$status" -eq 9 ]
+  [[ "$output" == *"CLI tools failed"* ]]
+  [[ "$output" != *"CLI tools ready"* ]]
+  rm -rf "$repo"
+}
+
+# --- platform: never delete a directory YADR does not own ------------------
+
+@test "fault: an unowned nvim-upstream is moved aside, not deleted" {
+  local home="$BATS_TMPDIR/fault-own-$$" dir="$BATS_TMPDIR/fault-own-$$/.local/nvim-upstream"
+  rm -rf "$home"; mkdir -p "$dir"
+  printf 'mine\n' > "$dir/keep-me"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_dir '$dir' nvim-upstream"
+  [ "$status" -eq 0 ]
+  [ ! -e "$dir" ]
+  find "$home/.local/state/yadr/backups" -name keep-me -type f | grep -q .
+  [[ "$output" == *"not installed by YADR"* ]]
+  rm -rf "$home"
+}
+
+@test "fault: an owned nvim-upstream is replaced" {
+  local home="$BATS_TMPDIR/fault-owned-$$" dir="$BATS_TMPDIR/fault-owned-$$/.local/nvim-upstream"
+  rm -rf "$home"; mkdir -p "$dir" "$home/.local/state/yadr"
+  : > "$home/.local/state/yadr/provides-nvim-upstream"
+  printf 'old\n' > "$dir/old"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_dir '$dir' nvim-upstream"
+  [ "$status" -eq 0 ]
+  [ ! -e "$dir" ]
+  [ "$(find "$home/.local/state/yadr/backups" -maxdepth 1 -name 'nvim-upstream-*' 2>/dev/null | wc -l)" -eq 0 ]
+  rm -rf "$home"
+}
+
+# --- update: report both phases, never mix them silently -------------------
+
+@test "fault: update skips runtimes when the pull fails" {
+  local repo="$BATS_TMPDIR/fault-upd-skip-$$" bin="$BATS_TMPDIR/fault-upd-skip-bin-$$"
+  rm -rf "$repo" "$bin"; mkdir -p "$repo/.git" "$bin"
+  cat > "$bin/git" <<'EOF'
+#!/usr/bin/env bash
+case "$*" in *pull*) exit 1 ;; *) exit 0 ;; esac
+EOF
+  cat > "$bin/mise" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$HOME/mise.log"
+exit 0
+EOF
+  chmod +x "$bin/git" "$bin/mise"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pull failed"* ]]
+  [[ "$output" == *"runtimes: skipped"* ]]
+  [ ! -f "$TEST_HOME/mise.log" ]
+  rm -rf "$repo" "$bin"
+}
+
+@test "fault: update fails when the runtime phase fails" {
+  local repo="$BATS_TMPDIR/fault-upd-rt-$$" bin="$BATS_TMPDIR/fault-upd-rt-bin-$$"
+  rm -rf "$repo" "$bin"; mkdir -p "$repo/.git" "$bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$bin/git"
+  printf '#!/usr/bin/env bash\nexit 1\n' > "$bin/mise"
+  chmod +x "$bin/git" "$bin/mise"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"repo updated"* ]]
+  [[ "$output" == *"runtime update failed"* ]]
+  [[ "$output" != *"runtimes updated"* ]]
+  rm -rf "$repo" "$bin"
+}
+
+@test "fault: yadr plan is a dry run and exits 0" {
+  run env HOME="$TEST_HOME" PATH="/usr/bin:/bin" bash "$YADR_ROOT/bin/yadr" plan
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run: nothing modified"* ]]
+  [ ! -e "$TEST_HOME/.zshrc" ]
+  [ ! -e "$TEST_HOME/.local/state/yadr" ]
+}
