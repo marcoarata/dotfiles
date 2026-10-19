@@ -10,16 +10,11 @@ check_file() { [[ -f "$ROOT/$1" ]] && ok "$1" || fail "missing $1"; }
 
 check_file README.md
 check_file CHANGELOG.md
-check_file INSTALL-YADR.md
 check_file .gitignore
 check_file docs/architecture.md
 check_file docs/mappings.md
 check_file docs/migration.md
 check_file docs/troubleshooting.md
-check_file docs/adr-001-symlink-manager.md
-check_file docs/adr-002-runtime-manager.md
-check_file docs/adr-003-purge-inventory.md
-check_file docs/adr-004-failure-policy.md
 check_file docs/adr-005-path-policy.md
 check_file docs/adr-006-scope.md
 check_file docs/e2e-report.md

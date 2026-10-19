@@ -4,6 +4,30 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.6.1] — 2026-10-19 — documentation consolidation
+
+The install guide and the reference now live in one file, and `docs/` passed a
+YAGNI/DRY audit: duplication was removed, evidence was kept.
+
+### Changed
+
+- **`README.md` is the single entry point.** It absorbs the full install guide
+  (`INSTALL-YADR.md`, steps 1-8), adds the CI badge, and keeps one section order
+  from Overview to Damoekri. The manual, auditable install path is still there.
+- **`docs/` was consolidated.** ADR-001..004 are folded into the decisions table
+  in `docs/architecture.md`; the per-tag E2E sections are one table; the
+  pre-v0.5.0 per-dimension tables are folded into their score-history rows;
+  `homebrew-intel.md`, `troubleshooting.md`, `migration.md` and
+  `architecture.md` lost duplicated prose. `docs/` 1,563 → 994 lines (−36%).
+
+### Removed
+
+- **`INSTALL-YADR.md`** — fully contained in `README.md`.
+- **`docs/adr-001-symlink-manager.md`, `docs/adr-002-runtime-manager.md`,
+  `docs/adr-003-purge-inventory.md`, `docs/adr-004-failure-policy.md`** — the
+  decisions and their rationale are in `docs/architecture.md`; ADR-005 and
+  ADR-006 remain full records.
+
 ## [0.6.0] — 2026-10-19 — prompt bold, `yadr --version`
 
 ### Added

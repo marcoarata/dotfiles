@@ -19,7 +19,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    what that machine still lacks; `0 warnings` needs the distro packages and
    the documented install loop). For a release that touches paths, also run
    `bats tests/shell.bats -f "path policy"` and one real install with the
-   `XDG_*` variables moved, which is what `docs/e2e-report.md` §7 records.
+   `XDG_*` variables moved, which is what `docs/e2e-report.md` §6 records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
    pin-sensitive users install the tag instead:
@@ -67,6 +67,9 @@ docs; it touches none of them either:
 is empty (checked before tagging). `v0.6.0` adds a CLI option, bolds the prompt
 and moves one README note; it touches none of them either:
 `git diff v0.5.0..v0.6.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.6.1` consolidates the docs and removes
+`INSTALL-YADR.md`; it touches none of them either:
+`git diff v0.6.0..v0.6.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

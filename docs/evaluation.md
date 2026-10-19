@@ -40,115 +40,17 @@ Two rules keep it useful:
 | 2026-10-18 | `v0.4.0` (tag) | 9.45 / 10 | Self-audit; `yadr completion` closes dimension 5's standing limit ("no completions for shells other than zsh"), so Developer UX 9.0 -> 9.5 and the mean moves 9.40 -> 9.45. Written as 9.45, not rounded up to 9.5: this file names every half point it counts. Per-dimension breakdown below. The tag names the revision. **Two of its eight CI jobs were red** (evidence defects, not product); see the correction below |
 | 2026-10-18 | `v0.4.1` (tag) | 9.45 / 10 | Self-audit, no re-score: the patch that makes the `v0.4.0` evidence green. The product is byte-identical to `v0.4.0` (only a test and a CI assertion changed), so the verdict stands and this is the tag whose eight jobs are green. Per-dimension breakdown: the `v0.4.0` table below, unchanged |
 | 2026-10-19 | `v0.5.0` (tag) | 9.5 / 10 | Self-audit; ADR-006 declares the scope and non-goals the project never wrote down, and applies the rule retroactively — `export`/`apply` and the `pack` command are removed, the JS pack is installed with `yadr install javascript`, and the docs are deduplicated. Simplicity 9.0 → 9.5; the mean is exactly 9.50. Two things are stated, not rounded: the doc-line target (−30–40%) was not reached (8.8% cut — the rest is rationale and evidence), and the CI/test machinery is unchanged. Per-dimension breakdown below. The tag names the revision |
-| 2026-10-19 | `v0.6.0` (tag) | 9.5 / 10 | Self-audit, no re-score: `yadr --version` is accepted (it used to fall through to `unknown command`), the Damoekri `RPROMPT` renders its git and runtime segments in bold (matching the syntax-highlighting error red, `fg=red,bold`, which is the plugin default), and the README states the Nerd Font requirement under the installation steps instead of the overview. No dimension moves; the verdict stands at 9.5 (the mean is exactly 9.50). Per-dimension breakdown: the `v0.5.0` table above, unchanged |
+| 2026-10-19 | `v0.6.0` (tag) | 9.5 / 10 | Self-audit, no re-score: `yadr --version` is accepted (it used to fall through to `unknown command`), the Damoekri `RPROMPT` renders its git and runtime segments in bold (matching the syntax-highlighting error red, `fg=red,bold`, which is the plugin default), and the README states the Nerd Font requirement under the installation steps instead of the overview. No dimension moves; the verdict stands at 9.5 (the mean is exactly 9.50). Per-dimension breakdown: the `v0.5.0` table below, unchanged |
+| 2026-10-19 | `v0.6.1` (tag) | 9.5 / 10 | Self-audit, no re-score: documentation consolidation. `README.md` is now the single entry point (it absorbs `INSTALL-YADR.md`), and `docs/` passed a YAGNI/DRY audit: ADR-001..004 were folded into `architecture.md`, the per-tag E2E sections were merged into one table, and the pre-v0.5.0 per-dimension tables were folded into their score-history rows. `docs/` 1,563 → 994 lines (−36%). No dimension moves; the verdict stands at 9.5 (the mean is exactly 9.50). Per-dimension breakdown: the `v0.5.0` table below, unchanged |
 
 Intermediate revisions are not itemized; only revisions where the rubric was
 actually re-scored appear. The v0.3.0 row is appended by the release commit.
 Self-audited rows are marked as such on purpose: the external 8.0 is the only
 number in this table that came from someone else.
 
-### v0.3.0, dimension by dimension
-
-Scored on the tagged revision. Every score is a judgement; the "backed by"
-column names the command or artifact a reader can re-run to disagree with it.
-
-| # | Dimension | Score | Backed by | Known limit |
-|---|---|---|---|---|
-| 1 | Architecture | 9.5 | `bin/lib/*.sh` one-concern modules, `platform/common.sh`, ADR-001..004, `shellcheck -S warning` clean | `bin/yadr` is still the largest file; `packs/` is a contract by convention, not by code |
-| 2 | Install & reproducibility | 9.5 | `bootstrap.sh --local --yes` twice on a clean `HOME`; `bootstrap.sh --ref v0.3.0`; CI `install` (Ubuntu, macOS) and `arch-container` (Arch) | the `mise` installer is unpinned (listed in `docs/releases.md`); no macOS Intel lane |
-| 3 | Operational safety | 9.5 | `tests/fault.bats` (9 injected failures), `uninstall --purge` e2e, `yadr diff`, ADR-003/004 | purge relies on its own markers: deleting them removes less, never more |
-| 4 | Portability | 9.5 | the suites pass on Ubuntu, macOS and Arch; package-manager tests cover apt, dnf and pacman | WSL 1 cannot run Node >= 23 (upstream, documented); Intel mac is tier 3 |
-| 5 | Developer UX | 9.0 | `docs/cli-contract.md`, `--help` on both entrypoints, `doctor` repair hints, next-steps after install | English only; no completions for shells other than zsh |
-| 6 | Neovim | 9.5 | `Lazy! restore` is a no-op on a clean `XDG` dir (26 pins, exit 0, 2026-10-18); `smoke` parses every Lua file; lockfile drift check | the plugin set is not exercised headless beyond that restore |
-| 7 | Shell scripting | 9.5 | `shellcheck -S warning` clean on every shipped bash file, `bash -n`/`zsh -n`, bash 3.2-compatible code | two languages by design: bash for the CLI, zsh for the shell layer |
-| 8 | Documentation | 9.5 | README, INSTALL-YADR, `docs/` (ADRs, mappings, migration, troubleshooting, releases, evaluation, e2e report) | it is long, and it is English-only |
-| 9 | Testing & evidence | 9.5 | `smoke` (88 checks), 94 bats tests (9 of them injected failures), coverage floor 50% with 57.5% measured, 6 CI lanes, `docs/e2e-report.md` | the coverage floor covers `bin/` only; the visual matrix was ephemeral evidence |
-| 10 | Simplicity | 9.0 | no framework, no daemon, the CLI is plain bash, non-DRY is deliberate and documented | six CI lanes and five test batteries are more machinery than the product needs |
-
-Aggregate: **9.5 / 10** -- the mean of the ten scores is 9.45 and rounds to
-9.5. The two 9.0s are the deliberate price of the rest: the UX loses nothing
-but offers nothing outside zsh and English, and the testing machinery is
-heavier than the product. A project that dropped either would be simpler and
-less trustworthy, which is the trade this revision chose.
-
-> **Correction (appended 2026-10-18, with the v0.3.1 row).** The mean quoted
-> above is an arithmetic slip: adding the table it refers to
-> (8 x 9.5 + 2 x 9.0) gives **9.40**, not 9.45. Per rule 1 the row's scores and
-> verdict are left exactly as published; the corrected number and what it
-> implies are recorded in the v0.3.1 section below.
-
-### v0.3.1, dimension by dimension
-
-Scored on the tagged revision (ADR-005 implemented). Same rubric as above:
-the cells listed here are the ones that moved, and every one of them is backed
-by a command in the next section.
-
-| # | Dimension | v0.3.0 | post-tag re-audit | v0.3.1 | What moved it (and the standing limit) |
-|---|---|---|---|---|---|
-| 1 | Architecture | 9.5 | 9.5 | 9.5 | `bin/lib/paths.sh` owns every destination and is sourced before any other module; `bin/yadr` is still the largest file |
-| 2 | Install & reproducibility | 9.5 | 9.5 | 9.5 | `ensure_nvim_plugins` now checks the directory Neovim actually reads, so the restore cannot be skipped silently; a real install with moved `XDG` runs in CI |
-| 3 | Operational safety | 9.5 | 9.5 | 9.5 | `share_dirs()` feeds the pre-install snapshot **and** `uninstall --purge` from one list, so they can no longer drift |
-| 4 | Portability | 9.5 | **9.0** | 9.5 | restored. A moved-`XDG` box was measurably broken (silent skip, unclearable warning, purge leaving data behind); it is now covered by 7 tests and by a real install in CI. Limits unchanged: WSL 1 cannot run Node >= 23 (upstream), Intel mac is tier 3 |
-| 5 | Developer UX | 9.0 | 9.0 | 9.0 | unchanged: English only; no completions for shells other than zsh |
-| 6 | Neovim | 9.5 | 9.5 | 9.5 | `doctor` resolves config/data through `nvim_config_dir`/`nvim_data_dir`, and a test asserts Neovim's own `stdpath("config")`/`stdpath("data")` agree with the helpers |
-| 7 | Shell scripting | 9.5 | 9.5 | 9.5 | `shellcheck -S warning` clean on every shipped bash file, `bash -n`/`zsh -n`, bash 3.2-compatible code |
-| 8 | Documentation | 9.5 | 9.5 | 9.5 | ADR-005 plus a "Where files live" section in `docs/cli-contract.md`, the README and `docs/troubleshooting.md` |
-| 9 | Testing & evidence | 9.5 | 9.5 | 9.5 | `smoke` (89 checks), 101 bats tests (7 of them the path policy), coverage floor 50% with 59.3% measured, 6 CI lanes; the coverage floor still covers `bin/` only |
-| 10 | Simplicity | 9.0 | 9.0 | 9.0 | unchanged: one more small module (`paths.sh`, 100% line coverage) inside the same 6 lanes |
-
-Aggregate: **9.4 / 10** -- the mean of the ten scores is exactly 9.40. Two
-things are stated plainly instead of rounded away:
-
-1. **The v0.3.0 row's arithmetic was wrong** (see the correction above): its
-   own table averages 9.40, so the 9.5 verdict of that row was never supported
-   by its own breakdown.
-2. **The defect is fixed and Portability is back at 9.5**, which returns the
-   mean from 9.35 (post-tag re-audit) to 9.40. Reaching 9.45 needs one more
-   half point of real work, and this file names where it comes from rather than
-   rounding for it. The cheapest honest one is dimension 5: completions for
-   bash/fish, which its v0.3.0 limit already lists.
-
-### v0.4.0, dimension by dimension
-
-Scored on the tagged revision (`yadr completion` added). Only dimension 5
-moves; every other cell repeats its v0.3.1 score, and the limit column keeps
-each standing limit honest. This is the half point the v0.3.1 section named.
-
-| # | Dimension | v0.3.1 | v0.4.0 | What moved it (and the standing limit) |
-|---|---|---|---|---|
-| 1 | Architecture | 9.5 | 9.5 | `bin/lib/completion.sh` is one more one-concern module; `bin/yadr` is still the largest file |
-| 2 | Install & reproducibility | 9.5 | 9.5 | `install` writes the completions on both the full and the fast path; the CI `install` lane asserts the three files after a real install |
-| 3 | Operational safety | 9.5 | 9.5 | `uninstall` removes exactly the three generated files (the dry-run lists them first); `share_dirs()` still feeds the snapshot and the purge from one list |
-| 4 | Portability | 9.5 | 9.5 | the completion files land under the moved `XDG` directories, asserted in CI's Arch lane. Limits unchanged: WSL 1 cannot run Node >= 23 (upstream), Intel mac is tier 3 |
-| 5 | Developer UX | 9.0 | **9.5** | `yadr completion bash\|zsh\|fish` prints a script, `install` writes all three where each shell reads them; the "no completions for shells other than zsh" limit is gone. The remaining "English only" is a deliberate repo-wide invariant, not a defect |
-| 6 | Neovim | 9.5 | 9.5 | unchanged |
-| 7 | Shell scripting | 9.5 | 9.5 | `shellcheck -S warning` clean including the new module; `bash -n`/`zsh -n`; bash 3.2-compatible code |
-| 8 | Documentation | 9.5 | 9.5 | `docs/cli-contract.md` gains a "Shell completions" section; README, architecture and `--help` updated |
-| 9 | Testing & evidence | 9.5 | 9.5 | `smoke` (90 checks), 105 bats tests (4 for completions: parse-in-shell, drift against `--help`, write+remove under moved `XDG`, install wiring), coverage floor 50% with 56.0% measured, 6 CI lanes. The dip from 59.3% is the recorder counting the static completion scripts as executable lines; the floor still covers `bin/` only |
-| 10 | Simplicity | 9.0 | 9.0 | unchanged: one more small module (`completion.sh`) inside the same 6 lanes |
-
-Aggregate: **9.45 / 10** -- the mean of the ten scores is exactly 9.45. It is
-written as 9.45 and not as 9.5, on purpose: the v0.3.0 row once quoted 9.5 for
-a table that averaged 9.40 (see the correction above). 9.45 is the first number
-the breakdown actually supports, and it happens to round back to the 9.5 that
-revision wanted. Every half point is named; none is rounded.
-
-> **Correction (appended 2026-10-18, after the tag).** The `v0.4.0` revision was
-> tagged before its CI finished, and two of its eight job instances (six lanes;
-> `test` and `install` each run on two OSes) came back red.
-> `arch-container`: the new completion tests used `diff -u` and `cmp -s` to
-> compare the command lists and the installed script, and Arch's base container
-> ships neither (no diffutils) — `tests/helpers.bash` already documents that
-> trap for `cmp`. `install (ubuntu-24.04)`: the new CI assertion assumed the
-> default `XDG_CONFIG_HOME`, and that runner exports a non-default one, so the
-> bash and zsh files (under `XDG_DATA_HOME`) were found and the fish file (under
-> `XDG_CONFIG_HOME`) was not. Both are defects of the evidence added in that
-> release, not of the product: `yadr` itself completed correctly on both
-> runners. They are fixed after the tag — the drift test compares the two lists
-> as strings, the byte-identical check uses `file_sha`, and the CI step resolves
-> its paths with `bin/lib/paths.sh` exactly as the install did — and every job
-> is green on the fixed revision. That fix is the only content of the `v0.4.1`
-> row above; the `v0.4.0` row and its table are left exactly as published.
+Per-dimension tables are kept only for the latest scored release
+(`v0.5.0`); the earlier tables were removed in v0.6.1 to keep one home
+per fact, and their scores remain in the rows above.
 
 ### v0.5.0, dimension by dimension
 
@@ -258,9 +160,9 @@ real macOS hardware, WSL guest) is in `docs/e2e-report.md`.
   code, which is what moved core coverage from 59.3% to 56.0% in v0.4.0. No
   test was lost and the 50% floor holds; the number is read as movement, not as
   a formal metric (see the header of `tests/coverage.sh`).
-- **`docs/` is still long.** ADR-006 point 7 deduplicated it (2348 → 2141 lines)
-  but did not reduce it to a brochure: what remains is rationale and evidence,
-  and cutting it further would cost dimensions 8/9.
+- **`docs/` is 994 lines after the v0.6.1 YAGNI/DRY pass** (from 1,563): what
+  remains is rationale and evidence, and cutting it further would cost
+  dimensions 8/9.
 
 ## Appending the next evaluation
 

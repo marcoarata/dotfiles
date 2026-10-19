@@ -74,4 +74,4 @@
   plugins under a moved XDG data dir", "...snapshot and purge cover the XDG
   directories the tools use" and "...shipped code never hardcodes the tools'
   XDG-derived dirs" in `tests/shell.bats`; `share_dirs()` in
-  `bin/lib/install.sh`; the E2E run recorded in `docs/e2e-report.md` §7.
+  `bin/lib/install.sh`; the E2E run recorded in `docs/e2e-report.md` §6.

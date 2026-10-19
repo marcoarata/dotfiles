@@ -49,16 +49,8 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
   `~/.config/mise`), not the global one.
 - CI/SSH without mise = shell still loads; `yadr doctor` warns, does not fail.
 
-## Why mise (experimental)
-
-RVM/Rake solved 2012: getting a Ruby to run the installer — a problem that no
-longer exists. `mise` is the reference backend: one Rust binary for
-node/python/ruby/go/rust/java, per-repo `mise.toml`, `asdf` `.tool-versions`
-compatibility, and no RVM shims or `gem install rake` in bootstrap. It is
-**opt-in** (bootstrap never requires it; `doctor` marks it `optional`), so if it
-breaks, Core keeps working. Decision and alternatives (fnm/nvm):
-[ADR-002](adr-002-runtime-manager.md). The contract: *YADR installs without Ruby;
-Ruby/Node/Python are optional profiles*.
+Why `mise` and not `fnm`/`nvm`, and why Core never requires it: the decisions
+table below.
 
 ## YADR Zsh Core — audited Prezto subset (frozen v0.1)
 
@@ -93,45 +85,40 @@ rather than accidental:
   stale silently and break more often than it protects. Skip their installers
   if you prefer — Core works without them.
 - **No `curl | sh` is required.** The auditable path clones the repo and runs
-  `bootstrap.sh` locally (README "Option B").
+  `bootstrap.sh` locally (README "Alternative: manual and auditable install").
 - **`sudo` only through one helper.** `platform/linux.sh` defines `priv()`
   (root or `sudo`); there is no bare `sudo` scattered through the code.
 
 ## Conventions (and deliberate non-DRY)
 
-Two things look like duplication but are intentional; changing them would
-trade a real robustness property for cosmetic DRY:
+Three things look like duplication but are intentional:
 
-- **`log`/`warn`/`have` are redefined in each `platform/*.sh`.** Those
-  scripts are standalone entrypoints (`bash platform/linux.sh`) that must run
-  without being sourced by `bin/yadr`; depending on a shared file would add a
-  load-order failure mode for a handful of lines. `platform/common.sh` holds
-  only what genuinely needs sharing (fonts, purge markers, `nvim_version_ok`).
+- **`log`/`warn`/`have` are redefined in each `platform/*.sh`.** Those scripts
+  are standalone entrypoints (`bash platform/linux.sh`) and must run without
+  `bin/yadr`; `platform/common.sh` holds only what genuinely needs sharing
+  (fonts, purge markers, `nvim_version_ok`).
 - **`managed_pairs` is defined once, in `bin/yadr`,** and is the single source
-  of truth for the symlink map; `diff`, `backup` and `uninstall` all consume
-  it. It is *not* copied into `lib/`.
+  of truth for the symlink map; `diff`, `backup` and `uninstall` consume it.
 - **`bin/lib/paths.sh` is the single source of truth for destinations**
-  (ADR-005). It is sourced by `bin/yadr` before every other module, and
-  `managed_pairs`, the installer, `doctor`, the purge inventory and the theme
-  all consume it, so the CLI and the tools it configures cannot disagree about
-  where a file lives. `platform/*.sh` compose the same `${XDG_*:-$HOME/...}`
-  defaults inline for the reason above (they run standalone); a test rejects
-  hardcoded XDG-derived paths in `bin/`, `platform/` and `bootstrap.sh` so the
-  two forms cannot drift.
+  (ADR-005); `managed_pairs`, the installer, `doctor`, the purge inventory and
+  the theme consume it, so the CLI and the tools cannot disagree. A test rejects
+  hardcoded XDG-derived paths in `bin/`, `platform/` and `bootstrap.sh`.
 
 `shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
-`bootstrap.sh` file in CI as the coupling alarm for both points.
+`bootstrap.sh` file in CI as the coupling alarm.
 
 ## Decisions (ADRs)
 
-The choices that shape the project, each with the alternatives that were
-rejected and the consequences accepted:
+ADR-005 (path policy) and ADR-006 (scope) are maintained as full records:
+[adr-005-path-policy.md](adr-005-path-policy.md) ·
+[adr-006-scope.md](adr-006-scope.md).
 
-| ADR | Decision |
-|---|---|
-| [ADR-001](adr-001-symlink-manager.md) | Own `bin/yadr` orchestrator instead of chezmoi / stow / dotbot |
-| [ADR-002](adr-002-runtime-manager.md) | `mise` as the runtime backend, never required by Core |
-| [ADR-003](adr-003-purge-inventory.md) | `--purge` deletes only what YADR added (pre-install snapshot; refuses blind wipes) |
-| [ADR-004](adr-004-failure-policy.md) | Runtime failures are fatal; editor failures are advisory |
-| [ADR-005](adr-005-path-policy.md) | Paths follow the variables of the tool that reads the file (`XDG_*`, `ZDOTDIR`) |
-| [ADR-006](adr-006-scope.md) | Scope and non-goals: personal first, installable by third parties; the YAGNI admission rule |
+The four core decisions were folded here in v0.6.1 (the ADR files were removed;
+the rationale is unchanged):
+
+| # | Decision | Why | Consequence / evidence |
+|---|---|---|---|
+| 001 | Own `bin/yadr` orchestrator, not chezmoi/stow/dotbot | Needs `install/diff/backup/doctor`, classic-YADR coexistence (`parallel/migrate/cancel`), `before/after` hooks and headless SSH; the frameworks cover only part | A framework is adopted only if it covers `diff+backup+doctor+parallel` without a new hard dependency; the CLI stays dependency-free |
+| 002 | `mise` as the runtime backend (`fnm` is the Node alternative) | One backend for node/python/ruby/rust behind `yadr runtime current\|list\|use\|doctor`; Damoekri/Zsh/Neovim never call managers directly | Swappable; explicit pinned LTS (no floating `lts`); Ruby/Node/Python are optional profiles, Core installs without Ruby |
+| 003 | `--purge` deletes only what YADR added | The five data dirs (nvim/lazy, Mason, mise, zoxide/pip caches, nvim state) mix YADR data with the user's | First-install snapshot of the top-level entries (`snapshot_share_dirs`); `purge_dir_keep_preexisting` deletes only non-snapshot entries; refuses a blind wipe; the snapshot is first-install-wins |
+| 004 | Runtime failures are fatal; editor failures are advisory | A promised runtime missing means the environment does not exist; editor state is long-running, network-dependent and recoverable with `:Lazy restore`/`:Mason` | Failed runtime → non-zero and no success banner; editor step warns with the recovery command; `update` never claims a pull that failed; enforced by `tests/fault.bats` |

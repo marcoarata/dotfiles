@@ -138,7 +138,7 @@ sync_repo() {
     log "cloning ${YADR_REPO_URL} -> ${YADR_HOME}..."
     git clone --branch "$YADR_BRANCH" --depth 1 "$YADR_REPO_URL" "$YADR_HOME" \
       || git clone "$YADR_REPO_URL" "$YADR_HOME" \
-      || die "could not clone ${YADR_REPO_URL}. When no GitHub repo exists yet, copy the project and use: YADR_HOME=<copy> ./bootstrap.sh --local (see INSTALL-YADR.md)."
+      || die "could not clone ${YADR_REPO_URL}. When no GitHub repo exists yet, copy the project and use: YADR_HOME=<copy> ./bootstrap.sh --local (see README.md)."
   fi
 }
 

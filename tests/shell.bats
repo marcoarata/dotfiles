@@ -521,7 +521,6 @@ macos_funcs() {
     set -e
     grep -q 'DEFAULT_HOME=\"\${HOME}/.yadr-2027\"' '$YADR_ROOT/bootstrap.sh' || exit 1
     grep -q 'marcoarata/dotfiles.git ~/\.yadr-2027' '$YADR_ROOT/README.md' || exit 1
-    grep -q 'marcoarata/dotfiles.git ~/\.yadr-2027' '$YADR_ROOT/INSTALL-YADR.md' || exit 1
     echo ok"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]

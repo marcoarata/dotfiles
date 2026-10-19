@@ -118,7 +118,7 @@ EOF
 }
 
 next_steps() {
-  # Post-install guide (mirrors the numbered steps in README/INSTALL-YADR).
+  # Post-install guide (mirrors the numbered steps in README).
   printf '%s\n' "${DIM}next steps:${RESET}"
   printf '  %s\n' \
     "1. exec zsh (or reboot and open a terminal)" \

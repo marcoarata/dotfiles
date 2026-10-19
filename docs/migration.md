@@ -2,16 +2,7 @@
 
 YADR 2027 does not install RVM, Ruby or Rake, and it never needs them. This page
 maps the classic install to the 2027 one; the install steps themselves live in
-[INSTALL-YADR.md](../INSTALL-YADR.md).
-
-## Classic install (reference — do NOT use for 2027)
-
-macOS: `brew install gnupg2` → import the RVM key (`rvm.io/mpapis.asc`) →
-`get.rvm.io | bash` → `rvm install ruby-3.1.0` → `gem install rake` → run
-`skwp/dotfiles/install.sh` (`rake install`) → hand-edit `~/.zshrc` for Damoekri.
-
-Linux (Debian/Ubuntu, server, WSL): `apt install gnupg2` plus the same RVM/Rake
-chain and the same shell edit.
+[README.md](../README.md#installation--yadr-2027).
 
 ## What changed, line by line
 
@@ -27,8 +18,8 @@ chain and the same shell edit.
 
 Backups land in `~/.local/state/yadr/backups/<timestamp>/` (no more
 `*.backup2/final2`). `mise` is only installed when a profile needs a runtime
-(`yadr install node`); minimal SSH works without it — see
-`adr-002-runtime-manager.md`.
+(`yadr install node`); minimal SSH works without it — see the decisions table in
+`architecture.md` (ADR-002).
 
 ## Parallel vs migrate
 
