@@ -169,14 +169,14 @@ usage: yadr <command> [args]
   completion <shell> prints a shell completion script (bash|zsh|fish; --install)
   help               shows this help
 
-options: --yes/-y (skip confirmations), --help/-h
+options: --yes/-y (skip confirmations), --help/-h, --version (print version)
 EOF
 }
 
 # --- parse global flags ---
 ARGS=()
 for a in "$@"; do
-  case "$a" in --yes|-y) YADR_YES=1 ;; --help|-h) usage; exit 0 ;; *) ARGS+=("$a") ;; esac
+  case "$a" in --yes|-y) YADR_YES=1 ;; --help|-h) usage; exit 0 ;; --version) version_str; echo; exit 0 ;; *) ARGS+=("$a") ;; esac
 done
 set -- ${ARGS[@]+"${ARGS[@]}"}
 

@@ -703,6 +703,12 @@ macos_funcs() {
   [[ "$output" == *"benchmark"* ]]
 }
 
+@test "CLI: --version prints the version and exits 0" {
+  run yadr_cli --version
+  [ "$status" -eq 0 ]
+  [[ "$output" == "$(tr -d ' \t\n' < "$YADR_ROOT/VERSION")" ]]
+}
+
 @test "CLI: unknown command fails and shows the supported list" {
   run yadr_cli definitely-not-a-command
   [ "$status" -ne 0 ]
