@@ -104,6 +104,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.6.0` | `d2f7317` | 0.6.0 | 10 links, 0 pending | 0 errors (6→4 warnings) | `yadr --version`, bold RPROMPT |
 | `v0.6.1` | `a880ba0` | 0.6.1 | 10 links, 0 pending | 0 errors (6→4 warnings) | docs-only: README is the single entry, `INSTALL-YADR.md` and ADR-001..004 removed; every link resolves |
 | `v0.6.2` | `d5b1947` | 0.6.2 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | doctor counts rogue/foreign notices; apt/dnf drop `neovim` |
+| `v0.6.3` | `8e39d5d` | 0.6.3 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | install plans first (`--dry-run`/`plan`); update phases; unowned `nvim-upstream` kept |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -130,6 +131,31 @@ in `PAC_PKGS`.
 > `arch-container`, `fault-injection`, `coverage`) and on the post-tag commit
 > (`71cc1d6`, run 39327307697, 8/8). Tags do not trigger CI, so the release-commit
 > run is the one the `v0.6.2` tag names.
+
+`v0.6.3` was verified the same way on 2026-10-19: the clone is detached at
+`8e39d5d`, `VERSION` and both `yadr version`/`--version` print `0.6.3`, and
+`install core` is idempotent (10 links, 0 pending; the second run exits 0).
+`doctor` reports 0 errors with 3 warnings; re-pointing `aliases.zsh` to
+`/tmp/not-yadr` adds exactly one aggregate warning (3 → 4) and the
+`rogue checkout/symlinks` line, and restoring the link returns to 3. `yadr plan`
+leaves the file count unchanged (5000 → 5000) while printing the platform,
+runtimes, 10 links and backup path. The tagged tree carries `managed_pair_count`,
+`claim_owned_dir` (used by `ensure_nvim`), the two-phase `update` message and
+`plan` in the usage and the three completions. Pinned artifacts are unchanged
+since `v0.6.2` (`git diff v0.6.2..v0.6.3 -- runtime/mise.toml
+nvim/lazy-lock.json terminal/fonts/manifest.env` is empty). The isolated run had
+no non-interactive `sudo`, so the apt step was skipped with a warning (the host
+already has the packages); links, completions, the upstream nvim and `doctor`
+were verified.
+
+> **Update (2026-10-19):** `ci` is green on the tagged commit (`8e39d5d`, run
+> 39334849805, 8/8 jobs: `lint`, `test`/`install` on Ubuntu and macOS,
+> `arch-container`, `fault-injection`, `coverage`). The first v0.6.3 run
+> (`d734c38`) failed only `coverage`: the plan/cancel tests lived in
+> `fault.bats`, which that lane does not run, so the new code did not count and
+> the job sat on the 50% floor (50.2% locally, below it on the runner). Moving
+> them to `shell.bats` raised coverage to 52.2%. Tags do not trigger CI, so the
+> tagged-commit run is the one the `v0.6.3` tag names.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
