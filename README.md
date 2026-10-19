@@ -11,17 +11,28 @@ Neovim, rebuilt on a modern stack without complex configuration.
 
 ## Overview
 
-YADR 2027 is a Zsh + Tmux + Neovim environment for macOS, Linux, WSL and
-headless SSH, with no mandatory Ruby.
+YADR 2027 keeps the classic YADR experience contract — Zsh + Vim everywhere + mnemonic aliases + tmux + fluid Git + Damoekri prompt — and replaces the aged implementation (RVM + Rake + Vundle + fasd + ag + hub) with a modern stack with no mandatory Ruby.
 
-What you get: vi-mode Zsh with mnemonic aliases, Neovim and Vim sharing one
-mapping layer, tmux with Vim keys, a fluid Git workflow, and the Damoekri
-prompt — each part degrading gracefully when an optional tool is missing.
+Philosophy:
 
-Philosophy: **experience over plugin lists**, **fallbacks instead of hard
-failures** (every modern alias falls back to the POSIX tool), a **portable core
-with macOS extras kept apart**, and **customization without forking**
-(`before`/`after` hooks around the defaults).
+- **Experience > plugins.** Capabilities and muscle memory are preserved, not plugin lists.
+- **Vim Everywhere.** Zsh vi-mode, Neovim/Vim, tmux hjkl.
+- **Fallbacks, never hard failures.** Every modern alias (`eza`, `bat`, `rg`, `fd`, `zoxide`, `delta`) degrades to the POSIX tool when missing; `delta` is wired as the git pager only when it is installed.
+- **Core vs extras.** Portable core for macOS/Linux/WSL/SSH. macOS hacks and iTerm go to extras.
+- **Customization without forking.** `before / after` hooks around the defaults.
+- **Damoekri is sacred.** The prompt is modernized internally, its personality stays unchanged.
+
+## Scope
+
+YADR 2027 is a **personal** Zsh + Tmux + Neovim environment — installable by third
+parties on macOS (Intel included), Linux (Debian/Ubuntu), WSL and headless SSH. Its
+lifecycle is `install` → use → `update` → `uninstall` / `backup` / `doctor`.
+
+It is deliberately **not**: a general dotfile framework, a secrets manager, a package
+or runtime manager (those belong to your package manager and to `mise`, which stays
+optional), a Windows-native setup (WSL only), or a way to move state between machines.
+A subsystem is kept only if it prevents a real problem or a test fails without it —
+see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
 
 ## Installation — YADR 2027
 
@@ -47,17 +58,34 @@ exec zsh
 yadr doctor
 ```
 
-> ⚠️ **Nerd Font required.** The Damoekri prompt and tmux glyphs render broken
-> without one. Install a [Nerd Font](https://www.nerdfonts.com) and select it in
-> your terminal emulator before checking the prompt. Without it, everything
-> still works (degrades to plain glyphs).
-
 Prefer to audit the source first? `git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027 && ~/.yadr-2027/bootstrap.sh` — no `curl | sh`. To install one exact release, pass `--ref vX.Y.Z`: the tag is checked out detached and its `VERSION` must match.
 
 **Full guide: [INSTALL-YADR.md](INSTALL-YADR.md)** — per-platform steps, WSL
 and macOS Intel (MacPorts) specifics, pinning a release, the profiles you add
 after core, and what is no longer done (no RVM, Ruby or Rake). Uninstall and
 safety: `yadr uninstall --dry-run`, `docs/troubleshooting.md`.
+
+> ⚠️ **Nerd Font required.** The Damoekri prompt and tmux glyphs render broken
+> without one. Install a [Nerd Font](https://www.nerdfonts.com) and select it in
+> your terminal emulator before checking the prompt. Without it, everything
+> still works (degrades to plain glyphs).
+
+## Support matrix
+
+Tiers say how a platform is verified, not just that it is "supported":
+
+| Tier | Meaning | Platforms |
+|---|---|---|
+| 1 | CI on every push: unit suites, a real install in an isolated `$HOME`, and `doctor` | macOS arm64; Debian/Ubuntu (server, no GUI) |
+| 2 | Dedicated CI lane that does the same install inside the distro | Arch Linux (`archlinux:latest` container) |
+| 3 | Covered by tests and, where noted, by hand on real hardware; no dedicated CI lane yet | WSL2 (real Windows 11 guest with WSL 2, `docs/e2e-report.md` §1); Fedora/RHEL (`dnf` branch tested); macOS Intel (MacPorts path) |
+| 4 | Documented limits, deliberately not worked around | WSL 1 (Node ≥ 23 cannot exec, microsoft/WSL#8151) |
+
+Windows native is not supported — WSL is the Windows story, and `yadr` never
+tries to serve both. The `dnf`/`pacman`/`apt` branches are exercised by the
+package-manager tests in `tests/shell.bats`, which fake the whole world so no
+real manager is reachable while they run. What each CI job proves is listed in
+`docs/releases.md`; the historical evidence is in `docs/e2e-report.md`.
 
 ## `yadr` commands
 
@@ -91,52 +119,22 @@ safety: `yadr uninstall --dry-run`, `docs/troubleshooting.md`.
 - `yadr completion bash|zsh|fish` — prints that shell's completion script
   (`yadr completion --install` writes all three; `yadr install` does it for you).
 
-> **Global toolchains.** Your own tool pins live in `~/.config/mise/conf.d/*.toml`
-> and merge over the base — never edit the managed `runtime/mise.toml`, which
-> dirties the checkout and blocks fast-forward. `yadr install tools` writes
-> `yadr-tools.toml` for eza/bat/delta on Linux/WSL (macOS gets them from
-> Homebrew/MacPorts). Details: `docs/architecture.md`.
+> **Global toolchains.** Your custom tool pins live in
+> `~/.config/mise/conf.d/*.toml`; mise merges them over the base. Do not edit
+> the managed `runtime/mise.toml` (symlinked as `~/.config/mise/config.toml`):
+> editing it dirties the checkout and can make `yadr update` refuse to
+> fast-forward. `yadr install tools` writes `~/.config/mise/conf.d/yadr-tools.toml`
+> for you when it installs `eza`/`bat`/`delta` on Linux/WSL (on macOS they come
+> from Homebrew/MacPorts).
 
-> **Where files live.** YADR writes where the programs it configures read:
-> Neovim and `mise` follow `XDG_*`, the zsh rc follows `$ZDOTDIR`, and
-> `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin` stay in `HOME`. Per-file
-> table: `docs/cli-contract.md`, `docs/adr-005-path-policy.md`.
-
-## Support matrix
-
-Tiers say how a platform is verified, not just that it is "supported":
-
-| Tier | Meaning | Platforms |
-|---|---|---|
-| 1 | CI on every push: unit suites, a real install in an isolated `$HOME`, and `doctor` | macOS arm64; Debian/Ubuntu (server, no GUI) |
-| 2 | Dedicated CI lane that does the same install inside the distro | Arch Linux (`archlinux:latest` container) |
-| 3 | Covered by tests and, where noted, by hand on real hardware; no dedicated CI lane yet | WSL2 (real Windows 11 guest with WSL 2, `docs/e2e-report.md` §1); Fedora/RHEL (`dnf` branch tested); macOS Intel (MacPorts path) |
-| 4 | Documented limits, deliberately not worked around | WSL 1 (Node ≥ 23 cannot exec, microsoft/WSL#8151) |
-
-Windows native is not supported — WSL is the Windows story, and `yadr` never
-tries to serve both. The `dnf`/`pacman`/`apt` branches are exercised by the
-package-manager tests in `tests/shell.bats`, which fake the whole world so no
-real manager is reachable while they run. What each CI job proves is listed in
-`docs/releases.md`; the historical evidence is in `docs/e2e-report.md`.
-
-## Scope
-
-YADR 2027 is a **personal** Zsh + Tmux + Neovim environment — installable by third
-parties on macOS (Intel included), Linux (Debian/Ubuntu), WSL and headless SSH. Its
-lifecycle is `install` → use → `update` → `uninstall` / `backup` / `doctor`.
-
-It is deliberately **not**: a general dotfile framework, a secrets manager, a package
-or runtime manager (those belong to your package manager and to `mise`, which stays
-optional), a Windows-native setup (WSL only), or a way to move state between machines.
-A subsystem is kept only if it prevents a real problem or a test fails without it —
-see [ADR-006](docs/adr-006-scope.md) for the full scope and non-goals.
+> **Where files live (moved `XDG` directories).** YADR writes where the programs
+> it configures read: Neovim and `mise` follow the `XDG_*` variables (Neovim via
+> exactly `stdpath()`), the zsh rc follows `$ZDOTDIR`, and the completions follow
+> each shell's own directory; `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin`
+> stay HOME-based. With the variables unset nothing moves. Full policy and the
+> per-file table: `docs/cli-contract.md`, `docs/adr-005-path-policy.md`.
 
 ## Classic YADR → 2027
-
-YADR 2027 keeps the classic experience contract — Zsh + Vim everywhere +
-mnemonic aliases + tmux + fluid Git + Damoekri prompt — and replaces the aged
-implementation (RVM + Rake + Vundle + fasd + ag + hub) with a modern stack and no
-mandatory Ruby. Capabilities and muscle memory are preserved, not plugin lists.
 
 | Classic | 2027 | Note |
 |---|---|---|

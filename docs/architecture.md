@@ -43,9 +43,7 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 - Per-project versions (`tests/fixtures/typescript-project/mise.toml`), no imposed globals.
 - User-global extras go in `~/.config/mise/conf.d/*.toml`: mise merges them
   over the managed base (`runtime/mise.toml`), so the tracked file stays clean
-  and `yadr update` keeps fast-forwarding. Do not edit the managed
-  `runtime/mise.toml` (symlinked as `~/.config/mise/config.toml`): editing it
-  dirties the checkout and can make `yadr update` refuse to fast-forward.
+  and `yadr update` keeps fast-forwarding.
 - The prompt follows the same rule: `yadr_runtime_context` shows a runtime only
   when its active version comes from a project config (mise source not under
   `~/.config/mise`), not the global one.
