@@ -4,6 +4,24 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.6.2] — 2026-10-19 — honest doctor total, leaner Linux packages
+
+### Fixed
+
+- **`yadr doctor` under-reported rogue/foreign symlinks.** The notices were
+  printed with `warn`, so the summary said `0 warnings` right next to them.
+  `detect_rogue_checkouts` now feeds one aggregate warning to the doctor total
+  (`0 errors, 1 warning` when a managed link points outside `YADR_HOME`); the
+  per-link lines stay as detail. `yadr install` is unaffected.
+
+### Changed
+
+- **`platform/linux.sh` no longer installs `neovim` via apt/dnf.** Both usually
+  ship <0.11, so `ensure_nvim` replaced them with the pinned upstream tarball
+  right after apt had pulled an unused copy (~30 MB with `neovim-runtime` on
+  Ubuntu 22.04). The upstream tarball is now the single source of the ≥0.11
+  floor. `pacman` keeps the distro package (Arch is rolling and ships ≥0.11).
+
 ## [0.6.1] — 2026-10-19 — documentation consolidation
 
 The install guide and the reference now live in one file, and `docs/` passed a

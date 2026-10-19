@@ -70,6 +70,9 @@ and moves one README note; it touches none of them either:
 is empty (checked before tagging). `v0.6.1` consolidates the docs and removes
 `INSTALL-YADR.md`; it touches none of them either:
 `git diff v0.6.0..v0.6.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.6.2` fixes the doctor warning total and
+drops `neovim` from the apt/dnf package sets; it touches none of them either:
+`git diff v0.6.1..v0.6.2 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

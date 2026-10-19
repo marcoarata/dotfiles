@@ -23,6 +23,20 @@ stay HOME-based; with the variables unset everything falls back to
 `~/.config`, `~/.local/share` and `~/.local/state`. Policy:
 `docs/adr-005-path-policy.md`.
 
+## `yadr doctor`: `foreign symlink` / `rogue checkout`
+
+A managed link (or a second clone) points outside `YADR_HOME` — usually a config
+left by an earlier `bootstrap.sh --local` run from another checkout. The doctor
+keeps those links and reports them (one warning). Re-point them:
+
+```sh
+yadr install core --yes   # backs up, then links everything to YADR_HOME
+yadr diff                 # must read: 0 with changes
+```
+
+Keep a single sanctioned checkout: edit in your dev clone, commit, push, and run
+`yadr update` on the install.
+
 ## Slow shell (<500ms slow VM / <300ms workstation; see `yadr benchmark shell`)
 
 1. `yadr benchmark shell` (isolated HOME, does not touch your `~`).
