@@ -54,17 +54,19 @@ _yadr_runtime_segment() {
 setopt PROMPT_SUBST
 
 # PROMPT is static (`dir »`); git moved to RPROMPT like classic damoekri.
-# RPROMPT: `✔ main` + runtime (red by default, YADR_RUNTIME_COLOR
-# overridable). Global runtime outside projects, project-scoped inside.
+# RPROMPT: `✔ main` + runtime (red by default, YADR_RUNTIME_COLOR overridable).
+# Both segments render in bold, matching the syntax-highlighting error red
+# (fg=red,bold). Global runtime outside projects, project-scoped inside.
 # Empty only when neither git nor runtime exists.
 _yadr_damoekri_precmd() {
   local g r
   g="$(yadr_git_info 2>/dev/null)"
   r="$(_yadr_runtime_segment 2>/dev/null)"
   PROMPT="%F{cyan}%~%f %F{green}»%f "
-  RPROMPT="$g"
+  RPROMPT=""
+  [[ -n "$g" ]] && RPROMPT+="%B$g%b"
   [[ -n "$g" && -n "$r" ]] && RPROMPT+=" "
-  [[ -n "$r" ]] && RPROMPT+="%F{${YADR_RUNTIME_COLOR:-red}}$r%f"
+  [[ -n "$r" ]] && RPROMPT+="%B%F{${YADR_RUNTIME_COLOR:-red}}$r%f%b"
 }
 autoload -Uz add-zsh-hook 2>/dev/null || true
 add-zsh-hook precmd _yadr_damoekri_precmd 2>/dev/null || true
