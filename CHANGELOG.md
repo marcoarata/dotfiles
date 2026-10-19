@@ -4,6 +4,36 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.6.3] — 2026-10-19 — install plans first, update reports both phases
+
+### Added
+
+- **`yadr install --dry-run` (and `yadr plan`).** Prints the diff, the platform
+  step, the runtimes and the link count, then stops; nothing is written. It is
+  the same plan the real install shows before asking.
+
+### Fixed
+
+- **`install` no longer writes before the confirmation.** The platform script,
+  the profile payload, `handle_legacy_yadr`, the previous-shell record and the
+  share snapshots ran before the diff and the prompt, so answering "no" still
+  installed packages and then printed "nothing modified". All of them now run
+  after the confirmation; cancelling leaves the machine untouched.
+- **`ensure_nvim` no longer deletes an `nvim-upstream` directory it does not
+  own.** Without the `provides-nvim-upstream` marker, an existing
+  `~/.local/nvim-upstream` is moved to the state backups and the install
+  continues; it is replaced outright only when YADR created it.
+- **`yadr update` reports its two phases separately.** A failed pull now skips
+  the runtime upgrade (the checkout did not move) and returns non-zero; a failed
+  `mise upgrade` also returns non-zero. It no longer advances the runtimes while
+  the config stays behind.
+
+### Changed
+
+- **Behavior fix:** `lazygit`, `tools` and `macos-extras` now exit non-zero when
+  their script fails (they used to warn and exit 0). Check the status if you
+  call them from automation.
+
 ## [0.6.2] — 2026-10-19 — honest doctor total, leaner Linux packages
 
 ### Fixed

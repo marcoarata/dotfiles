@@ -73,6 +73,9 @@ is empty (checked before tagging). `v0.6.1` consolidates the docs and removes
 is empty (checked before tagging). `v0.6.2` fixes the doctor warning total and
 drops `neovim` from the apt/dnf package sets; it touches none of them either:
 `git diff v0.6.1..v0.6.2 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.6.3` changes the install/update flows, the
+platform ownership check and the CLI/completions; it touches none of them either:
+`git diff v0.6.2..v0.6.3 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |
