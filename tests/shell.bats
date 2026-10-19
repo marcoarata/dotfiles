@@ -657,6 +657,51 @@ macos_funcs() {
   rm -rf "$home" "$fake" "$repo"
 }
 
+@test "install --dry-run prints the plan and writes nothing" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/install-plan-repo-$$"
+  local plat="$BATS_TMPDIR/install-plan-plat-$$.sh" marker="$BATS_TMPDIR/install-plan-ran-$$"
+  rm -rf "$repo" "$plat" "$marker"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  printf '#!/usr/bin/env bash\ntouch "%s"\n' "$marker" > "$plat"
+  chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/zsh
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install --dry-run core"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run: nothing modified"* ]]
+  [ ! -e "$marker" ]                              # platform never ran
+  [ ! -e "$home/.zshrc" ]                         # no link
+  [ ! -e "$home/.local/state/yadr/prev-shell" ]   # no state written
+  [ ! -e "$home/.local/state/yadr/preexisting-share-nvim" ]
+  rm -rf "$repo" "$plat" "$marker"
+}
+
+@test "cancelling the install leaves the system untouched" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/install-cancel-repo-$$"
+  local plat="$BATS_TMPDIR/install-cancel-plat-$$.sh" marker="$BATS_TMPDIR/install-cancel-ran-$$"
+  rm -rf "$repo" "$plat" "$marker"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  printf '#!/usr/bin/env bash\ntouch "%s"\n' "$marker" > "$plat"
+  chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' SHELL=/bin/zsh
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core <<< n"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"install cancelled; nothing modified"* ]]
+  [ ! -e "$marker" ]                              # platform never ran
+  [ ! -e "$home/.zshrc" ]                         # no link
+  [ ! -e "$home/.local/state/yadr/prev-shell" ]   # no state written
+  rm -rf "$repo" "$plat" "$marker"
+}
+
 @test "typescript payload runs Lazy! restore once, not twice" {
   # ensure_nvim_plugins already syncs the lockfile; ensure_lsp_servers used to
   # launch nvim a second time for the same restore (harmless, pure waste).
