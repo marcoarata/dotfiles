@@ -102,6 +102,14 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.4.1` | tag | 0.4.1 | 3 completions under the moved XDG dirs | 0 errors / 6 warnings | confirms the tag; no shipped code changed |
 | `v0.5.0` | `0947ec8` | 0.5.0 | 10 links, 0 pending; 3 completions | 0 errors (6→4 warnings after `nvim`) | `export`/`apply`/`pack` removed |
 | `v0.6.0` | `d2f7317` | 0.6.0 | 10 links, 0 pending | 0 errors (6→4 warnings) | `yadr --version`, bold RPROMPT |
+| `v0.6.1` | `a880ba0` | 0.6.1 | 10 links, 0 pending | 0 errors (6→4 warnings) | docs-only: README is the single entry, `INSTALL-YADR.md` and ADR-001..004 removed; every link resolves |
+
+`v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
+detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
+`0.6.1`, `install core` is idempotent (10 links, 0 pending), `doctor` reports
+0 errors with the same 6→4 warning set, and a link check over the cloned
+README/docs resolves every file and anchor. `INSTALL-YADR.md` and the four
+folded ADRs are absent from the tag.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while

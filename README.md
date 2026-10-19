@@ -90,7 +90,7 @@ yadr doctor
 **1. Base**
 
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update
 ```
 
 **2. Minimal dependencies**
