@@ -64,6 +64,9 @@ is empty (checked before tagging), and `v0.4.1` changes no shipped code
 is empty (checked before tagging). `v0.5.0` removes commands and deduplicates
 docs; it touches none of them either:
 `git diff v0.4.1..v0.5.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.6.0` adds a CLI option, bolds the prompt
+and moves one README note; it touches none of them either:
+`git diff v0.5.0..v0.6.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |

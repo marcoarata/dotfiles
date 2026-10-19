@@ -4,6 +4,26 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.6.0] — 2026-10-19 — prompt bold, `yadr --version`
+
+### Added
+
+- **`yadr --version`.** Prints the version and exits 0, like `yadr version`.
+  Before, `--version` fell through to `unknown command`. It is listed in the
+  options line of `yadr --help`, off the indented command list, so the
+  usage↔completions drift guard is unaffected.
+
+### Changed
+
+- **The Damoekri `RPROMPT` renders its git and runtime segments in bold.** The
+  red of a mistyped command in zsh-syntax-highlighting is `fg=red,bold` (the
+  plugin default); the prompt used the same `red` without the weight, which read
+  as a different color. Both segments now match. No color changed, and
+  `YADR_RUNTIME_COLOR` still overrides the runtime color.
+- **The README states the Nerd Font requirement under the installation steps**
+  instead of the overview, and moves the **Scope** section below the command
+  list.
+
 ## [0.5.0] — 2026-10-19 — declared scope, one vocabulary
 
 Two commands leave the core because they failed the scope rule ADR-006 now
