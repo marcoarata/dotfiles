@@ -103,6 +103,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.5.0` | `0947ec8` | 0.5.0 | 10 links, 0 pending; 3 completions | 0 errors (6→4 warnings after `nvim`) | `export`/`apply`/`pack` removed |
 | `v0.6.0` | `d2f7317` | 0.6.0 | 10 links, 0 pending | 0 errors (6→4 warnings) | `yadr --version`, bold RPROMPT |
 | `v0.6.1` | `a880ba0` | 0.6.1 | 10 links, 0 pending | 0 errors (6→4 warnings) | docs-only: README is the single entry, `INSTALL-YADR.md` and ADR-001..004 removed; every link resolves |
+| `v0.6.2` | `d5b1947` | 0.6.2 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | doctor counts rogue/foreign notices; apt/dnf drop `neovim` |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -114,6 +115,20 @@ folded ADRs are absent from the tag.
 > **Update (2026-10-19):** the runs were reviewed afterwards — `ci` is green on
 > the release commit (`a880ba0`, run 39316124354) and on the post-tag commit
 > (`1c80a13`, run 39318747340). `a880ba0` is the commit the `v0.6.1` tag names.
+
+`v0.6.2` was verified the same way on 2026-10-19: the clone is detached at
+`d5b1947`, `VERSION` and both `yadr version`/`--version` print `0.6.2`, `install
+core` is idempotent (10 links, 0 pending), and `doctor` reports 0 errors with 3
+warnings. Re-pointing one managed link outside the clone (`aliases.zsh` →
+`/tmp/not-yadr`) adds exactly one warning (3 → 4) and the aggregate `rogue
+checkout/symlinks` line, proving the doctor counts the notices it prints. The
+cloned `platform/linux.sh` has `neovim` out of `APT_PKGS`/`DNF_PKGS` and keeps it
+in `PAC_PKGS`.
+
+> **Update (2026-10-19):** `ci` is green on the release commit (`d5b1947`, run
+> 39326365131, 8/8 jobs: `lint`, `test`/`install` on Ubuntu and macOS,
+> `arch-container`, `fault-injection`, `coverage`). Tags do not trigger CI, so
+> that run is the one the `v0.6.2` tag names.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
