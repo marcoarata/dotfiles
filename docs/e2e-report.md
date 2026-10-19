@@ -328,3 +328,8 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
   the release commit could not be read when this was written (the unauthenticated
   GitHub API was rate-limited and the runner queue was backed up); the run on
   `main` must be reviewed before the tag is called CI-verified.
+
+> **Update (2026-10-19):** the run was reviewed afterwards — all eight jobs are
+> green on the release commit (`d2f7317`, run 39282424757) and on the post-tag
+> commit (`0790901`, run 39283334520). `d2f7317` is the commit the `v0.6.0` tag
+> names.
