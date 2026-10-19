@@ -155,7 +155,8 @@ were verified.
 > `fault.bats`, which that lane does not run, so the new code did not count and
 > the job sat on the 50% floor (50.2% locally, below it on the runner). Moving
 > them to `shell.bats` raised coverage to 52.2%. Tags do not trigger CI, so the
-> tagged-commit run is the one the `v0.6.3` tag names.
+> tagged-commit run is the one the `v0.6.3` tag names. The post-tag commit
+> (`e495578`) is also green (run 39335813649, 8/8).
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
