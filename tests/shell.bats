@@ -437,6 +437,96 @@ EOF
   [[ "$output" == *"git identity configured"* ]]
 }
 
+@test "installed-ref: record_installed_ref writes the checkout identity atomically" {
+  local repo="$BATS_TMPDIR/ref-repo-$$"
+  rm -rf "$repo"; mkdir -p "$repo"
+  printf '0.7.0\n' > "$repo/VERSION"
+  git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@e -c user.name=t add VERSION
+  git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
+  git -C "$repo" tag v0.7.0
+  run bash -c "
+    export HOME='$TEST_HOME'
+    unset XDG_STATE_HOME
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    record_installed_ref
+    cat \"\$(installed_ref_path)\""
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"sha=$(git -C "$repo" rev-parse HEAD)"* ]]
+  [[ "$output" == *"ref=v0.7.0"* ]]
+  [[ "$output" == *"tag=v0.7.0"* ]]
+  [[ "$output" == *"version=0.7.0"* ]]
+  [[ "$output" == *"recorded="* ]]
+  [ -z "$(find "$TEST_HOME/.local/state/yadr" -maxdepth 1 -name '.installed-ref.*' 2>/dev/null)" ]
+  rm -rf "$repo"
+}
+
+@test "doctor shows the recorded commit, warns on divergence, informs when absent" {
+  local repo="$BATS_TMPDIR/ref-doctor-$$" short
+  rm -rf "$repo"; mkdir -p "$repo"
+  printf '0.7.0\n' > "$repo/VERSION"
+  git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@e -c user.name=t add VERSION
+  git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
+  git -C "$repo" tag v0.7.0
+  short="$(git -C "$repo" rev-parse --short=12 HEAD)"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin'
+    unset XDG_STATE_HOME
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    record_installed_ref
+    do_doctor 2>&1 || true"
+  [[ "$output" == *"commit ${short} (v0.7.0, 0.7.0)"* ]]
+  # A recorded revision that is not the live HEAD is the warning case.
+  printf 'sha=0000000000000000000000000000000000000000\nref=main\nversion=0.7.0\n' \
+    > "$TEST_HOME/.local/state/yadr/installed-ref"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin'
+    unset XDG_STATE_HOME
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_doctor 2>&1 || true"
+  [[ "$output" == *"differs from checkout ${short}"* ]]
+  [[ "$output" == *"run 'yadr update'"* ]]
+  # Missing file is informational, not a warning (old installs).
+  rm -f "$TEST_HOME/.local/state/yadr/installed-ref"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin'
+    unset XDG_STATE_HOME
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_doctor 2>&1 || true"
+  [[ "$output" == *"installed commit not recorded"* ]]
+  [[ "$output" != *"differs from checkout"* ]]
+  rm -rf "$repo"
+}
+
+@test "installed-ref: a failed update still records the revision it left behind" {
+  local repo="$BATS_TMPDIR/ref-update-$$"
+  rm -rf "$repo"; mkdir -p "$repo"
+  printf '0.7.0\n' > "$repo/VERSION"
+  git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@e -c user.name=t add VERSION
+  git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
+  git -C "$repo" remote add origin "$BATS_TMPDIR/no-such-remote-$$"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    unset XDG_STATE_HOME
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"pull failed"* ]]
+  local f="$TEST_HOME/.local/state/yadr/installed-ref" branch
+  branch="$(git -C "$repo" rev-parse --abbrev-ref HEAD)"
+  [ -f "$f" ]
+  grep -qx "sha=$(git -C "$repo" rev-parse HEAD)" "$f"
+  grep -qx "ref=${branch}" "$f"
+  rm -rf "$repo"
+}
+
 @test "doctor counts rogue/foreign symlinks as one warning (detail stays uncounted)" {
   local h="$BATS_TMPDIR/rogue-$$"
   rm -rf "$h"; mkdir -p "$h/.config"

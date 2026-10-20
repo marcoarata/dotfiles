@@ -467,6 +467,51 @@ do_install() {
   return "$payload_rc"
 }
 
+installed_ref_path() { # where the last bootstrap/update recorded the checkout
+  printf '%s/installed-ref' "${STATE_DIR:-$(yadr_state_dir)}"
+}
+
+record_installed_ref() {
+  # R5: one file, key=value, written atomically. It answers "what did the last
+  # bootstrap/update install?" even when the pull failed or the checkout was
+  # moved; doctor compares it with the live HEAD. Never fatal: a read-only
+  # HOME must not turn a successful install into a failure.
+  #
+  # Keep the format in sync with bootstrap.sh (it cannot source this file: a
+  # --ref checkout may predate it). Tests assert both writers agree.
+  local sha="" branch="" tag="" origin="" version="" ref="" dir tmp
+  if [[ -d "${YADR_HOME}/.git" ]]; then
+    sha="$(git -C "$YADR_HOME" rev-parse HEAD 2>/dev/null || true)"
+    branch="$(git -C "$YADR_HOME" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    tag="$(git -C "$YADR_HOME" describe --tags --exact-match HEAD 2>/dev/null | head -n1 || true)"
+    origin="$(git -C "$YADR_HOME" remote get-url origin 2>/dev/null || true)"
+    # Never persist credentials embedded in an https remote.
+    origin="$(printf '%s' "$origin" | sed -E 's#(https?://)[^/@]+@#\1#')"
+  fi
+  version="$(tr -d ' \t\n' < "${YADR_HOME}/VERSION" 2>/dev/null || true)"
+  version="${version:-unknown}"
+  if [[ -n "$tag" ]]; then ref="$tag"
+  elif [[ -n "$branch" && "$branch" != "HEAD" ]]; then ref="$branch"
+  elif [[ -n "$sha" ]]; then ref="detached"
+  else ref="local"
+  fi
+  dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  mkdir -p "$dir" 2>/dev/null || { warn "cannot create ${dir}; installed ref not recorded."; return 1; }
+  tmp="${dir}/.installed-ref.$$"
+  {
+    printf 'sha=%s\n' "$sha"
+    printf 'ref=%s\n' "$ref"
+    printf 'branch=%s\n' "$branch"
+    printf 'tag=%s\n' "$tag"
+    printf 'version=%s\n' "$version"
+    printf 'origin=%s\n' "$origin"
+    printf 'recorded=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$tmp" 2>/dev/null || { warn "cannot write ${tmp}; installed ref not recorded."; rm -f "$tmp"; return 1; }
+  chmod 600 "$tmp" 2>/dev/null || true
+  mv -f "$tmp" "${dir}/installed-ref" 2>/dev/null || { warn "cannot replace ${dir}/installed-ref."; rm -f "$tmp"; return 1; }
+  return 0
+}
+
 dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty when clean/no-git
   [[ -d "${YADR_HOME}/.git" ]] || return 0
   # `|| true`: an unreadable/corrupt index must not abort update via set -e;
@@ -503,6 +548,10 @@ do_update() {
   else
     warn "no .git in ${YADR_HOME}; nothing to update (local checkout)."
   fi
+  # Record even when the pull failed: the file says which revision the machine
+  # is actually on, so doctor can explain a dirty/offline checkout instead of
+  # claiming "not recorded". A cancelled update returns above and writes nothing.
+  record_installed_ref || true
   # Two phases, reported separately: the config and the runtimes do not move
   # atomically, so a failed pull must not silently advance the runtimes while
   # the checkout stays behind.

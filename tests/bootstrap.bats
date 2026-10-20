@@ -98,6 +98,45 @@ EOF
   rm -rf "$checkout"
 }
 
+@test "bootstrap records the installed ref before handing off" {
+  local checkout="$BATS_TMPDIR/bs-ref-$$"
+  make_fixture_repo "$checkout" 1.2.3 >/dev/null
+  run env HOME="$TEST_HOME" PATH="/usr/bin:/bin" YADR_HOME="$checkout" \
+    bash "$YADR_ROOT/bootstrap.sh" --local --ref v1.2.3
+  [ "$status" -eq 0 ]
+  local f="$TEST_HOME/.local/state/yadr/installed-ref"
+  [ -f "$f" ]
+  grep -qx "sha=$(git -C "$checkout" rev-parse HEAD)" "$f"
+  grep -qx "tag=v1.2.3" "$f"
+  grep -qx "ref=v1.2.3" "$f"
+  grep -qx "version=1.2.3" "$f"
+  grep -q '^recorded=[0-9][0-9][0-9][0-9]-' "$f"
+  # The handoff still happens after the record is written.
+  [[ "$output" == *"stub: install"* ]]
+  rm -rf "$checkout"
+}
+
+@test "bootstrap records the moved XDG state path and local (no git) checkouts" {
+  local checkout="$BATS_TMPDIR/bs-ref-xdg-$$" plain="$BATS_TMPDIR/bs-ref-plain-$$"
+  make_fixture_repo "$checkout" 1.2.3 >/dev/null
+  run env HOME="$TEST_HOME" XDG_STATE_HOME="$TEST_HOME/state" PATH="/usr/bin:/bin" \
+    YADR_HOME="$checkout" bash "$YADR_ROOT/bootstrap.sh" --local --ref v1.2.3
+  [ "$status" -eq 0 ]
+  [ -f "$TEST_HOME/state/yadr/installed-ref" ]
+  grep -qx "ref=v1.2.3" "$TEST_HOME/state/yadr/installed-ref"
+  # A hand-copied checkout without .git is still identified as local.
+  rm -rf "$plain"; mkdir -p "$plain"
+  cp -R "$checkout/bin" "$checkout/VERSION" "$plain/"
+  run env HOME="$TEST_HOME" PATH="/usr/bin:/bin" YADR_HOME="$plain" \
+    bash "$YADR_ROOT/bootstrap.sh" --local
+  [ "$status" -eq 0 ]
+  local f="$TEST_HOME/.local/state/yadr/installed-ref"
+  grep -qx "sha=" "$f"
+  grep -qx "ref=local" "$f"
+  grep -qx "version=1.2.3" "$f"
+  rm -rf "$checkout" "$plain"
+}
+
 @test "bootstrap --ref refuses a mislabelled tag without installing" {
   local checkout="$BATS_TMPDIR/bs-mismatch-$$"
   make_fixture_repo "$checkout" 1.2.3 >/dev/null

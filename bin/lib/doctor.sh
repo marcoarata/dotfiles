@@ -42,6 +42,34 @@ do_doctor() {
   if [[ -n "$_dirty" ]]; then
     dc_warn "live checkout has local modifications" "stash/commit/discard in ${YADR_HOME} (usually git/gitconfig from a 'git config --global' -- keep your identity in ~/.gitconfig.user instead; also nvim/lazy-lock.json from Lazy sync, or runtime/mise.toml from 'mise use -g'; put your own global tools in $(mise_config_dir)/conf.d/); updates may refuse to fast-forward"
   fi
+  # R5: what the last bootstrap/update installed, compared with the live HEAD.
+  # Missing is informational (old installs); a real divergence is a warning.
+  local _rfile _rsha="" _rref="" _rtag="" _rver="" _rline _rk _rv _rhead=""
+  _rfile="$(installed_ref_path)"
+  if [[ -f "$_rfile" ]]; then
+    while IFS='=' read -r _rk _rv; do
+      case "$_rk" in
+        sha) _rsha="$_rv" ;;
+        ref) _rref="$_rv" ;;
+        tag) _rtag="$_rv" ;;
+        version) _rver="$_rv" ;;
+      esac
+    done < "$_rfile"
+  fi
+  if [[ -d "${YADR_HOME}/.git" ]]; then
+    _rhead="$(git -C "${YADR_HOME}" rev-parse HEAD 2>/dev/null || true)"
+  fi
+  if [[ ! -f "$_rfile" ]]; then
+    info "installed commit not recorded (run 'yadr update')"
+  elif [[ -z "$_rsha" ]]; then
+    info "installed commit unknown (local checkout, version ${_rver:-unknown})"
+  elif [[ -z "$_rhead" ]]; then
+    info "installed commit ${_rsha:0:12} (${_rtag:-${_rref:-?}}, ${_rver:-?}); checkout has no .git"
+  elif [[ "$_rhead" != "$_rsha" ]]; then
+    dc_warn "installed commit ${_rsha:0:12} (${_rtag:-${_rref:-?}}, ${_rver:-?}) differs from checkout ${_rhead:0:12}" "run 'yadr update', or inspect local commits in ${YADR_HOME}"
+  else
+    dc_ok "commit ${_rsha:0:12} (${_rtag:-${_rref:-?}}, ${_rver:-?})"
+  fi
   dc_cmd "zsh" zsh "sudo apt install zsh / brew install zsh; chsh -s \$(command -v zsh)"
   dc_cmd "git" git "sudo apt install git / brew install git"
   if have git; then

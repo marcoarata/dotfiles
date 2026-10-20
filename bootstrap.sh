@@ -55,6 +55,44 @@ verify_pinned_version() {
   log "pinned ref ${YADR_REF} verified (VERSION ${got})."
 }
 
+record_installed_ref() {
+  # R5: record what this bootstrap installed before handing off to the CLI.
+  # The CLI's lib/install.sh has the same writer (bootstrap cannot source it:
+  # an older --ref checkout may not ship it). Format and keys must stay in sync;
+  # tests assert both. Best-effort: a read-only HOME must not abort the install.
+  local sha="" branch="" tag="" origin="" version="" ref="" dir tmp
+  if [[ -d "${YADR_HOME}/.git" ]]; then
+    sha="$(git -C "$YADR_HOME" rev-parse HEAD 2>/dev/null || true)"
+    branch="$(git -C "$YADR_HOME" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    tag="$(git -C "$YADR_HOME" describe --tags --exact-match HEAD 2>/dev/null | head -n1 || true)"
+    origin="$(git -C "$YADR_HOME" remote get-url origin 2>/dev/null || true)"
+    # Never persist credentials embedded in an https remote.
+    origin="$(printf '%s' "$origin" | sed -E 's#(https?://)[^/@]+@#\1#')"
+  fi
+  version="$(tr -d ' \t\n' < "${YADR_HOME}/VERSION" 2>/dev/null || true)"
+  version="${version:-unknown}"
+  if [[ -n "$tag" ]]; then ref="$tag"
+  elif [[ -n "$branch" && "$branch" != "HEAD" ]]; then ref="$branch"
+  elif [[ -n "$sha" ]]; then ref="detached"
+  else ref="local"
+  fi
+  dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  mkdir -p "$dir" 2>/dev/null || { warn "cannot create ${dir}; installed ref not recorded."; return 1; }
+  tmp="${dir}/.installed-ref.$$"
+  {
+    printf 'sha=%s\n' "$sha"
+    printf 'ref=%s\n' "$ref"
+    printf 'branch=%s\n' "$branch"
+    printf 'tag=%s\n' "$tag"
+    printf 'version=%s\n' "$version"
+    printf 'origin=%s\n' "$origin"
+    printf 'recorded=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$tmp" 2>/dev/null || { warn "cannot write ${tmp}; installed ref not recorded."; rm -f "$tmp"; return 1; }
+  chmod 600 "$tmp" 2>/dev/null || true
+  mv -f "$tmp" "${dir}/installed-ref" 2>/dev/null || { warn "cannot replace ${dir}/installed-ref."; rm -f "$tmp"; return 1; }
+  return 0
+}
+
 detect_os() {
   case "$(uname -s)" in
     Darwin) echo "macos" ;;
@@ -168,6 +206,7 @@ main() {
     log "--local mode: no clone or pull; using ${YADR_HOME} as-is."
     [[ -f "${YADR_HOME}/bin/yadr" ]] || die "bin/yadr missing in ${YADR_HOME}."
     verify_pinned_version
+    record_installed_ref || true
     log "running: bin/yadr install"
     exec "${YADR_HOME}/bin/yadr" install "$@"
   fi
@@ -184,6 +223,7 @@ main() {
   fi
   [[ -f "${YADR_HOME}/bin/yadr" ]] || die "bin/yadr missing in ${YADR_HOME}."
   verify_pinned_version
+  record_installed_ref || true
   log "running: bin/yadr install"
   exec "${YADR_HOME}/bin/yadr" install "$@"
 }
