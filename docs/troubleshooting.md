@@ -37,6 +37,22 @@ yadr diff                 # must read: 0 with changes
 Keep a single sanctioned checkout: edit in your dev clone, commit, push, and run
 `yadr update` on the install.
 
+## `yadr doctor`: installed commit not recorded / differs
+
+`bootstrap.sh` and `yadr update` write
+`${XDG_STATE_HOME:-$HOME/.local/state}/yadr/installed-ref` (one `key=value`
+per line). `yadr doctor` prints that revision. A missing file is informational:
+run `yadr update` once. A warning that the recorded commit differs from the
+live `HEAD` means the checkout moved after the last install/update:
+
+```sh
+cat "${XDG_STATE_HOME:-$HOME/.local/state}/yadr/installed-ref"
+git -C "$YADR_HOME" log --oneline "$(sed -n 's/^sha=//p' "${XDG_STATE_HOME:-$HOME/.local/state}/yadr/installed-ref")"..HEAD
+```
+
+Review those local commits (or discard them), then run `yadr update` again.
+The file is local state, not a signature; see `docs/supply-chain.md`.
+
 ## `yadr install`: plan, cancel, and what it touches
 
 `install` is read-only until you approve the plan: it prints the diff, the
@@ -61,7 +77,7 @@ purpose (the checkout did not move); fix the checkout and rerun.
 
 ## mise not activating / broken shims
 
-- `command -v mise || echo missing` → `yadr install node` (installs mise via `platform/`).
+- `command -v mise || echo missing` → `yadr install core` (runs `platform/` and installs the pinned mise).
 - `mise doctor`, `mise ls`; if the pinned version is missing: `yadr runtime use node`.
 - Headless SSH: `bin/yadr` and `shell/zshrc` prepend `~/.local/bin` and the mise shims.
 - Do not mix version managers: use only `yadr runtime`.
@@ -91,7 +107,11 @@ purpose (the checkout did not move); fix the checkout and rerun.
   marker; removed by `yadr uninstall --purge`). System Vim is never touched.
 - `:checkhealth` (lsp) and `:=vim.lsp.get_clients()`; `yadr doctor` checks
   `node`, `rg`, `fd`. Install servers via `:Mason` or `yadr install typescript`.
-- Floor: Neovim ≥0.11 (`platform/linux.sh` installs upstream if apt ships 0.9.x).
+- Floor: Neovim ≥0.11. YADR installs the pinned upstream tarball (`v0.12.6`)
+  when apt/dnf ships an older build; `platform/linux.sh` verifies its SHA-256
+  before extraction. A checksum mismatch is a hard failure, not a reason to
+  bypass the pin: re-download from the official release and update the pin in
+  a reviewed commit (`docs/supply-chain.md`).
 - A project without `tsconfig.json`/`package.json` starts no server. Normal.
 - Headless/SSH: `nvim --headless "+checkhealth" +q` must show no errors.
 

@@ -21,13 +21,18 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `bats tests/shell.bats -f "path policy"` and one real install with the
    `XDG_*` variables moved, which is what `docs/e2e-report.md` §6 records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
+   Tags in v0.7.0 are annotated but **not signed** (no project key exists).
+   Once a signing key is configured, verify with `git tag -v vX.Y.Z`; until
+   then compare `git rev-parse vX.Y.Z^{}` with the commit that passed CI.
 5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
    pin-sensitive users install the tag instead:
    `bootstrap.sh --ref vX.Y.Z` (checks out the tag detached and refuses to
    continue when the tag and its `VERSION` file disagree), then verify both
-   sides: `yadr version` prints `X.Y.Z` and `yadr doctor` reports 0 errors
-   (on a fresh `HOME` that is what it can be -- see the note above; and see
-   `docs/e2e-report.md` §6 for the v0.3.0 run itself).
+   sides: `yadr version` prints `X.Y.Z`, `yadr doctor` reports 0 errors and
+   shows the recorded commit/tag, and
+   `${XDG_STATE_HOME:-$HOME/.local/state}/yadr/installed-ref` contains that
+   revision (on a fresh `HOME` 0 errors is what it can be -- see the note
+   above; and see `docs/e2e-report.md` §6 for the v0.3.0 run itself).
 
 ## What CI enforces on every push
 
@@ -76,14 +81,25 @@ drops `neovim` from the apt/dnf package sets; it touches none of them either:
 is empty (checked before tagging). `v0.6.3` changes the install/update flows, the
 platform ownership check and the CLI/completions; it touches none of them either:
 `git diff v0.6.2..v0.6.3 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
-is empty (checked before tagging).
+is empty (checked before tagging). `v0.7.0` adds traceability and pinned
+direct downloads; it changes none of the three tracked pin files either:
+`git diff v0.6.3..v0.7.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). Its new download pins were re-verified on
+2026-10-19: the mise installer, the zoxide/Neovim/lazygit assets and the zsh
+tag/commit pairs match `docs/supply-chain.md`.
 
 | Artifact | Pin | Verified by |
 |---|---|---|
 | `runtime/mise.toml` | `node = "24"`, `python = "3.14"` (pnpm `latest` by policy) | `yadr runtime list`, E2E matrix |
 | `nvim/lazy-lock.json` | exact commits per plugin | `Lazy! restore` is a no-op on clean checkout; `doctor` lock check |
 | `terminal/fonts/manifest.env` | URL + `YADR_FONT_SHA256` | `platform/*` verify SHA before unzip |
-| `mise` backend itself | unpinned installer (`https://mise.run`) | `mise --version` in `runtime doctor`; pin on demand via `runtime/mise.toml` |
+| mise installer | `2026.10.15` + SHA-256 | `install_mise` verifies before `sh`; runs with `MISE_VERSION` |
+| zoxide Linux tarballs | `0.10.0` + SHA-256 per arch | `install_zoxide` verifies before extraction |
+| Neovim Linux tarballs | `v0.12.6` + SHA-256 per arch | `ensure_nvim` verifies before extraction |
+| lazygit tarball fallback | `0.66.2` + SHA-256 for linux/darwin x86_64/arm64 | `install_tarball` verifies before extraction; package-manager builds stay rolling |
+| zsh plugin XDG fallback | syntax `0.8.0` → `db085e46…`; autosuggestions `v0.7.1` → `e52ee8ca…` | `clone_xdg_plugin` compares `HEAD` with the pinned commit |
 
-Anything downloaded without a pin or checksum is a release blocker:
-list it here or pin it before tagging.
+Package managers (apt/dnf/pacman/Homebrew/MacPorts) and Homebrew's own
+installer are documented exceptions in `docs/supply-chain.md`: they are
+rolling by design and use the platform's trust model. Direct artifacts YADR
+downloads itself must be pinned and checksummed before tagging.

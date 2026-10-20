@@ -74,18 +74,25 @@ Out: everything else from Prezto (themes, `fasd`, `pacman` helpers, etc.).
 What YADR fetches, and how far it is pinned — so the trade-off is explicit
 rather than accidental:
 
-- **Nerd Fonts: pinned and verified.** The zip comes from a pinned upstream
-  release and its **SHA256** (recorded in `terminal/fonts/manifest.env`,
-  measured in a clean VM) is checked before extraction
-  (`fetch_verified_zip` in `platform/common.sh`).
-- **`mise` and `zoxide` installers: floating by policy.** Their bootstrap
-  scripts always fetch the current upstream release, so they are not pinned
-  by hash. This is a conscious supply-chain decision (both move fast and ship
-  large, platform-specific binaries), not an oversight: a hard pin would go
-  stale silently and break more often than it protects. Skip their installers
-  if you prefer — Core works without them.
-- **No `curl | sh` is required.** The auditable path clones the repo and runs
-  `bootstrap.sh` locally (README "Alternative: manual and auditable install").
+- **Direct downloads: pinned and verified.** Every artifact YADR downloads
+  itself has a version and a SHA-256 in the tree: the Nerd Font zip
+  (`terminal/fonts/manifest.env`), the mise installer, the zoxide/Neovim
+  tarballs and the lazygit fallback. `platform/common.sh` provides the hash
+  helpers; a mismatch is a hard failure before `sh` or `tar` runs. Full
+  inventory, exceptions and bump procedure: `docs/supply-chain.md`.
+- **Git fallbacks: tag + commit.** The macOS zsh plugin fallback clones a
+  pinned tag and then verifies `HEAD` against the pinned commit, so a moved
+  tag is refused. `nvim/lazy-lock.json` pins plugin commits separately.
+- **Package managers are rolling by design.** apt/dnf/pacman/Homebrew/MacPorts
+  install vendor builds under their own trust model. The upstream Homebrew
+  installer (only when `brew` is absent) is the one documented unpinned script.
+- **No `curl | sh` is required.** YADR downloads the pinned mise installer to
+  a temporary file, verifies it, and only then runs `sh` on it. The auditable
+  path clones the repo and runs `bootstrap.sh` locally (README "Alternative:
+  manual and auditable install").
+- **Traceability.** `bootstrap` and `yadr update` write
+  `$XDG_STATE_HOME/yadr/installed-ref`; `yadr doctor` compares it with the
+  live checkout and reports a divergence. It is local state, not a signature.
 - **`sudo` only through one helper.** `platform/linux.sh` defines `priv()`
   (root or `sudo`); there is no bare `sudo` scattered through the code.
 

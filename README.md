@@ -148,8 +148,11 @@ or from an existing checkout: `~/.yadr-2027/bootstrap.sh --ref vX.Y.Z`.
 
 The tag is checked out detached and the checkout's `VERSION` file must match
 the tag; a mislabelled tag stops the bootstrap. `--local --ref vX.Y.Z` applies
-the same check to a checkout you copied by hand. Release process and pinned
-inventory: `docs/releases.md`.
+the same check to a checkout you copied by hand. `bootstrap` and `yadr update`
+record the installed revision in `$XDG_STATE_HOME/yadr/installed-ref`, and
+`yadr doctor` shows it. Direct downloads are versioned and SHA-256 verified;
+the full inventory and its exceptions are in `docs/supply-chain.md`. Release
+process: `docs/releases.md`.
 
 ### 4) Verify (run doctor TWICE)
 
@@ -393,7 +396,7 @@ Full details: `docs/mappings.md`, `docs/migration.md`.
 ├── platform/          # macos/ linux/ wsl/ tools/ common/
 ├── custom/            # optional before/ after/ hooks (user-owned; never touched by update)
 ├── docs/              # architecture + ADRs, cli-contract, mappings, migration,
-│                       troubleshooting, releases, e2e-report, evaluation
+│                       troubleshooting, releases, supply-chain, e2e-report, evaluation
 └── tests/             # smoke.sh, shell.bats, fault.bats, coverage.sh, fixtures/
 ```
 
