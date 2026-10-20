@@ -855,6 +855,146 @@ EOF
   rm -rf "$fb" "$src" "$payload"
 }
 
+@test "lazygit fallback uses the pinned lowercase asset and verifies its hash" {
+  local fb="$BATS_TMPDIR/lazygit-pin-$$" src="$BATS_TMPDIR/lazygit-src-$$" payload="$BATS_TMPDIR/lazygit-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src"
+  printf '#!/bin/sh\necho "lazygit 0.66.2"\n' > "$src/lazygit"; chmod +x "$src/lazygit"
+  tar -czf "$payload" -C "$src" lazygit
+  cat > "$fb/uname" <<'EOF'
+#!/bin/bash
+case "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac
+EOF
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >> "$FAKE_LOG"
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/uname" "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' FAKE_LOG='$fb/log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs lazygit.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    install_tarball"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/bin/lazygit" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-lazygit" ]
+  grep -q 'lazygit_0.66.2_linux_x86_64.tar.gz' "$fb/log"
+  ! grep -q '_Linux_' "$fb/log"
+  rm -f "$TEST_HOME/.local/bin/lazygit" "$TEST_HOME/.local/state/yadr/provides-lazygit"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' FAKE_LOG='$fb/log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs lazygit.sh)' >/dev/null 2>&1
+    verify_sha256() { return 1; }
+    install_tarball"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"lazygit sha256 mismatch"* ]]
+  [ ! -e "$TEST_HOME/.local/bin/lazygit" ]
+  [ ! -f "$TEST_HOME/.local/state/yadr/provides-lazygit" ]
+  rm -rf "$fb" "$src" "$payload"
+}
+
+@test "lazygit Darwin falls back to the pinned tarball when brew fails" {
+  local fb="$BATS_TMPDIR/lazygit-darwin-$$" src="$BATS_TMPDIR/lazygit-darwin-src-$$" payload="$BATS_TMPDIR/lazygit-darwin-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src"
+  printf '#!/bin/sh\necho "lazygit 0.66.2"\n' > "$src/lazygit"; chmod +x "$src/lazygit"
+  tar -czf "$payload" -C "$src" lazygit
+  cat > "$fb/uname" <<'EOF'
+#!/bin/bash
+case "$1" in -s) echo Darwin ;; -m) echo arm64 ;; *) echo Darwin ;; esac
+EOF
+  printf '#!/bin/bash\necho "brew: no bottle" >&2\nexit 1\n' > "$fb/brew"
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+printf '%s\n' "$*" >> "$FAKE_LOG"
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/uname" "$fb/brew" "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' FAKE_LOG='$fb/log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs lazygit.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    main"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/bin/lazygit" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-lazygit" ]
+  [[ "$output" == *"brew install lazygit failed; using pinned tarball"* ]]
+  grep -q 'lazygit_0.66.2_darwin_arm64.tar.gz' "$fb/log"
+  rm -rf "$fb" "$src" "$payload"
+}
+
+@test "macOS XDG zsh plugins clone the pinned tag and verify HEAD" {
+  local fb="$BATS_TMPDIR/zsh-pin-$$" data="$TEST_HOME/plugin-data"
+  rm -rf "$fb"; mkdir -p "$fb"
+  cat > "$fb/git" <<'EOF'
+#!/bin/bash
+case "$1" in
+  clone)
+    tag=""; dest=""
+    shift
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --branch) tag="$2"; shift 2 ;;
+        --depth) shift 2 ;;
+        *) dest="$1"; shift ;;
+      esac
+    done
+    mkdir -p "$dest"
+    printf '%s\n' "$tag" > "$dest/.tag"
+    printf 'stub\n' > "$dest/zsh-syntax-highlighting.zsh"
+    printf 'stub\n' > "$dest/zsh-autosuggestions.zsh"
+    ;;
+  -C)
+    case "$2" in
+      *zsh-syntax-highlighting*) echo db085e4661f6aafd24e5acb5b2e17e4dd5dddf3e ;;
+      *zsh-autosuggestions*) echo e52ee8ca55bcc56a17c828767a3f98f22a68d4eb ;;
+    esac
+    ;;
+esac
+EOF
+  chmod +x "$fb/git"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$data' PATH='$fb:/usr/bin:/bin'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs macos.sh)' >/dev/null 2>&1
+    ensure_zsh_plugins_macos"
+  [ "$status" -eq 0 ]
+  [ -f "$data/yadr-plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]
+  [ -f "$data/yadr-plugins/zsh-autosuggestions/zsh-autosuggestions.zsh" ]
+  [ "$(cat "$data/yadr-plugins/zsh-syntax-highlighting/.tag")" = "0.8.0" ]
+  [ "$(cat "$data/yadr-plugins/zsh-autosuggestions/.tag")" = "v0.7.1" ]
+  # A clone whose HEAD does not match the pinned commit is refused, and the
+  # previous checkout is left untouched.
+  local bad="$BATS_TMPDIR/zsh-bad-$$"
+  rm -rf "$bad"; mkdir -p "$bad"
+  cat > "$bad/git" <<'EOF'
+#!/bin/bash
+case "$1" in
+  clone) dest=""; shift; while [ $# -gt 0 ]; do dest="$1"; shift; done; mkdir -p "$dest"; printf 'x\n' > "$dest/p.zsh" ;;
+  -C) echo deadbeef ;;
+esac
+EOF
+  chmod +x "$bad/git"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$data' PATH='$bad:/usr/bin:/bin'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs macos.sh)' >/dev/null 2>&1
+    clone_xdg_plugin zsh-users/zsh-autosuggestions moved p.zsh v0.0.0 1111111111111111111111111111111111111111"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"expected 1111111111111111111111111111111111111111; refusing it"* ]]
+  [ ! -e "$data/yadr-plugins/moved" ]
+  rm -rf "$fb" "$bad" "$data"
+}
+
 @test "install tools pins eza/bat/delta in mise conf.d" {
   local fake="$BATS_TMPDIR/mise-tools-$$"
   mkdir -p "$fake"

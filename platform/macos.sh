@@ -5,6 +5,14 @@ set -euo pipefail
 
 PACKAGES=(git zsh tmux neovim ripgrep fd zoxide mise fzf gh delta eza bat lazygit zsh-syntax-highlighting zsh-autosuggestions unzip)
 
+# Pinned XDG fallback for the zsh plugins (R6): tag + exact commit. Homebrew
+# and apt/dnf still provide their own builds; this path only runs when the
+# distro/package manager has no plugin package (notably MacPorts).
+ZSH_SYNTAX_HIGHLIGHTING_TAG="0.8.0"
+ZSH_SYNTAX_HIGHLIGHTING_COMMIT="db085e4661f6aafd24e5acb5b2e17e4dd5dddf3e"
+ZSH_AUTOSUGGESTIONS_TAG="v0.7.1"
+ZSH_AUTOSUGGESTIONS_COMMIT="e52ee8ca55bcc56a17c828767a3f98f22a68d4eb"
+
 # MacPorts names differ for some packages (Intel Tier 3 path).
 PORT_PACKAGES=(git zsh tmux neovim ripgrep fd zoxide mise fzf gh git-delta eza bat lazygit unzip)
 
@@ -73,21 +81,41 @@ install_via_macports() {
   done
 }
 
-clone_xdg_plugin() {
+clone_xdg_plugin() { # repo subdir file tag commit
   # Last resort without sudo: upstream repos straight into XDG (plugins.zsh lookup #2).
-  local repo="$1" subdir="$2" file="$3"
+  # The checkout is pinned to a tag AND its exact commit: tags are movable, so
+  # comparing HEAD is the part that actually protects an existing install.
+  local repo="$1" subdir="$2" file="$3" tag="$4" commit="$5"
   local dest="${XDG_DATA_HOME:-$HOME/.local/share}/yadr-plugins/${subdir}"
-  [[ -f "${dest}/${file}" ]] && return 0
+  local tmp got
+  if [[ -f "${dest}/${file}" ]]; then
+    got="$(git -C "$dest" rev-parse HEAD 2>/dev/null || true)"
+    if [[ -d "${dest}/.git" && "$got" == "$commit" ]]; then return 0; fi
+    warn "existing ${dest} is not at pinned ${tag}; re-cloning."
+  fi
   have git || { warn "no git for XDG clone."; return 1; }
-  mkdir -p "$dest" 2>/dev/null || return 1
-  log "cloning ${repo} → ${dest} (no sudo)…"
-  git clone --depth 1 "https://github.com/${repo}.git" "$dest" 2>/dev/null || { warn "clone ${repo} failed."; return 1; }
+  mkdir -p "$(dirname "$dest")" 2>/dev/null || return 1
+  tmp="${dest}.yadr-new.$$"
+  rm -rf "$tmp"
+  log "cloning ${repo}@${tag} → ${dest} (no sudo)…"
+  git clone --depth 1 --branch "$tag" "https://github.com/${repo}.git" "$tmp" 2>/dev/null \
+    || { warn "clone ${repo}@${tag} failed."; rm -rf "$tmp"; return 1; }
+  got="$(git -C "$tmp" rev-parse HEAD 2>/dev/null || true)"
+  if [[ "$got" != "$commit" ]]; then
+    warn "clone ${repo}@${tag} is at ${got:-unknown}, expected ${commit}; refusing it."
+    rm -rf "$tmp"
+    return 1
+  fi
+  rm -rf "$dest"
+  mv "$tmp" "$dest" || { warn "could not move ${tmp} to ${dest}."; rm -rf "$tmp"; return 1; }
 }
 
 ensure_zsh_plugins_macos() {
   # zsh-syntax-highlighting/autosuggestions are not in MacPorts: XDG clones.
-  clone_xdg_plugin "zsh-users/zsh-syntax-highlighting" "zsh-syntax-highlighting" "zsh-syntax-highlighting.zsh" || true
-  clone_xdg_plugin "zsh-users/zsh-autosuggestions" "zsh-autosuggestions" "zsh-autosuggestions.zsh" || true
+  clone_xdg_plugin "zsh-users/zsh-syntax-highlighting" "zsh-syntax-highlighting" "zsh-syntax-highlighting.zsh" \
+    "$ZSH_SYNTAX_HIGHLIGHTING_TAG" "$ZSH_SYNTAX_HIGHLIGHTING_COMMIT" || true
+  clone_xdg_plugin "zsh-users/zsh-autosuggestions" "zsh-autosuggestions" "zsh-autosuggestions.zsh" \
+    "$ZSH_AUTOSUGGESTIONS_TAG" "$ZSH_AUTOSUGGESTIONS_COMMIT" || true
 }
 
 choose_solarized_bg() {
