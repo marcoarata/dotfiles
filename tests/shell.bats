@@ -445,6 +445,7 @@ EOF
   git -C "$repo" -c user.email=t@e -c user.name=t add VERSION
   git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
   git -C "$repo" tag v0.7.0
+  git -C "$repo" remote add origin https://secret-token@example.com/yadr.git
   run bash -c "
     export HOME='$TEST_HOME'
     unset XDG_STATE_HOME
@@ -457,6 +458,8 @@ EOF
   [[ "$output" == *"ref=v0.7.0"* ]]
   [[ "$output" == *"tag=v0.7.0"* ]]
   [[ "$output" == *"version=0.7.0"* ]]
+  [[ "$output" == *"origin=https://example.com/yadr.git"* ]]
+  [[ "$output" != *"secret-token"* ]]
   [[ "$output" == *"recorded="* ]]
   [ -z "$(find "$TEST_HOME/.local/state/yadr" -maxdepth 1 -name '.installed-ref.*' 2>/dev/null)" ]
   rm -rf "$repo"
@@ -993,6 +996,65 @@ EOF
   [[ "$output" == *"expected 1111111111111111111111111111111111111111; refusing it"* ]]
   [ ! -e "$data/yadr-plugins/moved" ]
   rm -rf "$fb" "$bad" "$data"
+}
+
+# These are deliberately static: the point is that the integers in the tree
+# cannot silently drift back to "latest". Network behavior is covered by the
+# install_* tests above; docs/supply-chain.md carries the same inventory.
+@test "static provenance: linux installer pins are exact and verified" {
+  local l="$YADR_ROOT/platform/linux.sh"
+  grep -qx 'ZOXIDE_VERSION="0.10.0"' "$l"
+  grep -qx 'ZOXIDE_SHA256_X86_64="2d93385b99f3e82cf2701609a1bffcad863fbeb75aa3fe7eb6be4d29be68b1ae"' "$l"
+  grep -qx 'ZOXIDE_SHA256_ARM64="f1f16c5d6298d63dee467eedea1cdcd8490e43e493bea43acd416dc9033ef641"' "$l"
+  grep -qx 'NVIM_VERSION="v0.12.6"' "$l"
+  grep -qx 'NVIM_SHA256_X86_64="474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87"' "$l"
+  grep -qx 'NVIM_SHA256_ARM64="8f1f64a0bdb97247034038c3823c6cbad5bdf9ecd5751b85494b71c3ee04c815"' "$l"
+  grep -qx 'MISE_VERSION="2026.10.15"' "$l"
+  grep -qx 'MISE_INSTALLER_SHA256="79db94aec4c40bfa1ff8d696621c0f5f96e2282b6675fdb71d834cf4ab4a70d0"' "$l"
+  grep -q 'MISE_INSTALLER_URL="https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/install.sh"' "$l"
+  grep -q 'verify_sha256 "$tmp/install.sh" "$MISE_INSTALLER_SHA256"' "$l"
+  grep -q 'verify_sha256 "$tmp/zoxide.tar.gz" "$sha"' "$l"
+  grep -q 'verify_sha256 "$tmp/nvim.tar.gz" "$sha"' "$l"
+  grep -q 'MISE_VERSION="$MISE_VERSION" MISE_INSTALL_HELP=0 sh "$tmp/install.sh"' "$l"
+  ! grep -q 'releases/download/stable' "$l"
+  ! grep -q 'mise.run' "$l"
+  ! grep -q 'zoxide/main/install' "$l"
+  ! grep -Eq '\| *(sh|bash)' "$l"
+}
+
+@test "static provenance: lazygit and macOS plugin fallbacks are pinned" {
+  local g="$YADR_ROOT/platform/lazygit.sh" m="$YADR_ROOT/platform/macos.sh"
+  grep -qx 'LAZYGIT_VERSION="0.66.2"' "$g"
+  grep -qx 'LAZYGIT_SHA256_LINUX_X86_64="158efc9ddfa1241fab5fb3526bb442c8dc6c4b1904d73213b9e4e93e03c52034"' "$g"
+  grep -qx 'LAZYGIT_SHA256_LINUX_ARM64="79a3161eeb642f0473e23db6341f7baabd4a5933e921a9c1167c5d5c765c41a4"' "$g"
+  grep -qx 'LAZYGIT_SHA256_DARWIN_X86_64="de5d3771e4befa6fe17590e21445614998adc1ef34a71f4003df6764247517ab"' "$g"
+  grep -qx 'LAZYGIT_SHA256_DARWIN_ARM64="fadda59ae7665ba556fcbaa704c7eade6e40d016d3f3b25d6327dd1f3f906a0c"' "$g"
+  grep -q 'lazygit_${LAZYGIT_VERSION}_${os}_${arch}.tar.gz' "$g"
+  grep -q 'verify_sha256 "$tmp/lazygit.tar.gz" "$sha"' "$g"
+  grep -q 'install_tarball ||' "$g"
+  ! grep -q '_Linux_\|_Darwin_' "$g"
+  ! grep -q 'releases/latest' "$g"
+  grep -qx 'ZSH_SYNTAX_HIGHLIGHTING_TAG="0.8.0"' "$m"
+  grep -qx 'ZSH_SYNTAX_HIGHLIGHTING_COMMIT="db085e4661f6aafd24e5acb5b2e17e4dd5dddf3e"' "$m"
+  grep -qx 'ZSH_AUTOSUGGESTIONS_TAG="v0.7.1"' "$m"
+  grep -qx 'ZSH_AUTOSUGGESTIONS_COMMIT="e52ee8ca55bcc56a17c828767a3f98f22a68d4eb"' "$m"
+  grep -q 'git clone --depth 1 --branch "$tag"' "$m"
+  grep -q 'rev-parse HEAD' "$m"
+  ! grep -q 'git clone --depth 1 "https://github.com/${repo}.git" "$dest"' "$m"
+}
+
+@test "static provenance: installed-ref writers agree and no unpinned hints remain" {
+  local f k
+  for f in "$YADR_ROOT/bootstrap.sh" "$YADR_ROOT/bin/lib/install.sh"; do
+    for k in sha ref branch tag version origin recorded; do
+      grep -q "printf '${k}=%s" "$f" || fail "$f does not write ${k}"
+    done
+    grep -q 'installed-ref' "$f"
+  done
+  ! grep -rq 'mise.run' "$YADR_ROOT/bin" "$YADR_ROOT/platform" "$YADR_ROOT/bootstrap.sh"
+  grep -q "yadr install core" "$YADR_ROOT/bin/lib/runtime.sh"
+  grep -q "yadr install core" "$YADR_ROOT/bin/lib/doctor.sh"
+  grep -q 'verify_sha256' "$YADR_ROOT/platform/common.sh"
 }
 
 @test "install tools pins eza/bat/delta in mise conf.d" {
