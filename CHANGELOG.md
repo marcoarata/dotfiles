@@ -4,6 +4,52 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.7.0] — 2026-10-19 — traceable installs, pinned downloads
+
+### Added
+
+- **Installed-revision traceability (R5).** `bootstrap.sh` and `yadr update` write
+  `$XDG_STATE_HOME/yadr/installed-ref` (default
+  `~/.local/state/yadr/installed-ref`): `sha`, `ref`, `branch`, `tag`, `version`,
+  `origin` (credentials stripped) and `recorded`. The write is atomic and mode
+  `0600`. `yadr doctor` shows the commit/tag/version, treats a missing file as
+  informational (old installs) and warns when the recorded commit differs from
+  the live `HEAD`. `yadr install` does not write it; a cancelled update writes
+  nothing.
+- **Supply-chain pins (R6).** Direct downloads are versioned and SHA-256
+  verified: the mise installer `2026.10.15` (run with `MISE_VERSION` and
+  `MISE_INSTALL_HELP=0`), zoxide `0.10.0`, Neovim `v0.12.6`, the lazygit
+  `0.66.2` fallback for linux/darwin x86_64/arm64, and the macOS zsh plugin
+  fallback by tag + exact commit (syntax-highlighting `0.8.0`,
+  autosuggestions `v0.7.1`). Inventory, threat model, exceptions and bump
+  procedure: `docs/supply-chain.md`.
+
+### Changed
+
+- **A checksum mismatch is a hard failure.** No installer runs or archive is
+  extracted before verification, and no `provides-*` marker is written on
+  failure. `platform/common.sh` now owns `sha256_of`/`verify_sha256`, shared by
+  the font, zoxide, Neovim, lazygit and mise downloads.
+- **lazygit fallback uses the real asset names.** The tarball URL is lowercase
+  (`lazygit_<ver>_linux_x86_64.tar.gz`, `..._darwin_...`), and macOS tries the
+  pinned tarball when Homebrew fails or is absent instead of returning 1.
+  Package-manager installs stay rolling.
+- **macOS zsh plugin clones are pinned and revalidated.** A clone at the wrong
+  commit is re-cloned; a clone whose `HEAD` does not match the pinned commit is
+  refused and the previous checkout is left in place.
+- **Hints point to a pinned path.** `yadr install core` replaces the old
+  `curl https://mise.run | sh` suggestion in `doctor`, `runtime` and the
+  troubleshooting guide.
+
+### Notes
+
+- Package managers (apt/dnf/pacman/Homebrew/MacPorts), Homebrew's own installer
+  when `brew` is absent, and `pnpm = "latest"` remain documented rolling
+  exceptions. No GPG key is configured in this release; tags are annotated but
+  unsigned, and `git tag -v` is the future signed-tag check.
+- Tests: 125. Coverage: 56.7% (floor 50%). Pinned artifacts unchanged
+  (`runtime/mise.toml`, `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
+
 ## [0.6.3] — 2026-10-19 — install plans first, update reports both phases
 
 ### Added

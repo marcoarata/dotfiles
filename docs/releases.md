@@ -15,6 +15,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    (coverage floor), `shellcheck -S warning` on
    `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh
    tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
+   `bats tests/shell.bats -f "static provenance"` (pins cannot drift),
    `yadr doctor` reports 0 errors on a fresh isolated HOME (its warnings name
    what that machine still lacks; `0 warnings` needs the distro packages and
    the documented install loop). For a release that touches paths, also run
