@@ -696,6 +696,42 @@ macos_funcs() {
   [ ! -e "$TEST_HOME/other/f.ttf" ]
 }
 
+@test "sha256 helpers are the single implementation used by platform downloads" {
+  local f="$BATS_TMPDIR/sha-helper-$$" want
+  printf 'yadr\n' > "$f"
+  want="$(file_sha "$f")"
+  run bash -c "
+    source '$YADR_ROOT/platform/common.sh'
+    printf 'hash=%s\n' \"\$(sha256_of '$f')\"
+    verify_sha256 '$f' '$want' && echo MATCH
+    verify_sha256 '$f' 'deadbeef' && echo BAD || echo MISMATCH
+    verify_sha256 '$f' '' && echo BAD || echo NOPIN
+    verify_sha256 '$f/missing' '$want' && echo BAD || echo MISSING
+    sha256_of '$f/missing' >/dev/null && echo BAD || echo UNREADABLE"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"hash=${want}"* ]]
+  [[ "$output" == *"MATCH"* ]]
+  [[ "$output" == *"MISMATCH"* ]]
+  [[ "$output" == *"NOPIN"* ]]
+  [[ "$output" == *"MISSING"* ]]
+  [[ "$output" == *"UNREADABLE"* ]]
+  rm -f "$f"
+}
+
+@test "fetch_verified_zip without a pin warns and still extracts" {
+  local z="$YADR_ROOT/tests/fixtures/font-sample.zip" dest="$TEST_HOME/fonts-nopin"
+  [ -f "$z" ] || fail "missing fixture: tests/fixtures/font-sample.zip"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$z' '' '$dest' '*.ttf' && echo fetched-ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no pinned sha256: only verifying zip integrity."* ]]
+  [[ "$output" == *"fetched-ok"* ]]
+  [ -f "$dest/f.ttf" ]
+}
+
 @test "install tools pins eza/bat/delta in mise conf.d" {
   local fake="$BATS_TMPDIR/mise-tools-$$"
   mkdir -p "$fake"

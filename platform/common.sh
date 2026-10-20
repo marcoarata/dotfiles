@@ -42,21 +42,35 @@ nvim_version_ok() { # $1 = nvim binary: echoes "M.m", exit 0 when >=0.11
   [[ "${maj:-0}" -gt 0 || "${min:-0}" -ge 11 ]] 2>/dev/null
 }
 
+sha256_of() { # <file>: print the lowercase hex digest; 1 if unreadable/no tool
+  local f="${1:-}"
+  [[ -n "$f" && -f "$f" ]] || return 1
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$f" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$f" | awk '{print $1}'
+  else
+    return 1
+  fi
+}
+
+verify_sha256() { # <file> <expected-hex>: 0 on match, 1 otherwise (empty is not a pin)
+  local f="${1:-}" want="${2:-}" got
+  [[ -n "$f" && -n "$want" ]] || return 1
+  got="$(sha256_of "$f")" || return 1
+  [[ "$got" == "$want" ]]
+}
+
 fetch_verified_zip() { # <url> <sha256-or-empty> <destdir> [glob...]: download, verify, extract
   local url="$1" sha="${2:-}" dest="$3"
   shift 3
   if [[ $# -eq 0 ]]; then set -- '*.ttf' '*.otf'; fi
   have curl unzip || { warn "missing curl/unzip."; return 1; }
-  local tmp sum
+  local tmp
   tmp="$(mktemp -d)" || return 1
   curl -fsSL "$url" -o "$tmp/font.zip" || { warn "download failed."; rm -rf "$tmp"; return 1; }
   if [[ -n "$sha" ]]; then
-    if command -v sha256sum >/dev/null 2>&1; then
-      sum="$(sha256sum "$tmp/font.zip" | awk '{print $1}')"
-    else
-      sum="$(shasum -a 256 "$tmp/font.zip" | awk '{print $1}')"
-    fi
-    [[ "$sum" == "$sha" ]] || { warn "sha256 mismatch."; rm -rf "$tmp"; return 1; }
+    verify_sha256 "$tmp/font.zip" "$sha" || { warn "sha256 mismatch."; rm -rf "$tmp"; return 1; }
   else
     warn "no pinned sha256: only verifying zip integrity."
   fi
