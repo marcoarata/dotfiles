@@ -105,6 +105,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.6.1` | `a880ba0` | 0.6.1 | 10 links, 0 pending | 0 errors (6→4 warnings) | docs-only: README is the single entry, `INSTALL-YADR.md` and ADR-001..004 removed; every link resolves |
 | `v0.6.2` | `d5b1947` | 0.6.2 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | doctor counts rogue/foreign notices; apt/dnf drop `neovim` |
 | `v0.6.3` | `8e39d5d` | 0.6.3 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | install plans first (`--dry-run`/`plan`); update phases; unowned `nvim-upstream` kept |
+| `v0.7.0` | `f34adb1` | 0.7.0 | 10 links, 0 pending | 0 errors / 7 warnings (9→8 after `nvim`; 7 after lazygit) | `installed-ref` + doctor commit; pinned mise/zoxide/neovim/lazygit verified |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -157,6 +158,29 @@ were verified.
 > them to `shell.bats` raised coverage to 52.2%. Tags do not trigger CI, so the
 > tagged-commit run is the one the `v0.6.3` tag names. The post-tag commit
 > (`e495578`) is also green (run 39335813649, 8/8).
+
+`v0.7.0` was verified on 2026-10-19 from the published tag: the clone is
+detached at `f34adb1`, `VERSION` and both `yadr version`/`--version` print
+`0.7.0`, `yadr plan` reports `diff: 0 with changes` over 10 links, and `install
+core` is idempotent. The isolated run had no non-interactive `sudo`
+(a stub failed every privilege call), so the apt step was skipped with a
+warning; the pinned path still installed `mise 2026.10.15 linux-x64`,
+`zoxide 0.10.0`, `NVIM v0.12.6` and the Nerd Font. `yadr install lazygit
+--yes` then exercised the tarball fallback (the manager lacked lazygit) and
+installed `lazygit 0.66.2` (`build source=binaryRelease`). `doctor` reported
+0 errors with 9 warnings, 8 after the first nvim start and 7 after lazygit
+(git identity, node/npm/pnpm, python, LSP servers, treesitter parsers); the
+first line was `✓ commit f34adb17804a (v0.7.0, 0.7.0)`.
+
+R5 left a `0600` `installed-ref` under the moved state dir with
+`sha=f34adb17804a143483f44dcce7c4202423d1d0dc`, `ref=v0.7.0`,
+`tag=v0.7.0`, `branch=HEAD`, `version=0.7.0`,
+`origin=https://github.com/marcoarata/dotfiles.git` (no credentials) and a UTC
+`recorded` timestamp. The tag's tree carries the pinned download constants and
+SHA-256 checks; `git diff v0.6.3..v0.7.0 -- runtime/mise.toml
+nvim/lazy-lock.json terminal/fonts/manifest.env` is empty. The tagged-commit
+CI run is green 8/8 (run 39354009595); tags do not trigger CI, so that is the
+run the `v0.7.0` tag names.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
