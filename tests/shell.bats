@@ -732,6 +732,129 @@ macos_funcs() {
   [ -f "$dest/f.ttf" ]
 }
 
+@test "install_mise runs the pinned versioned installer, marker only on success" {
+  local fb="$BATS_TMPDIR/mise-pin-$$" payload="$BATS_TMPDIR/mise-payload-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/sh\nexit 0\n' > "$payload"
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  cat > "$fb/sh" <<'EOF'
+#!/bin/bash
+printf 'MISE_VERSION=%s MISE_INSTALL_HELP=%s\n' "${MISE_VERSION:-}" "${MISE_INSTALL_HELP:-}" >> "$FAKE_LOG"
+mkdir -p "$HOME/.local/bin"
+printf '#!/bin/sh\nexit 0\n' > "$HOME/.local/bin/mise"
+chmod +x "$HOME/.local/bin/mise"
+EOF
+  chmod +x "$fb/curl" "$fb/sh"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' FAKE_LOG='$fb/log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    install_mise"
+  [ "$status" -eq 0 ]
+  grep -qx 'MISE_VERSION=2026.10.15 MISE_INSTALL_HELP=0' "$fb/log"
+  [ -x "$TEST_HOME/.local/bin/mise" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-mise" ]
+  # A checksum failure must stop before running the installer or marking it.
+  rm -f "$TEST_HOME/.local/state/yadr/provides-mise" "$fb/log"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' FAKE_LOG='$fb/log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 1; }
+    install_mise"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"mise installer sha256 mismatch"* ]]
+  [ ! -f "$TEST_HOME/.local/state/yadr/provides-mise" ]
+  [ ! -f "$fb/log" ]
+  rm -rf "$fb" "$payload"
+}
+
+@test "install_zoxide uses the pinned tarball, marker only on success" {
+  local fb="$BATS_TMPDIR/zoxide-pin-$$" src="$BATS_TMPDIR/zoxide-src-$$" payload="$BATS_TMPDIR/zoxide-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src"
+  printf '#!/bin/sh\necho zoxide 0.10.0\n' > "$src/zoxide"; chmod +x "$src/zoxide"
+  tar -czf "$payload" -C "$src" zoxide
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    install_zoxide"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/bin/zoxide" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-zoxide" ]
+  rm -f "$TEST_HOME/.local/bin/zoxide" "$TEST_HOME/.local/state/yadr/provides-zoxide"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 1; }
+    install_zoxide"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"zoxide sha256 mismatch"* ]]
+  [ ! -e "$TEST_HOME/.local/bin/zoxide" ]
+  [ ! -f "$TEST_HOME/.local/state/yadr/provides-zoxide" ]
+  rm -rf "$fb" "$src" "$payload"
+}
+
+@test "ensure_nvim installs the pinned release, marker only after verification" {
+  local fb="$BATS_TMPDIR/nvim-pin-$$" src="$BATS_TMPDIR/nvim-src-$$" payload="$BATS_TMPDIR/nvim-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src/nvim-linux-x86_64/bin"
+  printf '#!/bin/sh\necho "NVIM v0.12.6"\n' > "$src/nvim-linux-x86_64/bin/nvim"
+  chmod +x "$src/nvim-linux-x86_64/bin/nvim"
+  tar -czf "$payload" -C "$src" nvim-linux-x86_64
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    ensure_nvim"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/nvim-upstream/bin/nvim" ]
+  [ -L "$TEST_HOME/.local/bin/nvim" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-nvim-upstream" ]
+  [[ "$output" == *"neovim ready"* ]]
+  rm -rf "$TEST_HOME/.local/nvim-upstream" "$TEST_HOME/.local/bin/nvim"
+  rm -f "$TEST_HOME/.local/state/yadr/provides-nvim-upstream"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 1; }
+    ensure_nvim"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"neovim sha256 mismatch"* ]]
+  [ ! -e "$TEST_HOME/.local/nvim-upstream" ]
+  [ ! -f "$TEST_HOME/.local/state/yadr/provides-nvim-upstream" ]
+  rm -rf "$fb" "$src" "$payload"
+}
+
 @test "install tools pins eza/bat/delta in mise conf.d" {
   local fake="$BATS_TMPDIR/mise-tools-$$"
   mkdir -p "$fake"
@@ -967,7 +1090,7 @@ macos_funcs() {
   run yadr_cli runtime current
   [ "$status" -ne 0 ]
   [[ "$output" == *"no runtime backend"* ]]
-  [[ "$output" == *"mise.run"* ]]
+  [[ "$output" == *"yadr install core"* ]]
 }
 
 @test "CLI: benchmark measures shell and prompt with thresholds" {

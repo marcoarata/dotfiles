@@ -6,7 +6,7 @@
 # --- runtime (abstracts mise; mise is never exposed as API) ---
 runtime_backend() { have mise && echo "mise" || echo "none"; }
 cmd_runtime_current() {
-  if [[ "$(runtime_backend)" == "none" ]]; then warn "no runtime backend (install mise: curl -fsSL https://mise.run | sh)"; return 1; fi
+  if [[ "$(runtime_backend)" == "none" ]]; then warn "no runtime backend (install mise: yadr install core)"; return 1; fi
   mise current 2>/dev/null || mise ls 2>/dev/null || warn "no active runtimes. Try: yadr runtime use node"
 }
 cmd_runtime_list() {
@@ -15,7 +15,7 @@ cmd_runtime_list() {
 }
 cmd_runtime_use() { # cmd_runtime_use tool[@version]
   local spec="${1:?usage: yadr runtime use <tool[@version]>  (e.g. node, node@24, python@3.12)}"
-  if [[ "$(runtime_backend)" == "none" ]]; then err "no backend (mise missing). Hint: curl -fsSL https://mise.run | sh"; return 1; fi
+  if [[ "$(runtime_backend)" == "none" ]]; then err "no backend (mise missing). Hint: yadr install core"; return 1; fi
   # Without explicit version: `mise install` honors the runtime/mise.toml pin
   # and NEVER rewrites the repo (mise use -g would mutate the pinned version).
   if [[ "$spec" != *"@"* ]]; then
@@ -30,7 +30,7 @@ cmd_runtime_use() { # cmd_runtime_use tool[@version]
   info "note: this updated the managed runtime/mise.toml (git-tracked); for your own global tools prefer $(mise_config_dir)/conf.d/<name>.toml"
 }
 cmd_runtime_doctor() {
-  if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend missing" "curl -fsSL https://mise.run | sh"; return 1; fi
+  if [[ "$(runtime_backend)" == "none" ]]; then dc_fail "runtime backend missing" "yadr install core"; return 1; fi
   ok "backend: mise ($(mise --version 2>/dev/null))"
   mise doctor 2>/dev/null || mise dr 2>/dev/null || warn "mise doctor unavailable in this version."
 }

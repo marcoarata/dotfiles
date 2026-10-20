@@ -35,18 +35,63 @@ APT_PKGS=(git zsh tmux ripgrep fd-find fzf curl build-essential zsh-syntax-highl
 DNF_PKGS=(git zsh tmux ripgrep fd-find fzf curl gcc make zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 PAC_PKGS=(git zsh tmux neovim ripgrep fd fzf curl base-devel zsh-syntax-highlighting zsh-autosuggestions unzip fontconfig)
 
+# Pinned direct downloads (R6). Package managers (apt/dnf/pacman) stay rolling
+# and are documented as such in docs/supply-chain.md; anything YADR downloads
+# itself is versioned and checked before it runs or is extracted.
+ZOXIDE_VERSION="0.10.0"
+ZOXIDE_SHA256_X86_64="2d93385b99f3e82cf2701609a1bffcad863fbeb75aa3fe7eb6be4d29be68b1ae"
+ZOXIDE_SHA256_ARM64="f1f16c5d6298d63dee467eedea1cdcd8490e43e493bea43acd416dc9033ef641"
+NVIM_VERSION="v0.12.6"
+NVIM_SHA256_X86_64="474430d53e6264f6d6dd18db42d6dc9df3a1b56ca9e88a325bbf860e1a811d87"
+NVIM_SHA256_ARM64="8f1f64a0bdb97247034038c3823c6cbad5bdf9ecd5751b85494b71c3ee04c815"
+MISE_VERSION="2026.10.15"
+MISE_INSTALLER_URL="https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/install.sh"
+MISE_INSTALLER_SHA256="79db94aec4c40bfa1ff8d696621c0f5f96e2282b6675fdb71d834cf4ab4a70d0"
+
 install_mise() {
   have mise && return 0
-  log "installing mise (https://mise.jdx.dev)..."
-  curl -fsSL https://mise.run | sh || { warn "mise install failed."; return 1; }
-  yadr_marker mise
+  log "installing mise ${MISE_VERSION} (pinned)..."
+  local tmp
+  tmp="$(mktemp -d)" || return 1
+  curl -fsSL "$MISE_INSTALLER_URL" -o "$tmp/install.sh" \
+    || { warn "mise installer download failed."; rm -rf "$tmp"; return 1; }
+  verify_sha256 "$tmp/install.sh" "$MISE_INSTALLER_SHA256" \
+    || { warn "mise installer sha256 mismatch."; rm -rf "$tmp"; return 1; }
+  if MISE_VERSION="$MISE_VERSION" MISE_INSTALL_HELP=0 sh "$tmp/install.sh"; then
+    rm -rf "$tmp"
+    yadr_marker mise
+  else
+    warn "mise install failed."
+    rm -rf "$tmp"
+    return 1
+  fi
+  have mise || [[ -x "${HOME}/.local/bin/mise" ]] \
+    || { warn "mise installed but not on PATH."; return 1; }
 }
 
 install_zoxide() {
   have zoxide && return 0
-  log "installing zoxide..."
-  curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash || warn "zoxide failed (you can install it later)."
+  log "installing zoxide ${ZOXIDE_VERSION} (pinned)..."
+  local arch sha url tmp
+  case "$(uname -m)" in
+    x86_64|amd64) arch="x86_64"; sha="$ZOXIDE_SHA256_X86_64" ;;
+    aarch64|arm64) arch="aarch64"; sha="$ZOXIDE_SHA256_ARM64" ;;
+    *) warn "arch $(uname -m) has no official zoxide tarball."; return 1 ;;
+  esac
+  url="https://github.com/ajeetdsouza/zoxide/releases/download/v${ZOXIDE_VERSION}/zoxide-${ZOXIDE_VERSION}-${arch}-unknown-linux-musl.tar.gz"
+  tmp="$(mktemp -d)" || return 1
+  curl -fsSL "$url" -o "$tmp/zoxide.tar.gz" \
+    || { warn "zoxide download failed."; rm -rf "$tmp"; return 1; }
+  verify_sha256 "$tmp/zoxide.tar.gz" "$sha" \
+    || { warn "zoxide sha256 mismatch."; rm -rf "$tmp"; return 1; }
+  tar -xzf "$tmp/zoxide.tar.gz" -C "$tmp" zoxide \
+    || { warn "zoxide extraction failed."; rm -rf "$tmp"; return 1; }
+  mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
+  cp -f "$tmp/zoxide" "${HOME}/.local/bin/zoxide" && chmod +x "${HOME}/.local/bin/zoxide" \
+    || { warn "zoxide install failed."; rm -rf "$tmp"; return 1; }
+  rm -rf "$tmp"
   yadr_marker zoxide
+  log "zoxide ${ZOXIDE_VERSION} in ~/.local/bin."
 }
 
 # Neovim >=0.11 is the YADR floor (treesitter/gitsigns/lspconfig HEAD require it;
@@ -61,15 +106,17 @@ ensure_nvim() {
   else
     log "neovim missing; installing upstream into ~/.local/bin..."
   fi
-  local arch url tmp
+  local arch sha url tmp
   case "$(uname -m)" in
-    x86_64|amd64) arch="x86_64" ;;
-    arm64|aarch64) arch="arm64" ;;
+    x86_64|amd64) arch="x86_64"; sha="$NVIM_SHA256_X86_64" ;;
+    arm64|aarch64) arch="arm64"; sha="$NVIM_SHA256_ARM64" ;;
     *) warn "arch $(uname -m) has no official tarball; use apt/manual neovim."; return 1 ;;
   esac
-  url="https://github.com/neovim/neovim/releases/download/stable/nvim-linux-${arch}.tar.gz"
+  url="https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${arch}.tar.gz"
   tmp="$(mktemp -d)" || return 1
   curl -fsSL "$url" -o "$tmp/nvim.tar.gz" || { warn "neovim download failed."; rm -rf "$tmp"; return 1; }
+  verify_sha256 "$tmp/nvim.tar.gz" "$sha" \
+    || { warn "neovim sha256 mismatch."; rm -rf "$tmp"; return 1; }
   tar -xzf "$tmp/nvim.tar.gz" -C "$tmp" || { warn "extraction failed."; rm -rf "$tmp"; return 1; }
   mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
   # Full relocatable install: the binary resolves its runtime
