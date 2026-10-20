@@ -27,7 +27,7 @@ command behind every claim is in `docs/evaluation.md`.
 - **Uninstall restore is exercised end to end.** A managed symlink is replaced
   by its last backup while unrelated user files and the checkout survive.
 - Test count: 130 (five new tests; no shipped behavior changed). Core line
-  coverage: 57.5% (floor 50%).
+  coverage: 57.4% (610/1062, floor 50%).
 
 ### Docs
 
