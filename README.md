@@ -42,9 +42,13 @@ brew install curl git zsh
 
 **3. Install YADR 2027**
 
+The install is pinned to the release tag, not to the moving `main` branch:
+
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.0/bootstrap.sh | bash -s -- --ref v0.8.0
 ```
+
+For checksum verification before running the script, see “Pin a release” below.
 
 **4. Enter (install already set zsh as the default shell, as classic YADR did)**
 
@@ -62,11 +66,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.8.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh
+~/.yadr-2027/bootstrap.sh --local --ref v0.8.0
 ```
 
 ```bash
@@ -101,9 +105,13 @@ sudo apt install zsh curl git -y
 
 **3. Install YADR 2027**
 
+The install is pinned to the release tag, not to the moving `main` branch:
+
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh)"
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.0/bootstrap.sh | bash -s -- --ref v0.8.0
 ```
+
+For checksum verification before running the script, see “Pin a release” below.
 
 **4. Enter (install already set zsh as the default shell, as classic YADR did)**
 
@@ -121,11 +129,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.8.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh
+~/.yadr-2027/bootstrap.sh --local --ref v0.8.0
 ```
 
 ```bash
@@ -136,15 +144,22 @@ zsh
 yadr doctor
 ```
 
-### 3) Pin a release (optional, recommended for servers)
+### 3) Pin a release (recommended, especially for servers)
 
-`bootstrap.sh` follows `main` by default. To install one exact release:
+`main` is development; installs should name the release they want. The commands
+above use `v0.8.0`. To verify the bootstrap before running it:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh | bash -s -- --ref vX.Y.Z
+V=v0.8.0
+curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
+curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
+sha256sum -c SHA256SUMS
+bash bootstrap.sh --ref "$V"
 ```
 
-or from an existing checkout: `~/.yadr-2027/bootstrap.sh --ref vX.Y.Z`.
+On macOS use `shasum -a 256 -c SHA256SUMS` instead of `sha256sum -c`.
+`SHA256SUMS` is an integrity check published with the release, not a signature:
+it only helps when the checksum file itself came from a trusted channel.
 
 The tag is checked out detached and the checkout's `VERSION` file must match
 the tag; a mislabelled tag stops the bootstrap. `--local --ref vX.Y.Z` applies

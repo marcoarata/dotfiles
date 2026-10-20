@@ -21,13 +21,39 @@ download is a decision, not an accident.
   install the distro/vendor build. YADR does not verify those bytes; the
   package manager's signature/notarization model does. This is why a package
   manager install is not listed as "pinned" below.
-- **No GPG requirement.** v0.7.0 verifies SHA-256, not signatures. Upstream
+- **No GPG requirement.** v0.8.0 verifies SHA-256, not signatures. Upstream
   signatures (for example mise's `install.sh.minisig`) are not checked yet.
   There is no project signing key in this release.
+- **The bootstrap is installed from a tag.** The documented install path
+  fetches `bootstrap.sh` from the exact release tag and the release publishes
+  `SHA256SUMS` for it. `main` is development, not an install target. The
+  checksum is an integrity check, not a signature.
+- **GitHub Actions are pinned by commit.** Workflow `uses:` references use a
+  full 40-character SHA; Dependabot proposes updates. A static test fails if a
+  tag or branch reference returns.
 - **`sudo` stays in one helper.** `platform/linux.sh` defines `priv()`; the
   rest of the scripts do not scatter bare `sudo` calls.
 
-## Inventory (v0.7.0)
+## Bootstrap trust
+
+The recommended install names a release tag:
+
+```sh
+V=v0.8.0
+curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
+curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
+sha256sum -c SHA256SUMS          # macOS: shasum -a 256 -c SHA256SUMS
+bash bootstrap.sh --ref "$V"
+```
+
+`bootstrap.sh` then fetches and checks out that tag, verifies that `VERSION`
+matches it, and records the revision before handing off to `yadr install`. The
+release asset and the tagged file are the same bytes; `SHA256SUMS` only proves
+that if it reached you through a trusted channel. It does not authenticate the
+publisher. The manual alternative — clone the tag and run the local
+`bootstrap.sh --local --ref "$V"` — avoids `curl | sh` entirely.
+
+## Inventory (v0.8.0)
 
 Checksums are the SHA-256 of the exact asset named in the URL. Dates are the
 verification date of this release.
@@ -77,10 +103,13 @@ These are intentional and visible; they are not silent downloads:
 3. **`pnpm = "latest"` and `yadr install tools`.** These are package-manager
    tools, not runtimes; projects pin their own versions. The base runtime pins
    (`node = "24"`, `python = "3.14"`) are explicit.
-4. **GitHub Actions.** The workflow uses action references, not SHA-pinned
-   action commits. That is deferred to v0.7.1 together with Dependabot.
+4. **The bootstrap script itself.** A script cannot verify its own bytes before
+   it runs. The release publishes `SHA256SUMS`; the checksum path above verifies
+   it before `bash`, and the manual clone path avoids `curl | sh` entirely. The
+   one-line quick start is tagged but does not self-verify.
 5. **No SBOM / reproducible build.** The inventory and static tests are the
-   current machine-readable-enough record; a formal SBOM is future work.
+   current machine-readable-enough record; a formal SBOM is future work and
+   deliberately not part of v0.8.0.
 
 ## Threat model
 
@@ -88,6 +117,7 @@ These are intentional and visible; they are not silent downloads:
 |---|---|
 | Upstream release replaced after the pin | SHA-256 mismatch stops the install |
 | Moved git tag | clone HEAD compared with the pinned commit; old checkout is kept |
+| Mutable `main` bootstrap | install from the exact tag; `SHA256SUMS` published with the release |
 | MITM on HTTPS | TLS plus SHA-256; the checksum is the backstop |
 | Compromised installer script | installer SHA-256 is checked before execution |
 | Temp-dir race / partial download | `mktemp -d`, verify, then extract/copy; no shared cache |

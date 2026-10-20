@@ -22,11 +22,16 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `bats tests/shell.bats -f "path policy"` and one real install with the
    `XDG_*` variables moved, which is what `docs/e2e-report.md` §6 records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
-   Tags in v0.7.0 are annotated but **not signed** (no project key exists).
-   Once a signing key is configured, verify with `git tag -v vX.Y.Z`; until
-   then compare `git rev-parse vX.Y.Z^{}` with the commit that passed CI.
-5. Bootstrap installs `main` by default (`YADR_BRANCH` override exists);
-   pin-sensitive users install the tag instead:
+   Tags are annotated but **not signed** (no project key exists). Once a
+   signing key is configured, verify with `git tag -v vX.Y.Z`; until then
+   compare `git rev-parse vX.Y.Z^{}` with the commit that passed CI. Tag pushes
+   do not trigger the CI workflow, so the commit must be verified before the
+   tag is created.
+5. Publish `SHA256SUMS` with the release, generated from the tagged content:
+   `sha256sum bootstrap.sh > SHA256SUMS` (or `shasum -a 256 bootstrap.sh` on
+   macOS). Attach it to the GitHub release. The checksum is an integrity check,
+   not a signature.
+6. Install from the exact tag, not from `main`:
    `bootstrap.sh --ref vX.Y.Z` (checks out the tag detached and refuses to
    continue when the tag and its `VERSION` file disagree), then verify both
    sides: `yadr version` prints `X.Y.Z`, `yadr doctor` reports 0 errors and
@@ -92,7 +97,12 @@ release: `main` and the tag point to the same commit, and it changes none of the
 three tracked pin files either:
 `git diff v0.7.0..v0.7.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). No code or test files changed from `v0.7.0`;
-its E2E evidence still applies.
+its E2E evidence still applies. `v0.8.0` is a debt-closure release: it changes
+none of the three tracked pin files either, and its only supply-chain change is
+that GitHub Actions are pinned by full commit SHA:
+`git diff v0.7.1..v0.8.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). No SBOM, signing key or new distro CI lane is
+claimed for this release.
 
 | Artifact | Pin | Verified by |
 |---|---|---|

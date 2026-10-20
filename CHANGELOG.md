@@ -4,6 +4,45 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.0] — 2026-10-20 — debt closure: trustworthy bootstrap and recovery evidence
+
+### Changed
+
+- **The documented bootstrap is pinned to the release tag.** The README no
+  longer installs from `main`; it names `v0.8.0`, verifies `VERSION`, and
+  explains the checksum path. `main` remains the development branch.
+- **Releases publish `SHA256SUMS`.** It is generated from the tagged
+  `bootstrap.sh` and attached to the GitHub release. It is an integrity check,
+  not a signature; tags remain annotated but unsigned.
+- **GitHub Actions are pinned by full commit SHA.** `actions/checkout` is pinned
+  to `v4.4.0` and Dependabot is configured for GitHub Actions. A static test
+  rejects any workflow `uses:` that is not a 40-character lowercase SHA.
+
+### Tests
+
+- **Recovery coverage now includes a dirty checkout and dry-run uninstall.**
+  `update` warns before a pull that may refuse, leaves the working tree alone,
+  skips runtimes and exits non-zero. `uninstall --dry-run` proves it changes
+  nothing.
+- **Uninstall restore is exercised end to end.** A managed symlink is replaced
+  by its last backup while unrelated user files and the checkout survive.
+- Test count: 130 (five new tests; no shipped behavior changed). Core line
+  coverage: 57.5% (floor 50%).
+
+### Docs
+
+- `docs/supply-chain.md` documents the bootstrap trust model, the Actions pins,
+  the checksum limits, and the fact that v0.8.0 does not ship an SBOM.
+- `docs/releases.md` records the exact-tag install and `SHA256SUMS` release
+  step.
+
+### Notes
+
+- No new commands, options or interfaces. `doctor --json`, CycloneDX SBOM,
+  new distro CI lanes and GPG signing remain out of scope for this release.
+- No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
+  `terminal/fonts/manifest.env`).
+
 ## [0.7.1] — 2026-10-19 — tag aligned with main
 
 ### Notes

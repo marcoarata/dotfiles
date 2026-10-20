@@ -290,6 +290,48 @@ EOF
   rm -rf "$repo" "$bin"
 }
 
+@test "fault: update warns about a dirty checkout and leaves it untouched" {
+  local repo="$BATS_TMPDIR/fault-upd-dirty-$$"
+  rm -rf "$repo"; mkdir -p "$repo"
+  printf 'clean\n' > "$repo/file"
+  git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@e -c user.name=t add file
+  git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
+  printf 'dirty\n' > "$repo/file"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local modifications"* ]]
+  [[ "$output" == *"pull failed"* ]]
+  [[ "$output" != *"repo updated"* ]]
+  [ "$(cat "$repo/file")" = "dirty" ]   # the working tree is not rewritten
+  rm -rf "$repo"
+}
+
+@test "fault: uninstall --dry-run changes nothing" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/fault-uninstall-dry-$$"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$home/.local/bin" "$home/.local/state/yadr"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.8.0\n' > "$clone/VERSION"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  printf 'mine\n' > "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --dry-run"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"dry-run: nothing modified"* ]]
+  [ -L "$home/.local/bin/yadr" ]
+  [ -f "$home/.zshrc" ]
+  [ -d "$home/.local/state/yadr" ]
+  [ -d "$clone" ]
+  rm -rf "$clone"
+}
+
 @test "fault: update fails when the runtime phase fails" {
   local repo="$BATS_TMPDIR/fault-upd-rt-$$" bin="$BATS_TMPDIR/fault-upd-rt-bin-$$"
   rm -rf "$repo" "$bin"; mkdir -p "$repo/.git" "$bin"

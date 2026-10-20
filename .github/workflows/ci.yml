@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
@@ -31,7 +31,7 @@ jobs:
         os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: bats
         run: |
           if [[ "$(uname -s)" == "Darwin" ]]; then brew install bats-core;
@@ -44,7 +44,7 @@ jobs:
   coverage:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: bats + zsh
         run: sudo apt-get update -qq && sudo apt-get install -y -qq bats zsh
       - name: line coverage floor (no external dependency)
@@ -55,7 +55,7 @@ jobs:
   fault-injection:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: bats + zsh
         run: sudo apt-get update -qq && sudo apt-get install -y -qq bats zsh
       - name: injected failures must fail loudly, never lie
@@ -75,7 +75,7 @@ jobs:
         run: |
           pacman -Sy --noconfirm --needed git \
             || { pacman-key --init; pacman-key --populate archlinux; pacman -Sy --noconfirm --needed git; }
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: suite dependencies on Arch
         run: |
           # bricks the suites actually need: bats, zsh, curl and unzip
@@ -162,7 +162,7 @@ jobs:
         os: [ubuntu-24.04, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: core install in isolated HOME
         run: |
           export FAKE_HOME="$RUNNER_TEMP/yadr-home"

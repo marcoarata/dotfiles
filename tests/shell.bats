@@ -1001,6 +1001,43 @@ EOF
 # These are deliberately static: the point is that the integers in the tree
 # cannot silently drift back to "latest". Network behavior is covered by the
 # install_* tests above; docs/supply-chain.md carries the same inventory.
+@test "static provenance: CI actions are pinned by full commit SHA" {
+  local f line ref found=0
+  for f in "$YADR_ROOT"/.github/workflows/*.yml; do
+    [ -f "$f" ] || continue
+    while IFS= read -r line; do
+      case "$line" in
+        *uses:*) ;;
+        *) continue ;;
+      esac
+      case "$line" in
+        \#*) continue ;;
+      esac
+      found=$((found+1))
+      ref="${line#*@}"
+      [ "$ref" != "$line" ] || fail "action without @ in ${f}: ${line}"
+      ref="${ref%%[[:space:]]*}"
+      [ "${#ref}" -eq 40 ] || fail "action is not pinned to 40 hex chars: ${line}"
+      case "$ref" in
+        *[!0-9a-f]*) fail "action SHA is not lowercase hex: ${line}" ;;
+      esac
+    done < "$f"
+  done
+  [ "$found" -gt 0 ] || fail "no workflow actions found"
+}
+
+@test "static provenance: release docs pin bootstrap and publish a checksum" {
+  # The README may mention `main` as development, but must not install from
+  # it. The release docs must name SHA256SUMS and the exact-tag path.
+  ! grep -q 'raw.githubusercontent.com/marcoarata/dotfiles/main/bootstrap.sh' "$YADR_ROOT/README.md"
+  grep -Eq 'raw.githubusercontent.com/marcoarata/dotfiles/v[0-9]+\.[0-9]+\.[0-9]+/bootstrap.sh' "$YADR_ROOT/README.md"
+  grep -q 'SHA256SUMS' "$YADR_ROOT/README.md"
+  grep -q 'SHA256SUMS' "$YADR_ROOT/docs/releases.md"
+  grep -q 'SHA256SUMS' "$YADR_ROOT/docs/supply-chain.md"
+  [ -f "$YADR_ROOT/.github/dependabot.yml" ]
+  grep -q 'package-ecosystem: "github-actions"' "$YADR_ROOT/.github/dependabot.yml"
+}
+
 @test "static provenance: linux installer pins are exact and verified" {
   local l="$YADR_ROOT/platform/linux.sh"
   grep -qx 'ZOXIDE_VERSION="0.10.0"' "$l"
@@ -1404,6 +1441,30 @@ EOF
   [ ! -e "$home/.local/share/nvim/lazy.nvim" ]       # YADR-added entry purged
   [ ! -e "$clone" ]                                  # clone removed
   [ ! -e "$home/.local/state/yadr" ]                 # state/backups removed
+  rm -rf "$clone"
+}
+
+@test "uninstall restores the last backup without touching foreign files" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/yadr-restore-clone-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$home/.local/bin" "$backup"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.8.0\n' > "$clone/VERSION"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  printf 'previous-yadr\n' > "$backup/yadr"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-backup"
+  printf 'mine\n' > "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall"
+  [ "$status" -eq 0 ]
+  [ -f "$home/.local/bin/yadr" ]                 # symlink replaced by the backup
+  [ "$(cat "$home/.local/bin/yadr")" = "previous-yadr" ]
+  [ -f "$home/.zshrc" ]                          # unrelated user file survives
+  [ "$(cat "$home/.zshrc")" = "mine" ]
+  [ -d "$clone" ]                                # no --purge: checkout kept
   rm -rf "$clone"
 }
 
