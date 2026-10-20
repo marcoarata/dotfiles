@@ -87,7 +87,12 @@ direct downloads; it changes none of the three tracked pin files either:
 `git diff v0.6.3..v0.7.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). Its new download pins were re-verified on
 2026-10-19: the mise installer, the zoxide/Neovim/lazygit assets and the zsh
-tag/commit pairs match `docs/supply-chain.md`.
+tag/commit pairs match `docs/supply-chain.md`. `v0.7.1` is a tag-alignment
+release: `main` and the tag point to the same commit, and it changes none of the
+three tracked pin files either:
+`git diff v0.7.0..v0.7.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). No code or test files changed from `v0.7.0`;
+its E2E evidence still applies.
 
 | Artifact | Pin | Verified by |
 |---|---|---|

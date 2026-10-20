@@ -4,6 +4,16 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.7.1] — 2026-10-19 — tag aligned with main
+
+### Notes
+
+- **Release metadata only.** `main` and `v0.7.1` point to the same commit; no
+  runtime, installer, pin, path or CLI behavior changed from `v0.7.0`.
+- Tests and evidence from `v0.7.0` still apply: 125 tests, 56.7% coverage, and
+  the three tracked pin files are unchanged (`runtime/mise.toml`,
+  `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
+
 ## [0.7.0] — 2026-10-19 — traceable installs, pinned downloads
 
 ### Added
