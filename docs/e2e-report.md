@@ -107,6 +107,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.6.3` | `8e39d5d` | 0.6.3 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | install plans first (`--dry-run`/`plan`); update phases; unowned `nvim-upstream` kept |
 | `v0.7.0` | `f34adb1` | 0.7.0 | 10 links, 0 pending | 0 errors / 7 warnings (9→8 after `nvim`; 7 after lazygit) | `installed-ref` + doctor commit; pinned mise/zoxide/neovim/lazygit verified |
 | `v0.8.1` | `1e3790a` | 0.8.1 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`) | prompt ahead/behind + `✘`; `cursorline`; confirmed `mise` upgrade |
+| `v0.8.2` | `e7cd2b6` (tag adds docs) | 0.8.2 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`; 7 after Tree-sitter parsers) | HTML/Markdown/Bash injections clean on Neovim 0.12; no `tree-sitter` CLI; shim unit test |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -196,6 +197,24 @@ run used a `sudo` stub so apt was skipped; the pinned path installed
 origin and a UTC timestamp. The tagged-commit CI run is green 8/8
 (run 40248789127); tags do not trigger CI, so that is the run the `v0.8.1`
 tag names.
+
+`v0.8.2` was verified on 2026-10-25 from a local clone checked out at the code
+commit `e7cd2b6`; the tagged commit adds only this evidence report and the
+release documentation. `VERSION` and `yadr version` print `0.8.2`,
+`install --local` created 10 links and `yadr diff` reports `0 with changes`.
+The isolated run used a `sudo` stub, so apt was skipped. `doctor` reported 0
+errors with 9 warnings, 8 after the first `nvim` start, and 7 after the
+Tree-sitter parsers were installed. `command -v tree-sitter` stayed empty;
+`:TSInstallSync` compiled `html`, `markdown`, `markdown_inline`, `bash`,
+`javascript` and `css` with `cc`. Headless `treesitter.start()` on HTML,
+Markdown and Bash fixtures produced no `attempt to call method 'range'` or
+`Decoration provider` errors. The shim unit test prints `treesitter-compat:
+ok`; the full suite is 137 tests, smoke is 89/89, core coverage is 56.8%
+(610/1073) and shellcheck is clean. `installed-ref` records
+`sha=e7cd2b6999380c3d890b95642ca54c3eeda4a082`, `ref=detached`,
+`version=0.8.2`, `nvim/lazy-lock.json` is unchanged from `v0.8.1`, and the
+GitHub origin is credential-free. The post-tag install records the published
+tag itself; that log and the tagged-commit CI run are in the release notes.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
