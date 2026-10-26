@@ -1,7 +1,7 @@
 # E2E evidence report
 
 How YADR 2027 is proven to work. Evidence over prose: every claim below links a
-reproducible run. Last verified: 2026-10-19.
+reproducible run. Last verified: 2026-10-25.
 
 ## 1. CI matrix (GitHub Actions, `.github/workflows/ci.yml`)
 
@@ -106,6 +106,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.6.2` | `d5b1947` | 0.6.2 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | doctor counts rogue/foreign notices; apt/dnf drop `neovim` |
 | `v0.6.3` | `8e39d5d` | 0.6.3 | 10 links, 0 pending | 0 errors / 3 warnings (+1 with a foreign link) | install plans first (`--dry-run`/`plan`); update phases; unowned `nvim-upstream` kept |
 | `v0.7.0` | `f34adb1` | 0.7.0 | 10 links, 0 pending | 0 errors / 7 warnings (9→8 after `nvim`; 7 after lazygit) | `installed-ref` + doctor commit; pinned mise/zoxide/neovim/lazygit verified |
+| `v0.8.1` | `1e3790a` | 0.8.1 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`) | prompt ahead/behind + `✘`; `cursorline`; confirmed `mise` upgrade |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -181,6 +182,20 @@ SHA-256 checks; `git diff v0.6.3..v0.7.0 -- runtime/mise.toml
 nvim/lazy-lock.json terminal/fonts/manifest.env` is empty. The tagged-commit
 CI run is green 8/8 (run 39354009595); tags do not trigger CI, so that is the
 run the `v0.7.0` tag names.
+
+`v0.8.1` was verified on 2026-10-25 from the published tag: the clone is
+detached at `1e3790a`, `VERSION` and `yadr version` print `0.8.1`,
+`install core` is idempotent (`diff: 0 with changes`, 10 links), and the first
+line of `doctor` is `✓ commit 1e3790affcc7 (v0.8.1, 0.8.1)`. The isolated
+run used a `sudo` stub so apt was skipped; the pinned path installed
+`mise 2026.10.15`, `zoxide 0.10.0`, `NVIM v0.12.6` and the Nerd Font.
+`doctor` reported 0 errors with 9 warnings, 8 after the first `nvim` start
+(plugins installed on that pass). `installed-ref` records
+`sha=1e3790affcc797b9a447be770d21d6516091fa6e`, `ref=v0.8.1`,
+`tag=v0.8.1`, `branch=HEAD`, `version=0.8.1`, the credential-free GitHub
+origin and a UTC timestamp. The tagged-commit CI run is green 8/8
+(run 40248789127); tags do not trigger CI, so that is the run the `v0.8.1`
+tag names.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
