@@ -127,10 +127,10 @@ do_doctor() {
   elif [[ -n "$(ls "${_nvdata}/mason/bin" 2>/dev/null)" ]]; then
     dc_ok "lsp (servers Mason: $(ls "${_nvdata}/mason/bin" 2>/dev/null | tr '\n' ' '))"
   else dc_warn "lsp without servers" "yadr install typescript (installs the 5 servers via Mason)"; fi
-  # treesitter: parsers o CLI.
-  if have tree-sitter; then dc_ok "treesitter (cli)"
-  elif [[ -n "$(ls "${_nvdata}/lazy/nvim-treesitter"/parser 2>/dev/null)" ]]; then dc_ok "treesitter (parsers nvim)"
-  else dc_warn "treesitter without parsers" "open nvim and run :TSUpdate, or install tree-sitter-cli"; fi
+  # treesitter: parsers installed by nvim-treesitter master (:TSUpdate uses cc).
+  if [[ -n "$(ls "${_nvdata}/lazy/nvim-treesitter"/parser 2>/dev/null)" ]]; then
+    dc_ok "treesitter (parsers nvim)"
+  else dc_warn "treesitter without parsers" "open nvim and run :TSUpdate"; fi
   # Solarized: palette referenced in repo or HOME configs.
   if [[ -n "$(grep -rli "solarized" "${YADR_HOME}/nvim" "${YADR_HOME}/tmux" "${YADR_HOME}/shell" "${_nvconf}" "${HOME}/.tmux.conf" 2>/dev/null)" ]]; then
     dc_ok "Solarized (referenced in configs)"

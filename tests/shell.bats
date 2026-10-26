@@ -1086,8 +1086,26 @@ EOF
   grep -q 'SHA256SUMS' "$YADR_ROOT/README.md"
   grep -q 'SHA256SUMS' "$YADR_ROOT/docs/releases.md"
   grep -q 'SHA256SUMS' "$YADR_ROOT/docs/supply-chain.md"
-  [ -f "$YADR_ROOT/.github/dependabot.yml" ]
-  grep -q 'package-ecosystem: "github-actions"' "$YADR_ROOT/.github/dependabot.yml"
+  [ ! -e "$YADR_ROOT/.github/dependabot.yml" ]
+}
+
+@test "static provenance: nvim-treesitter stays on master without tree-sitter-cli" {
+  grep -q 'branch = "master"' "$YADR_ROOT/nvim/lua/yadr/plugins/editor.lua"
+  grep -q 'treesitter_compat' "$YADR_ROOT/nvim/lua/yadr/treesitter.lua"
+  ! grep -Rq 'tree-sitter-cli' "$YADR_ROOT/nvim" "$YADR_ROOT/platform" "$YADR_ROOT/bin"
+}
+
+@test "treesitter compat shim unwraps Neovim 0.12 match lists" {
+  command -v nvim >/dev/null 2>&1 || skip "nvim not installed"
+  run nvim --headless -u NONE -l "$YADR_ROOT/tests/treesitter-compat.lua"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"treesitter-compat: ok"* ]]
+}
+
+@test "telescope mappings have one implementation" {
+  ! grep -q 'vim.keymap.set' "$YADR_ROOT/nvim/lua/yadr/telescope.lua"
+  ! grep -q 'telescope.builtin' "$YADR_ROOT/nvim/lua/yadr/telescope.lua"
+  grep -q 'Telescope find_files' "$YADR_ROOT/nvim/lua/yadr/keymaps.lua"
 }
 
 @test "static provenance: linux installer pins are exact and verified" {

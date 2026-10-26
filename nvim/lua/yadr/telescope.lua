@@ -34,12 +34,4 @@ telescope.setup({
   },
 })
 
--- Mappings: <C-p> find files, ,t files, ,b buffers, ,gg grep
-local map = vim.keymap.set
-local builtin_ok, builtin = pcall(require, "telescope.builtin")
-if builtin_ok then
-  map("n", "<C-p>", builtin.find_files, { desc = "Find files" })
-  map("n", ",t", builtin.find_files, { desc = "Find files" })
-  map("n", ",b", builtin.buffers, { desc = "Buffers" })
-  map("n", ",gg", builtin.live_grep, { desc = "Live grep" })
-end
+-- Key mappings live in yadr/keymaps.lua (single source of truth).

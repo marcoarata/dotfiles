@@ -4,6 +4,46 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.2] — 2026-10-25 — Tree-sitter 0.12 compatibility, single-source mappings
+
+### Fixed
+
+- **HTML and Markdown injections work on Neovim 0.12.** Neovim now passes a
+  list of nodes to query directives; `nvim-treesitter` `master` still treated
+  the value as one node and failed on `:range()`. A local shim unwraps the
+  first node and re-registers `set-lang-from-mimetype!` and
+  `set-lang-from-info-string!` after `configs.setup()`. The same treatment
+  covers `downcase!` for Bash/Ruby/PHP/HCL heredocs.
+- **`nvim-treesitter` stays on `master` with the existing pin.** No parser
+  reinstall, no `tree-sitter-cli`, and no Neovim floor change; `:TSUpdate`
+  keeps using the C compiler. `doctor` no longer treats a CLI install as
+  parser evidence.
+
+### Changed
+
+- **Telescope mappings have one implementation.** They live in
+  `nvim/lua/yadr/keymaps.lua`; `telescope.lua` only configures the picker.
+- **Keymap option helpers replace repeated `vim.tbl_extend` calls** in
+  `keymaps.lua` and `lsp.lua`. Leader `,` and the existing mappings are
+  unchanged.
+- **Dependabot is removed.** GitHub Actions stay pinned by full commit SHA and
+  are updated manually; the static provenance guard remains.
+
+### Tests
+
+- New regression coverage for the Tree-sitter shim (including `downcase!`),
+  the `master` pin without `tree-sitter-cli`, and the single Telescope mapping
+  source.
+- Test count: 137 (three new tests). Core line coverage: 56.8% (610/1073,
+  floor 50%).
+- The `install` CI job runs the shim unit test on Ubuntu and macOS.
+
+### Notes
+
+- No new commands, options or dependencies. No pinned artifact changed
+  (`runtime/mise.toml`, `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.8.2`.
+
 ## [0.8.1] — 2026-10-25 — prompt counts, cursorline, confirmed runtimes
 
 ### Fixed

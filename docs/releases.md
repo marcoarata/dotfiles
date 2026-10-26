@@ -16,11 +16,13 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    `bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh
    tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
    `bats tests/shell.bats -f "static provenance"` (pins cannot drift),
-   `yadr doctor` reports 0 errors on a fresh isolated HOME (its warnings name
-   what that machine still lacks; `0 warnings` needs the distro packages and
-   the documented install loop). For a release that touches paths, also run
-   `bats tests/shell.bats -f "path policy"` and one real install with the
-   `XDG_*` variables moved, which is what `docs/e2e-report.md` §6 records.
+   `nvim --headless -u NONE -l tests/treesitter-compat.lua` (Neovim 0.12
+   directive shim), `yadr doctor` reports 0 errors on a fresh isolated HOME
+   (its warnings name what that machine still lacks; `0 warnings` needs the
+   distro packages and the documented install loop). For a release that touches
+   paths, also run `bats tests/shell.bats -f "path policy"` and one real install
+   with the `XDG_*` variables moved, which is what `docs/e2e-report.md` §6
+   records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
    Tags are annotated but **not signed** (no project key exists). Once a
    signing key is configured, verify with `git tag -v vX.Y.Z`; until then
@@ -49,7 +51,7 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
 | `coverage` | ubuntu | line coverage of `bin/` from the bats suite, with a floor (`tests/coverage.sh`) |
 | `fault-injection` | ubuntu | injected failures: broken runtime, failing editor, failed pull, blind purge (`tests/fault.bats`) |
 | `arch-container` | Arch | the suites and a real core install + `doctor` inside `archlinux:latest` (pacman branch), plus a second real install with moved `XDG` directories (links **and** shell completions) and `doctor` against it |
-| `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor`, and the bash/zsh/fish completion files |
+| `install` | ubuntu, macos | `bootstrap.sh` in an isolated `$HOME`: symlinks, CLI on `PATH`, `yadr doctor`, the Tree-sitter shim unit test, and the bash/zsh/fish completion files |
 
 Runner images are pinned (`ubuntu-24.04`, deliberate bumps); see the header
 of `.github/workflows/ci.yml`. All five batteries (smoke, shell, bootstrap,
@@ -105,7 +107,11 @@ is empty (checked before tagging). No SBOM, signing key or new distro CI lane is
 claimed for this release. `v0.8.1` is a prompt/editor/update polish release; it
 changes none of the three tracked pin files either:
 `git diff v0.8.0..v0.8.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
-is empty (checked before tagging).
+is empty (checked before tagging). `v0.8.2` adds the Tree-sitter Neovim 0.12
+shim, consolidates Telescope mappings and removes Dependabot; it changes none
+of the three tracked pin files either:
+`git diff v0.8.1..v0.8.2 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). GitHub Actions remain pinned manually.
 
 | Artifact | Pin | Verified by |
 |---|---|---|

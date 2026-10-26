@@ -17,15 +17,18 @@ vim.api.nvim_create_autocmd("LspAttach", {
   group = vim.api.nvim_create_augroup("YadrLsp", { clear = true }),
   callback = function(ev)
     local map = vim.keymap.set
-    local b = { buffer = ev.buf, silent = true }
-    map("n", "gd", vim.lsp.buf.definition, vim.tbl_extend("force", b, { desc = "LSP definition" }))
-    map("n", "gr", "<cmd>Telescope lsp_references<cr>", vim.tbl_extend("force", b, { desc = "LSP references" }))
-    map("n", "K", vim.lsp.buf.hover, vim.tbl_extend("force", b, { desc = "LSP hover" }))
-    map("n", "<leader>rn", vim.lsp.buf.rename, vim.tbl_extend("force", b, { desc = "LSP rename" }))
-    map("n", "<leader>ca", vim.lsp.buf.code_action, vim.tbl_extend("force", b, { desc = "LSP code action" }))
-    map("n", "gi", "<cmd>Telescope lsp_implementations<cr>", vim.tbl_extend("force", b, { desc = "LSP implementations" }))
-    map("n", "[d", vim.diagnostic.goto_prev, vim.tbl_extend("force", b, { desc = "Prev diagnostic" }))
-    map("n", "]d", vim.diagnostic.goto_next, vim.tbl_extend("force", b, { desc = "Next diagnostic" }))
+    local base = { buffer = ev.buf, silent = true }
+    local function map_opts(desc)
+      return vim.tbl_extend("force", base, { desc = desc })
+    end
+    map("n", "gd", vim.lsp.buf.definition, map_opts("LSP definition"))
+    map("n", "gr", "<cmd>Telescope lsp_references<cr>", map_opts("LSP references"))
+    map("n", "K", vim.lsp.buf.hover, map_opts("LSP hover"))
+    map("n", "<leader>rn", vim.lsp.buf.rename, map_opts("LSP rename"))
+    map("n", "<leader>ca", vim.lsp.buf.code_action, map_opts("LSP code action"))
+    map("n", "gi", "<cmd>Telescope lsp_implementations<cr>", map_opts("LSP implementations"))
+    map("n", "[d", vim.diagnostic.goto_prev, map_opts("Prev diagnostic"))
+    map("n", "]d", vim.diagnostic.goto_next, map_opts("Next diagnostic"))
   end,
 })
 

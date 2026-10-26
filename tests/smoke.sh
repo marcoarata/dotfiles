@@ -29,6 +29,7 @@ check_file nvim/init.lua
 check_file nvim/autoload/lightline/colorscheme/yadr.vim
 check_file nvim/lua/yadr/options.lua
 check_file nvim/lua/yadr/plugins/colorscheme.lua
+check_file nvim/lua/yadr/treesitter_compat.lua
 check_file platform/macos.sh
 check_file platform/linux.sh
 check_file platform/wsl.sh
@@ -47,6 +48,7 @@ check_file tests/helpers.bash
 check_file tests/coverage.sh
 check_file tests/coverage-hook.sh
 check_file tests/lua-parse.lua
+check_file tests/treesitter-compat.lua
 check_file tests/fixtures/typescript-project/package.json
 check_file tests/fixtures/typescript-project/mise.toml
 check_file tests/fixtures/typescript-project/tsconfig.json

@@ -30,3 +30,7 @@ configs.setup({
     },
   },
 })
+
+-- Keep nvim-treesitter on master: this local shim adapts its directives to
+-- Neovim 0.12's list-of-nodes match values. Load it after setup so it wins.
+require("yadr.treesitter_compat")
