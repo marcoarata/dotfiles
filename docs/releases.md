@@ -102,7 +102,10 @@ none of the three tracked pin files either, and its only supply-chain change is
 that GitHub Actions are pinned by full commit SHA:
 `git diff v0.7.1..v0.8.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). No SBOM, signing key or new distro CI lane is
-claimed for this release.
+claimed for this release. `v0.8.1` is a prompt/editor/update polish release; it
+changes none of the three tracked pin files either:
+`git diff v0.8.0..v0.8.1 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging).
 
 | Artifact | Pin | Verified by |
 |---|---|---|

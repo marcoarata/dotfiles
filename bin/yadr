@@ -89,6 +89,20 @@ confirm() {
   [[ "$ans" == "y" || "$ans" == "Y" || "$ans" == "yes" ]]
 }
 
+confirm_yes() {
+  # confirm_yes "prompt" — same contract, but Enter accepts ([Y/n]).
+  # EOF/non-interactive input is a no: only an explicit empty line says yes.
+  local prompt="$1"
+  [[ "${YADR_YES:-0}" == "1" ]] && return 0
+  printf '%s [Y/n]: ' "$prompt" >&2
+  local ans=""
+  IFS= read -r ans || return 1
+  case "$ans" in
+    ""|y|Y|yes) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # --- managed pairs: "relative_source:absolute_dest" ---
 # When the source is missing from the repo (e.g. partial checkout), report and skip.
 # Destinations come from lib/paths.sh: the link lands where the tool that reads

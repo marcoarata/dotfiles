@@ -5,8 +5,7 @@ vim.g.maplocalleader = ","
 
 local opt = vim.opt
 
--- Line numbers: absolute, fixed, no highlight (classic YADR).
--- No relativenumber or cursorline: the column stays narrow and stable.
+-- Line numbers: absolute, fixed. Cursorline is enabled below (classic YADR).
 opt.number = true
 opt.relativenumber = false
 
@@ -42,8 +41,8 @@ opt.smartcase = true
 opt.hlsearch = true
 opt.incsearch = true
 
--- UI (classic: no current-line highlight)
-opt.cursorline = false
+-- UI (classic YADR highlights the current line)
+opt.cursorline = true
 opt.signcolumn = "yes"
 opt.colorcolumn = "80"
 opt.scrolloff = 8

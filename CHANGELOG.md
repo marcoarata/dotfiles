@@ -4,6 +4,38 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.1] — 2026-10-25 — prompt counts, cursorline, confirmed runtimes
+
+### Fixed
+
+- **Ahead/behind counts now render in the Damoekri RPROMPT.** `git rev-list
+  --left-right --count` separates the two numbers with a tab; the old
+  space-based split produced `0<TAB>0` and never matched the arrow conditions.
+  The prompt now reads both fields with `read -r ahead behind`.
+- **The dirty mark is `✘` instead of `✗`.** The cleaner glyph keeps the prompt
+  distinct from the CLI's red error marker; the clean `✔` is unchanged.
+- **`yadr update` asks before upgrading runtimes.** The new `[Y/n]` prompt
+  defaults to yes on Enter, skips on EOF/non-interactive input, and honors
+  `--yes`. A declined runtime phase leaves the repository update successful.
+
+### Changed
+
+- **`cursorline` is enabled.** The current line is highlighted again, matching
+  classic YADR; absolute line numbers and the narrow sign column are unchanged.
+
+### Tests
+
+- Regression tests cover ahead/behind against a local upstream, the `✘` dirty
+  mark, `cursorline`, and the runtime prompt's Enter/no/EOF paths.
+- Test count: 134 (four new tests). Core line coverage: 56.9% (611/1073,
+  floor 50%).
+
+### Notes
+
+- No new commands, options or dependencies. No pinned artifact changed
+  (`runtime/mise.toml`, `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.8.1`.
+
 ## [0.8.0] — 2026-10-20 — debt closure: trustworthy bootstrap and recovery evidence
 
 ### Changed

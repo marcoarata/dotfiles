@@ -92,6 +92,36 @@ load helpers
   [[ "$output" == *"ok"* ]]
 }
 
+@test "damoekri shows ahead and behind counts against upstream" {
+  local root="$BATS_TMPDIR/yadr-git-counts-$$"
+  rm -rf "$root"; mkdir -p "$root"
+  git init -q --bare "$root/remote.git"
+  git clone -q "$root/remote.git" "$root/work"
+  git -C "$root/work" config user.email t@t.t
+  git -C "$root/work" config user.name t
+  printf 'base\n' > "$root/work/f"
+  git -C "$root/work" add f
+  git -C "$root/work" commit -qm base
+  git -C "$root/work" push -q -u origin HEAD
+  printf 'local\n' >> "$root/work/f"
+  git -C "$root/work" commit -qam local
+  git clone -q "$root/remote.git" "$root/other"
+  git -C "$root/other" config user.email t@t.t
+  git -C "$root/other" config user.name t
+  printf 'remote\n' >> "$root/other/f"
+  git -C "$root/other" commit -qam remote
+  git -C "$root/other" push -q
+  git -C "$root/work" fetch -q
+  run zsh -f -c "
+    cd '$root/work' || exit 1
+    source '$YADR_ROOT/shell/damoekri.zsh'
+    yadr_git_info"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"↑1"* ]]
+  [[ "$output" == *"↓1"* ]]
+  rm -rf "$root"
+}
+
 @test "damoekri shows dirty mark on unstaged change" {
   gd="$BATS_TMPDIR/yadr-dirty-$$"
   run bash -c "
@@ -101,10 +131,32 @@ load helpers
     touch f && git add f && git commit -qm init &&
     echo mod >> f &&
     out=\$(cd '$gd' && zsh -f -c \"source '$YADR_ROOT/shell/damoekri.zsh'; yadr_git_info\" 2>/dev/null) &&
-    echo \"\$out\" | grep -q '✗' && echo ok;
+    echo \"\$out\" | grep -q '✘' && echo ok;
     rm -rf '$gd'"
   [ "$status" -eq 0 ]
   [[ "$output" == *"ok"* ]]
+}
+
+@test "confirm_yes accepts Enter, rejects EOF and explicit no, honors --yes" {
+  run bash -c "source '$(yadr_funcs)'; printf '\n' | confirm_yes 'Proceed?'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"[Y/n]"* ]]
+  run bash -c "source '$(yadr_funcs)'; confirm_yes 'Proceed?' </dev/null"
+  [ "$status" -ne 0 ]
+  run bash -c "source '$(yadr_funcs)'; printf 'n\n' | confirm_yes 'Proceed?'"
+  [ "$status" -ne 0 ]
+  run bash -c "source '$(yadr_funcs)'; YADR_YES=1 confirm_yes 'Proceed?' </dev/null"
+  [ "$status" -eq 0 ]
+}
+
+@test "nvim options enable cursorline" {
+  command -v nvim >/dev/null 2>&1 || skip "nvim not installed"
+  run nvim --headless --noplugin -u NONE \
+    -c "lua dofile('$YADR_ROOT/nvim/lua/yadr/options.lua')" \
+    -c 'lua io.write(vim.o.cursorline and "cursorline-on" or "cursorline-off")' \
+    -c qa
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"cursorline-on"* ]]
 }
 
 @test "plugins.zsh loads cleanly without any plugin installed" {

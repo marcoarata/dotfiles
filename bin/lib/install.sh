@@ -560,12 +560,16 @@ do_update() {
     return "$rc"
   fi
   if have mise; then
-    info "updating runtimes (mise)…"
-    if mise upgrade 2>/dev/null || mise up 2>/dev/null; then
-      ok "runtimes updated."
+    if confirm_yes "Update runtimes (mise)?"; then
+      info "updating runtimes (mise)…"
+      if mise upgrade 2>/dev/null || mise up 2>/dev/null; then
+        ok "runtimes updated."
+      else
+        warn "runtime update failed."
+        rc=1
+      fi
     else
-      warn "runtime update failed."
-      rc=1
+      info "runtimes: skipped."
     fi
   fi
   return "$rc"

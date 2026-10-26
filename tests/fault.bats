@@ -265,6 +265,56 @@ load helpers
 
 # --- update: report both phases, never mix them silently -------------------
 
+@test "update asks before mise: Enter accepts, n and EOF skip" {
+  local repo="$BATS_TMPDIR/fault-upd-prompt-$$" bin="$BATS_TMPDIR/fault-upd-prompt-bin-$$"
+  rm -rf "$repo" "$bin"; mkdir -p "$repo/.git" "$bin"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$bin/git"
+  cat > "$bin/mise" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$HOME/mise.log"
+exit 0
+EOF
+  chmod +x "$bin/git" "$bin/mise"
+
+  # Explicit no: repo updates, runtimes do not run.
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+    unset YADR_YES
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    printf 'y\nn\n' | do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Update runtimes (mise)? [Y/n]"* ]]
+  [[ "$output" == *"runtimes: skipped."* ]]
+  [ ! -f "$TEST_HOME/mise.log" ]
+
+  # Empty line: default yes.
+  rm -f "$TEST_HOME/mise.log"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+    unset YADR_YES
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    printf 'y\n\n' | do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"runtimes updated."* ]]
+  grep -qE '^(upgrade|up)$' "$TEST_HOME/mise.log"
+
+  # EOF at the runtime prompt: no, without hanging.
+  rm -f "$TEST_HOME/mise.log"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+    unset YADR_YES
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    printf 'y\n' | do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"runtimes: skipped."* ]]
+  [ ! -f "$TEST_HOME/mise.log" ]
+
+  rm -rf "$repo" "$bin"
+}
+
 @test "fault: update skips runtimes when the pull fails" {
   local repo="$BATS_TMPDIR/fault-upd-skip-$$" bin="$BATS_TMPDIR/fault-upd-skip-bin-$$"
   rm -rf "$repo" "$bin"; mkdir -p "$repo/.git" "$bin"

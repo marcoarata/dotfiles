@@ -45,7 +45,7 @@ brew install curl git zsh
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.0/bootstrap.sh | bash -s -- --ref v0.8.0
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.1/bootstrap.sh | bash -s -- --ref v0.8.1
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -66,11 +66,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.8.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.8.1 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.8.0
+~/.yadr-2027/bootstrap.sh --local --ref v0.8.1
 ```
 
 ```bash
@@ -108,7 +108,7 @@ sudo apt install zsh curl git -y
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.0/bootstrap.sh | bash -s -- --ref v0.8.0
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.1/bootstrap.sh | bash -s -- --ref v0.8.1
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -129,11 +129,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.8.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.8.1 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.8.0
+~/.yadr-2027/bootstrap.sh --local --ref v0.8.1
 ```
 
 ```bash
@@ -147,10 +147,10 @@ yadr doctor
 ### 3) Pin a release (recommended, especially for servers)
 
 `main` is development; installs should name the release they want. The commands
-above use `v0.8.0`. To verify the bootstrap before running it:
+above use `v0.8.1`. To verify the bootstrap before running it:
 
 ```bash
-V=v0.8.0
+V=v0.8.1
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS
@@ -290,9 +290,11 @@ More details: `README.md`, `docs/migration.md`, `docs/troubleshooting.md`.
 - `yadr plan [profile]` — alias for `install --dry-run`: prints the diff and the
   planned side effects, writes nothing.
 - `yadr update` — `git pull` + `mise upgrade` (with backup and confirmation).
-  The two phases are reported separately: when the pull fails it keeps your
-  checkout as it was, skips the runtime upgrade, says so and exits non-zero (it
-  never prints a success line for an update that did not happen).
+  The runtime upgrade asks separately and defaults to yes on Enter; EOF or
+  non-interactive input skips it, and `--yes` accepts both prompts. The two
+  phases are reported separately: when the pull fails it keeps your checkout as
+  it was, skips the runtime upgrade, says so and exits non-zero (it never prints
+  a success line for an update that did not happen).
 - `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores your
   backup and reverts the login shell.
 - `yadr runtime current|list|use|doctor` — runtime abstraction (mise underneath).

@@ -7,7 +7,7 @@
 autoload -Uz colors && colors
 
 # --- Git: branch + status (no vcs_info for speed and full control) ---
-# Format: `✔|✗ <branch> ↑↓` — mark first (green clean, red dirty), blue branch.
+# Format: `✔|✘ <branch> ↑↓` — mark first (green clean, red dirty), blue branch.
 # Rendered in RPROMPT next to the runtime, like classic damoekri.
 yadr_git_info() {
   command -v git >/dev/null 2>&1 || return 0
@@ -23,15 +23,16 @@ yadr_git_info() {
   fi
 
   # ahead/behind vs upstream (silent when no upstream)
+  # `rev-list --count` separates the two numbers with a TAB; splitting on a
+  # space leaves ahead as "0\t0" and the prompt never renders the arrows.
   local counts
-  counts="$(git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)" || counts=""
-  if [[ -n "$counts" ]]; then
-    ahead="${counts%% *}"; behind="${counts##* }"
+  if counts="$(git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)"; then
+    read -r ahead behind <<< "$counts"
   fi
 
   info=""
   if [[ -n "$dirty" ]]; then
-    info="%F{red}✗%f"    # dirty red
+    info="%F{red}✘%f"    # dirty red
   else
     info="%F{green}✔%f"  # clean green
   fi
