@@ -177,6 +177,10 @@ jobs:
         run: |
           export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"
           nvim --headless -u NONE -l "$GITHUB_WORKSPACE/tests/treesitter-compat.lua"
+      - name: telescope layout and border colour unit test
+        run: |
+          export PATH="$RUNNER_TEMP/yadr-home/.local/bin:$PATH"
+          nvim --headless -u NONE -l "$GITHUB_WORKSPACE/tests/telescope-style.lua"
       - name: shell completions written for bash, zsh and fish
         run: |
           export HOME="$RUNNER_TEMP/yadr-home"

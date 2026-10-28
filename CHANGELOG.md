@@ -4,6 +4,34 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.5] — 2026-10-28 — Telescope layout and border colours
+
+### Changed
+
+- **Telescope opens with results on the left, preview on the right, and the
+  prompt at the bottom.** The picker uses a `0.88` wide/tall horizontal
+  layout, a `0.40` preview width, and descending sorting so the selected entry
+  stays next to the bottom prompt.
+- **Telescope borders and titles are colour-coded.** Results and preview
+  borders/titles use blue `#7aa2f7`; the prompt border/title use orange
+  `#ff9e64`. The groups are applied after setup and re-applied on
+  `ColorScheme`, so changing themes does not drop them.
+- **No keymap changes.** Telescope mappings remain solely in
+  `nvim/lua/yadr/keymaps.lua`.
+
+### Tests
+
+- New headless unit test for the layout values, border characters, sorting
+  order and highlight groups; it stubs Telescope and needs no terminal.
+- The test runs in the suite and in the install CI job.
+
+### Notes
+
+- Cosmetic release: no commands, options, parsers or dependencies were added.
+- No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
+  `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.8.5`.
+
 ## [0.8.2] — 2026-10-25 — Tree-sitter 0.12 compatibility, single-source mappings
 
 ### Fixed

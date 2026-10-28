@@ -17,12 +17,13 @@ How a YADR 2027 release is cut. No release exists until all boxes check.
    tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash`,
    `bats tests/shell.bats -f "static provenance"` (pins cannot drift),
    `nvim --headless -u NONE -l tests/treesitter-compat.lua` (Neovim 0.12
-   directive shim), `yadr doctor` reports 0 errors on a fresh isolated HOME
-   (its warnings name what that machine still lacks; `0 warnings` needs the
-   distro packages and the documented install loop). For a release that touches
-   paths, also run `bats tests/shell.bats -f "path policy"` and one real install
-   with the `XDG_*` variables moved, which is what `docs/e2e-report.md` §6
-   records.
+   directive shim), `nvim --headless -u NONE -l tests/telescope-style.lua`
+   (Telescope layout and border highlights), `yadr doctor` reports 0 errors on
+   a fresh isolated HOME (its warnings name what that machine still lacks;
+   `0 warnings` needs the distro packages and the documented install loop). For
+   a release that touches paths, also run `bats tests/shell.bats -f "path
+   policy"` and one real install with the `XDG_*` variables moved, which is
+   what `docs/e2e-report.md` §6 records.
 4. Tag annotated: `git tag -a vX.Y.Z -m "YADR 2027 vX.Y.Z"` + `git push origin main vX.Y.Z`.
    Tags are annotated but **not signed** (no project key exists). Once a
    signing key is configured, verify with `git tag -v vX.Y.Z`; until then
@@ -111,6 +112,9 @@ is empty (checked before tagging). `v0.8.2` adds the Tree-sitter Neovim 0.12
 shim, consolidates Telescope mappings and removes Dependabot; it changes none
 of the three tracked pin files either:
 `git diff v0.8.1..v0.8.2 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.8.5` is a Telescope cosmetic release;
+it changes none of the three tracked pin files either:
+`git diff v0.8.2..v0.8.5 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). GitHub Actions remain pinned manually.
 
 | Artifact | Pin | Verified by |

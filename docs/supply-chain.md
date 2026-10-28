@@ -21,7 +21,7 @@ download is a decision, not an accident.
   install the distro/vendor build. YADR does not verify those bytes; the
   package manager's signature/notarization model does. This is why a package
   manager install is not listed as "pinned" below.
-- **No GPG requirement.** v0.8.2 verifies SHA-256, not signatures. Upstream
+- **No GPG requirement.** v0.8.5 verifies SHA-256, not signatures. Upstream
   signatures (for example mise's `install.sh.minisig`) are not checked yet.
   There is no project signing key in this release.
 - **The bootstrap is installed from a tag.** The documented install path
@@ -39,7 +39,7 @@ download is a decision, not an accident.
 The recommended install names a release tag:
 
 ```sh
-V=v0.8.2
+V=v0.8.5
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS          # macOS: shasum -a 256 -c SHA256SUMS
@@ -53,10 +53,10 @@ that if it reached you through a trusted channel. It does not authenticate the
 publisher. The manual alternative — clone the tag and run the local
 `bootstrap.sh --local --ref "$V"` — avoids `curl | sh` entirely.
 
-## Inventory (v0.8.2; pins unchanged since v0.8.1)
+## Inventory (v0.8.5; pins unchanged since v0.8.2)
 
 Checksums are the SHA-256 of the exact asset named in the URL. Dates are the
-last verification date; `v0.8.2` reuses the `v0.8.1` measurements because no
+last verification date; `v0.8.5` reuses the `v0.8.2` measurements because no
 pinned artifact changed.
 
 | Artifact | Pin | Verified before | Where |
@@ -116,7 +116,7 @@ These are intentional and visible; they are not silent downloads:
    one-line quick start is tagged but does not self-verify.
 5. **No SBOM / reproducible build.** The inventory and static tests are the
    current machine-readable-enough record; a formal SBOM is future work and
-   deliberately not part of v0.8.2.
+   deliberately not part of v0.8.5.
 
 ## Threat model
 

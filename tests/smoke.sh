@@ -49,6 +49,7 @@ check_file tests/coverage.sh
 check_file tests/coverage-hook.sh
 check_file tests/lua-parse.lua
 check_file tests/treesitter-compat.lua
+check_file tests/telescope-style.lua
 check_file tests/fixtures/typescript-project/package.json
 check_file tests/fixtures/typescript-project/mise.toml
 check_file tests/fixtures/typescript-project/tsconfig.json

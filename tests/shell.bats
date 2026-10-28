@@ -1108,6 +1108,13 @@ EOF
   grep -q 'Telescope find_files' "$YADR_ROOT/nvim/lua/yadr/keymaps.lua"
 }
 
+@test "telescope layout and border colours are pinned" {
+  command -v nvim >/dev/null 2>&1 || skip "nvim not installed"
+  run nvim --headless -u NONE -l "$YADR_ROOT/tests/telescope-style.lua"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"telescope-style: ok"* ]]
+}
+
 @test "static provenance: linux installer pins are exact and verified" {
   local l="$YADR_ROOT/platform/linux.sh"
   grep -qx 'ZOXIDE_VERSION="0.10.0"' "$l"
