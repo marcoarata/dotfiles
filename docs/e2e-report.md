@@ -108,6 +108,7 @@ YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
 | `v0.7.0` | `f34adb1` | 0.7.0 | 10 links, 0 pending | 0 errors / 7 warnings (9→8 after `nvim`; 7 after lazygit) | `installed-ref` + doctor commit; pinned mise/zoxide/neovim/lazygit verified |
 | `v0.8.1` | `1e3790a` | 0.8.1 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`) | prompt ahead/behind + `✘`; `cursorline`; confirmed `mise` upgrade |
 | `v0.8.2` | `e7cd2b6` (tag adds docs) | 0.8.2 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`; 7 after Tree-sitter parsers) | HTML/Markdown/Bash injections clean on Neovim 0.12; no `tree-sitter` CLI; shim unit test |
+| `v0.8.5` | `v0.8.5` (tag) | 0.8.5 | 10 links, 0 pending | 0 errors / 9 warnings (8 after `nvim`) | results left, preview right, prompt bottom; blue/orange borders survive a colorscheme change; full suite + Telescope style test |
 
 `v0.6.1` (docs-only) was verified the same way on 2026-10-19: the clone is
 detached at `a880ba0`, `VERSION` and both `yadr version`/`--version` print
@@ -215,6 +216,23 @@ ok`; the full suite is 137 tests, smoke is 89/89, core coverage is 56.8%
 `version=0.8.2`, `nvim/lazy-lock.json` is unchanged from `v0.8.1`, and the
 GitHub origin is credential-free. The post-tag install records the published
 tag itself; that log and the tagged-commit CI run are in the release notes.
+
+`v0.8.5` was verified on 2026-10-28 from a local clone checked out at the
+tagged release commit. `VERSION` and `yadr version` print `0.8.5`,
+`install --local` created 10 links and `yadr diff` reports `0 with changes`.
+The isolated run used a `sudo` stub, so apt was skipped; the pinned path
+installed `mise 2026.10.15` and `zoxide 0.10.0` (Neovim `0.12.6` was already
+present). `doctor` reported 0 errors with 9 warnings; after the first `nvim`
+start it reported 0 errors with 8 warnings and `✓ nvim plugins (lockfile OK)`.
+The new `tests/telescope-style.lua` prints `telescope-style: ok`; the full suite
+is 110 shell + 10 bootstrap + 18 fault tests, smoke is 90/90, core coverage is
+56.8% (610/1073) and shellcheck is clean. A headless Telescope picker at 200
+columns placed results at column 13 (width 102), preview at column 117 (width
+70) and the prompt at row 43 below the results; after `:colorscheme desert` the
+eight border/title groups kept `#7aa2f7` (results/preview) and `#ff9e64`
+(prompt). `installed-ref` records `ref=detached`, `version=0.8.5` and a
+credential-free local origin; `nvim/lazy-lock.json` is unchanged from `v0.8.2`.
+The exact release SHA and the tag-side CI run are in the release notes.
 
 The moved-`XDG` install is the case ADR-005 exists for: links follow the tools
 (`$E/config/nvim`, `$E/config/mise/config.toml`, `$E/config/yadr/*.zsh`), while
