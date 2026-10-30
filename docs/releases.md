@@ -124,6 +124,10 @@ macOS test lane failed under Bash 3.2. `v0.8.7` fixes that portability bug and
 keeps the same link/statusline changes; the published `v0.8.6` tag was not
 moved. The pin files are still unchanged:
 `git diff v0.8.5..v0.8.7 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.9.0` separates install and update backups
+and makes `uninstall --purge` fail closed on legacy installs; it changes none of
+the three tracked pin files either:
+`git diff v0.8.7..v0.9.0 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). GitHub Actions remain pinned manually.
 
 | Artifact | Pin | Verified by |

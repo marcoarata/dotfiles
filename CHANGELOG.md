@@ -4,6 +4,50 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.9.0] — 2026-10-30 — Install/update backup separation; safe purge
+
+### Fixed
+
+- **`yadr update` no longer overwrites the backup used by `yadr uninstall`.**
+  The first install writes `last-install-backup`; updates write
+  `last-update-backup` instead. `uninstall` restores from the install backup,
+  not from a post-update snapshot.
+- **`yadr uninstall --purge` no longer leaves managed links pointing at the
+  deleted checkout.** Symlinks restored from the install backup whose target is
+  inside `$YADR_HOME` are materialized before `--purge` removes the clone.
+  External symlinks are preserved; a missing target is reported and not
+  recreated.
+- **Legacy installs without `last-install-backup` are protected.** A reinstall
+  does not turn the current symlinks into a fake install backup, and
+  `uninstall --purge` refuses before removing anything, preserving the existing
+  backups. A normal `yadr uninstall` still works and warns that the legacy
+  backup cannot guarantee the original content.
+- **Backup pointers are written atomically** (temporary file + `mv`, mode
+  `0600`).
+
+### Changed
+
+- `last-backup` remains the manual `yadr backup` pointer and the legacy
+  fallback; it is no longer the primary source for `uninstall`.
+- `yadr update` records an update snapshot for inspection only. v0.9.0 still
+  has no `yadr rollback` and does not record the previous SHA, a repository
+  bundle or a manifest.
+
+### Tests
+
+- Added first-install, reinstall, update, manual-backup and
+  install-vs-update-restore coverage.
+- Added purge coverage for internal and external symlinks, missing targets,
+  legacy refusal and preservation of backups.
+- The shell suite passes under Bash 3.2 (macOS runner) and Bash 5.x.
+
+### Notes
+
+- No commands or options were added.
+- No new dependencies; no pinned artifact changed (`runtime/mise.toml`,
+  `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.9.0`.
+
 ## [0.8.7] — 2026-10-30 — Bash 3.2 uninstall fix; fast-path link check
 
 ### Fixed

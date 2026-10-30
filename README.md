@@ -45,7 +45,7 @@ brew install curl git zsh
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.7/bootstrap.sh | bash -s -- --ref v0.8.7
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.0/bootstrap.sh | bash -s -- --ref v0.9.0
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -66,11 +66,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.8.7 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.8.7
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.0
 ```
 
 ```bash
@@ -108,7 +108,7 @@ sudo apt install zsh curl git -y
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.8.7/bootstrap.sh | bash -s -- --ref v0.8.7
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.0/bootstrap.sh | bash -s -- --ref v0.9.0
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -129,11 +129,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.8.7 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.8.7
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.0
 ```
 
 ```bash
@@ -147,10 +147,10 @@ yadr doctor
 ### 3) Pin a release (recommended, especially for servers)
 
 `main` is development; installs should name the release they want. The commands
-above use `v0.8.7`. To verify the bootstrap before running it:
+above use `v0.9.0`. To verify the bootstrap before running it:
 
 ```bash
-V=v0.8.7
+V=v0.9.0
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS
@@ -262,6 +262,9 @@ links are already up to date — then they take the fast path with no prompts
 
 - `yadr diff` before installing when coming from another dotfiles setup.
 - Automatic backup to `~/.local/state/yadr/backups/<timestamp>/`.
+- Install and update backups are separate: `uninstall` restores
+  `last-install-backup`; the update snapshot is for inspection only and is
+  never used as a rollback.
 - On classic YADR detection (`~/.yadr` + `Rakefile`), prompts: `migrate / parallel / cancel` (default: `parallel`).
 - Nothing destructive without confirmation.
 
@@ -269,12 +272,16 @@ links are already up to date — then they take the fast path with no prompts
 
 ```bash
 yadr uninstall --dry-run   # preview without touching anything
-yadr uninstall             # removes symlinks, restores your backup, reverts login shell (single confirmation)
+yadr uninstall             # removes symlinks, restores the install-time backup, reverts login shell (single confirmation)
 yadr uninstall --purge     # also deletes clone, backups, Neovim plugins and toolchains (after second confirmation)
 ```
 
 By default it keeps your data (backups, clone, plugins, toolchains); system
 packages are listed for manual purge. Without a TTY nothing destructive runs.
+`--purge` refuses to run when no valid `last-install-backup` exists (legacy
+installs): it preserves the backups instead of deleting the only recovery
+source. A normal `yadr uninstall` still works and warns that the legacy backup
+cannot guarantee the original pre-install content.
 
 More details: `README.md`, `docs/migration.md`, `docs/troubleshooting.md`.
 
@@ -295,8 +302,9 @@ More details: `README.md`, `docs/migration.md`, `docs/troubleshooting.md`.
   phases are reported separately: when the pull fails it keeps your checkout as
   it was, skips the runtime upgrade, says so and exits non-zero (it never prints
   a success line for an update that did not happen).
-- `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores your
-  backup and reverts the login shell.
+- `yadr uninstall [--dry-run] [--purge]` — removes symlinks, restores the
+  install-time backup and reverts the login shell. `--purge` refuses on legacy
+  installs without a valid `last-install-backup` and preserves the backups.
 - `yadr runtime current|list|use|doctor` — runtime abstraction (mise underneath).
 
 **Diagnostics and safety**
