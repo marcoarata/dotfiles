@@ -1500,6 +1500,10 @@ EOF
   mkdir -p "$home/.config/mise/conf.d" "$home/.local/state/yadr"
   : > "$home/.config/mise/conf.d/yadr-tools.toml"
   : > "$home/.local/state/yadr/provides-tools"
+  # v0.9.0: --purge requires a valid install-time backup.
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  mkdir -p "$backup"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
   # Share dir: pre-existing entry (snapshotted) vs YADR-added.
   mkdir -p "$home/.local/share/nvim"
   : > "$home/.local/share/nvim/precious-data"
@@ -1821,6 +1825,201 @@ EOF
   [ -n "$found" ]
   [ "$(cat "$found")" == "old" ]
   rm -rf "$repo" "$plat"
+}
+
+@test "install: first install records the install backup; reinstall preserves it" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/install-pointers-repo-$$" plat="$BATS_TMPDIR/install-pointers-plat-$$.sh"
+  rm -rf "$repo" "$plat"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  printf 'old-zshrc\n' > "$home/.zshrc"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$plat"; chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core"
+  [ "$status" -eq 0 ]
+  local first; first="$(cat "$home/.local/state/yadr/last-install-backup")"
+  [ -d "$first" ]
+  [ "$(cat "$first/.zshrc")" == "old-zshrc" ]
+  [ "$(cat "$home/.local/state/yadr/last-backup")" == "$first" ]
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$home/.local/state/yadr/last-install-backup")" == "$first" ]
+  [ "$(cat "$home/.local/state/yadr/last-backup")" == "$first" ]
+  [ "$(cat "$first/.zshrc")" == "old-zshrc" ]
+  rm -rf "$repo" "$plat"
+}
+
+@test "install: legacy symlinks without an install pointer never become a fake install backup" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/install-legacy-repo-$$" plat="$BATS_TMPDIR/install-legacy-plat-$$.sh"
+  rm -rf "$repo" "$plat" "$home/.zshrc"; mkdir -p "$repo"
+  printf 'payload\n' > "$repo/pair-src"
+  ln -s "$repo/pair-src" "$home/.zshrc"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$plat"; chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no valid last-install-backup"* ]]
+  [ ! -e "$home/.local/state/yadr/last-install-backup" ]
+  [ ! -e "$home/.local/state/yadr/last-backup" ]
+  [ -L "$home/.zshrc" ]
+  rm -rf "$repo" "$plat"
+}
+
+@test "update: writes last-update-backup without touching install or manual pointers" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/update-pointers-repo-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$repo"; mkdir -p "$repo" "$backup" "$home/.local/state/yadr"
+  printf 'payload\n' > "$repo/pair-src"
+  printf 'install-original\n' > "$backup/.zshrc"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-backup"
+  ln -s "$repo/pair-src" "$home/.zshrc"
+  git -C "$repo" init -q
+  git -C "$repo" -c user.email=t@e -c user.name=t add pair-src
+  git -C "$repo" -c user.email=t@e -c user.name=t commit -qm init
+  git -C "$repo" remote add origin "$BATS_TMPDIR/update-no-remote-$$"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    do_update"
+  [ "$status" -ne 0 ]
+  local upd; upd="$(cat "$home/.local/state/yadr/last-update-backup")"
+  [ -d "$upd" ]
+  case "$(basename "$upd")" in update-*) ;; *) false ;; esac
+  [ "$(cat "$home/.local/state/yadr/last-install-backup")" == "$backup" ]
+  [ "$(cat "$home/.local/state/yadr/last-backup")" == "$backup" ]
+  [ "$(cat "$backup/.zshrc")" == "install-original" ]
+  rm -rf "$repo"
+}
+
+@test "backup: manual backup writes only last-backup" {
+  local home="$TEST_HOME" install_backup
+  install_backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$install_backup"; mkdir -p "$install_backup" "$home/.local/state/yadr"
+  printf 'install-original\n' > "$install_backup/.zshrc"
+  printf '%s\n' "$install_backup" > "$home/.local/state/yadr/last-install-backup"
+  printf '%s\n' "$install_backup" > "$home/.local/state/yadr/last-backup"
+  printf 'current\n' > "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$home'
+    managed_pairs() { printf 'zshrc:%s\n' \"\$HOME/.zshrc\"; }
+    do_backup"
+  [ "$status" -eq 0 ]
+  local manual; manual="$(cat "$home/.local/state/yadr/last-backup")"
+  [ -d "$manual" ]
+  [ "$manual" != "$install_backup" ]
+  [ "$(cat "$manual/.zshrc")" == "current" ]
+  [ "$(cat "$home/.local/state/yadr/last-install-backup")" == "$install_backup" ]
+  [ ! -e "$home/.local/state/yadr/last-update-backup" ]
+}
+
+@test "uninstall: prefers last-install-backup over an update snapshot" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-prefer-install-$$"
+  local install_backup="$home/.local/state/yadr/backups/20260101-000000"
+  local update_backup="$home/.local/state/yadr/backups/update-20260102-000000"
+  rm -rf "$clone"; mkdir -p "$clone" "$install_backup" "$update_backup" "$home/.local/state/yadr"
+  printf 'install-original\n' > "$install_backup/.zshrc"
+  printf 'update-snapshot\n' > "$update_backup/.zshrc"
+  printf '%s\n' "$install_backup" > "$home/.local/state/yadr/last-install-backup"
+  printf '%s\n' "$update_backup" > "$home/.local/state/yadr/last-update-backup"
+  printf 'wrong-fallback\n' > "$home/.local/state/yadr/last-backup"
+  ln -s "$clone/pair-src" "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.zshrc\"; }
+    do_uninstall"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$home/.zshrc")" == "install-original" ]
+  rm -rf "$clone"
+}
+
+@test "uninstall --purge materializes an internal symlink before deleting the checkout" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-materialize-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$home/.local/bin" "$backup" "$home/.local/state/yadr"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.9.0\n' > "$clone/VERSION"
+  ln -s "$clone/bin/yadr" "$backup/yadr"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -eq 0 ]
+  [ ! -e "$clone" ]
+  [ ! -L "$home/.local/bin/yadr" ]
+  [ -f "$home/.local/bin/yadr" ]
+  [ "$(cat "$home/.local/bin/yadr")" == "#!/usr/bin/env bash
+exit 0" ]
+  rm -rf "$clone"
+}
+
+@test "uninstall --purge preserves an external symlink" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-external-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$home/.local/bin" "$backup" "$home/.local/state/yadr"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.9.0\n' > "$clone/VERSION"
+  printf 'external\n' > "$home/external-config"
+  ln -s "$home/external-config" "$backup/yadr"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -eq 0 ]
+  [ ! -e "$clone" ]
+  [ -L "$home/.local/bin/yadr" ]
+  [ "$(readlink "$home/.local/bin/yadr")" == "$home/external-config" ]
+  [ "$(cat "$home/external-config")" == "external" ]
+  rm -rf "$clone"
+}
+
+@test "uninstall --purge does not recreate a symlink whose backup target is missing" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-missing-target-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$home/.local/bin" "$backup" "$home/.local/state/yadr"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.9.0\n' > "$clone/VERSION"
+  ln -s "$clone/bin/gone" "$backup/yadr"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"backup target missing"* ]]
+  [ ! -e "$home/.local/bin/yadr" ]
+  [ ! -L "$home/.local/bin/yadr" ]
+  [ ! -e "$clone" ]
+  rm -rf "$clone"
 }
 
 @test "uninstall: restores a directory backup after removing the YADR link" {

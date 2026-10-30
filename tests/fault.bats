@@ -187,8 +187,10 @@ load helpers
 
 @test "fault: uninstall --purge refuses a blind wipe when no snapshot exists" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/fault-purge-clone-$$"
-  rm -rf "$clone"; mkdir -p "$clone/shell" "$home/.local/share/nvim"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/shell" "$home/.local/share/nvim" "$backup"
   : > "$clone/shell/aliases.zsh"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-install-backup"
   printf 'user data\n' > "$home/.local/share/nvim/keep-me"   # never snapshotted
   run bash -c "
     export HOME='$home' YADR_YES=1
@@ -199,6 +201,31 @@ load helpers
   [[ "$output" == *"refusing blind wipe"* ]]
   [ -f "$home/.local/share/nvim/keep-me" ]   # unclassified data survives
   [ ! -e "$clone" ]                          # YADR's own clone still goes
+  rm -rf "$clone"
+}
+
+@test "fault: uninstall --purge refuses without an install backup" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/fault-legacy-purge-$$"
+  local state backup
+  state="$home/.local/state/yadr"
+  backup="$state/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/shell" "$backup"
+  : > "$clone/shell/aliases.zsh"
+  mkdir -p "$home/.config/yadr"
+  ln -s "$clone/shell/aliases.zsh" "$home/.config/yadr/aliases.zsh"
+  printf 'legacy-original\n' > "$backup/aliases.zsh"
+  printf '%s\n' "$backup" > "$state/last-backup"
+  run bash -c "
+    export HOME='$home' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"refusing --purge: no valid last-install-backup"* ]]
+  [ -L "$home/.config/yadr/aliases.zsh" ]    # nothing was removed
+  [ -d "$clone" ]                            # checkout preserved
+  [ -f "$backup/aliases.zsh" ]               # legacy backup preserved
+  [ "$(cat "$backup/aliases.zsh")" = "legacy-original" ]
   rm -rf "$clone"
 }
 

@@ -481,7 +481,10 @@ do_install() {
   # Profile runtimes via `runtime` abstraction (mise inside)
   local payload_rc=0
   ensure_profile_payload "$profile" || payload_rc=1
-  do_backup
+  if ! do_install_backup; then
+    err "install backup failed; refusing to replace existing paths."
+    return 1
+  fi
   local n=0 skipped=0 failed=0
   while IFS=: read -r rel dst; do
     [[ -z "$rel" ]] && continue
@@ -571,7 +574,7 @@ do_update() {
       info "stash, commit or discard them in ${YADR_HOME} first (often just nvim/lazy-lock.json from Lazy sync)."
     fi
     confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
-    do_backup
+    do_update_backup || warn "continuing update without a complete update backup."
     if git -C "$YADR_HOME" pull --ff-only; then
       ok "repo updated."
       repo_updated=1

@@ -171,7 +171,7 @@ usage: yadr <command> [args]
   doctor             checks the environment with hints (pass/warn/fail)
   diff               shows what would change, modifies nothing
   backup             copies current dotfiles to ~/.local/state/yadr/backups/<timestamp>/
-  uninstall [--dry-run] [--purge]  reverts install and restores your backup
+  uninstall [--dry-run] [--purge]  reverts install and restores the install-time backup
   migrate [--dry-run] imports classic YADR customization (idempotent)
   theme [list|use <name>|current]  Solarized background (light|dark|none, default none)
   gitsigns [on|off|status]  Git signs in Neovim (default: off)

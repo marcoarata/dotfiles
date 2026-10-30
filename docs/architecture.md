@@ -52,6 +52,38 @@ command -v mise >/dev/null && eval "$(mise activate zsh)"
 Why `mise` and not `fnm`/`nvm`, and why Core never requires it: the decisions
 table below.
 
+## Backup and restore model
+
+`install`, `update`, `backup` and `uninstall` share one state directory but not
+one pointer:
+
+```text
+$XDG_STATE_HOME/yadr/
+  last-install-backup    # first install only; uninstall restores from here
+  last-update-backup     # before an update; diagnostics only
+  last-backup            # manual backup / compatibility fallback
+  backups/
+    <timestamp>/         # install-time, manual and legacy backups
+    update-<timestamp>/  # update snapshots
+```
+
+The install backup is the only restore source for `uninstall`. It is written
+once, on the first install, and preserved across reinstalls and updates. A
+reinstall that finds managed symlinks but no install pointer is legacy: it does
+not turn those symlinks into a fake install backup.
+
+The update backup is deliberately not a rollback. v0.9.0 does not record the
+previous SHA, create a bundle or offer `yadr rollback`; those belong to the
+recovery release. It exists so a user can inspect what the update saw, and it is
+never read by `uninstall`.
+
+`uninstall --purge` fails closed when no valid install backup exists: it exits
+before removing links, the checkout or state, and leaves `backups/` intact. When
+it does run, restored links whose target is inside `$YADR_HOME` are materialized
+before the checkout is deleted; external links are kept as links. This is why a
+normal purge no longer leaves `.zshrc` or `.gitconfig` pointing at a deleted
+checkout.
+
 ## YADR Zsh Core — audited Prezto subset (frozen v0.1)
 
 Prezto is out as a framework. YADR natively reproduces only what it uses:

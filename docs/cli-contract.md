@@ -52,6 +52,28 @@ informational; a recorded `sha` that differs from the live `HEAD` is a warning
 with the recovery command. `installed-ref` is local self-reported state, not a
 signed attestation; see `docs/supply-chain.md` for the threat model.
 
+## Backups and restore source
+
+The state dir keeps three pointers, each with one job:
+
+| Pointer | Written by | Used by |
+|---|---|---|
+| `last-install-backup` | the first `yadr install` on a HOME | `yadr uninstall` (normal and `--purge`) |
+| `last-update-backup` | `yadr update`, before the pull | diagnostics only; `uninstall` never reads it |
+| `last-backup` | `yadr backup`; first install keeps the compatibility pointer | legacy fallback when `last-install-backup` is absent |
+
+The install pointer is first-install-wins. A reinstall or an update does not
+overwrite it, and a checkout that already has managed symlinks but no install
+pointer is treated as legacy: v0.9.0 does not create a fake install backup from
+those symlinks. The update backup records the current topology for inspection;
+it is **not** a rollback and is never a restore source.
+
+`uninstall --purge` requires a valid `last-install-backup`. Without one it
+refuses before removing anything and preserves `${XDG_STATE_HOME}/yadr/backups`.
+When the purge does proceed, managed symlinks restored from the install backup
+that point inside `$YADR_HOME` are materialized before the checkout is deleted,
+so no managed path is left dangling. External symlinks are preserved.
+
 ## Shell completions
 
 `yadr completion bash|zsh|fish` prints that shell's completion script to stdout
@@ -77,13 +99,13 @@ Failure taxonomy used throughout:
 
 | Command | Preconditions | Modifies | Exit codes |
 |---|---|---|---|
-| `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), symlinks, backup, login shell, toolchains — **only after the confirmation** | 0 ok (warnings allowed); 1 on a bad profile or a failed optional profile (`lazygit`/`tools`/`macos-extras`) |
+| `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), symlinks, first-install backup, login shell, toolchains — **only after the confirmation** | 0 ok (warnings allowed); 1 on a bad profile, a failed optional profile (`lazygit`/`tools`/`macos-extras`) or an unwritable backup dir |
 | `plan [profile]` | checkout present | nothing (alias of `install --dry-run`) | 0; 1 on a bad profile |
-| `update` | git checkout | repo pull, backup, plugins, `installed-ref`; runtimes only when the pull moved | 0; 1 when the pull or the runtime phase failed (reported separately) |
+| `update` | git checkout | repo pull, update backup (`last-update-backup`), plugins, `installed-ref`; runtimes only when the pull moved | 0; 1 when the pull or the runtime phase failed (reported separately) |
 | `doctor` | nothing | nothing (read-only; first nvim start installs plugins once; reads `installed-ref`) | 1 when any FAIL row, else 0 |
 | `diff` | nothing | nothing, always | 0 |
-| `backup` | nothing | new dir under `backups/` + `last-backup` pointer | 0 |
-| `uninstall` | nothing | removes own symlinks, restores backup, optional purge | 0, or 0 on cancel |
+| `backup` | nothing | new dir under `backups/` + `last-backup` pointer; never touches the install pointer | 0; 1 if a backup copy failed |
+| `uninstall` | nothing | removes own symlinks, restores `last-install-backup`, optional purge | 0; 0 on cancel; 1 when `--purge` has no valid install backup |
 | `migrate` | nothing | one-shot classic-YADR import: copies into `~/.config/yadr/migrated/` + backup | 0 |
 | `runtime *` | mise for use/list/current | global tool versions (`use`) | 1 without backend/spec |
 | `theme *` | nothing | `~/.config/yadr/solarized-bg` (use) | 1 on unknown name |

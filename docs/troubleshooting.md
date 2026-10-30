@@ -68,6 +68,43 @@ yours.
 `yadr update` reports two phases. A failed pull skips the runtime upgrade on
 purpose (the checkout did not move); fix the checkout and rerun.
 
+## Backups: install, update, and legacy
+
+YADR keeps three pointers under `${XDG_STATE_HOME:-$HOME/.local/state}/yadr`:
+
+```sh
+STATE="${XDG_STATE_HOME:-$HOME/.local/state}/yadr"
+cat "$STATE/last-install-backup"   # what uninstall restores
+cat "$STATE/last-update-backup"    # what the last update saw (diagnostic)
+cat "$STATE/last-backup"           # manual backup / legacy fallback
+ls -lt "$STATE/backups"            # install, manual and update-* snapshots
+```
+
+- `last-install-backup` is written by the first install and never overwritten
+  by a reinstall or update. `yadr uninstall` restores from it.
+- `last-update-backup` is not a rollback and is never used by `uninstall`. v0.9.0
+  has no `yadr rollback`; it only keeps the update snapshot for inspection.
+- `yadr backup` writes `last-backup`; it does not change the install pointer.
+
+### `uninstall --purge` refuses on a legacy install
+
+If there is no valid `last-install-backup`, `--purge` exits non-zero before
+touching anything and says which backups were preserved. This is intentional:
+an old `last-backup` may already be an update snapshot with symlinks, so the
+original pre-install content cannot be reconstructed automatically.
+
+Run the normal uninstall first, inspect the backups, and only then remove the
+checkout/state by hand if that is what you want:
+
+```sh
+yadr uninstall              # no purge; restores the best available backup
+ls -lt "$STATE/backups"     # find the oldest/real backup before deleting
+```
+
+`--purge` also materializes restored links that point inside `$YADR_HOME`
+before deleting the checkout. External symlinks are preserved. A backup link
+whose target is already gone is reported and not recreated.
+
 ## Slow shell (<500ms slow VM / <300ms workstation; see `yadr benchmark shell`)
 
 1. `yadr benchmark shell` (isolated HOME, does not touch your `~`).

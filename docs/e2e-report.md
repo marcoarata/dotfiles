@@ -29,12 +29,16 @@ Graceful paths are covered in isolated `HOME`/`YADR_HOME`: `uninstall --purge`
 (managed links go; user files and pre-existing shared data stay), an unreachable
 font source (no leftovers), `do_update` without a checkout (warns, exit 0), and
 `tests/fault.bats` (broken runtime/editor/network/cache/snapshots, no success
-lines). WSL is covered at the logic level (platform selection + clipboard
-branches): a hosted Windows+WSL runner is slow and flaky, and `platform/wsl.sh`
-delegates to `linux.sh`. The WSL path was also exercised end-to-end on
-2026-10-17 in a real Windows 11 guest (WSL 2, nested VT-x): node 24.22.0 via
-mise, `doctor` 0/0. WSL 1 fails for a host-side reason (Node ≥23 cannot
-`execve`, microsoft/WSL#8151) — documented, not worked around.
+lines). The v0.9.0 suite adds the backup pointer matrix: first install writes
+`last-install-backup`, reinstall/update preserve it, `uninstall` prefers it over
+an update snapshot, purge materializes internal links, and a legacy install
+without it refuses `--purge` without deleting anything. WSL is covered at the
+logic level (platform selection + clipboard branches): a hosted Windows+WSL
+runner is slow and flaky, and `platform/wsl.sh` delegates to `linux.sh`. The WSL
+path was also exercised end-to-end on 2026-10-17 in a real Windows 11 guest
+(WSL 2, nested VT-x): node 24.22.0 via mise, `doctor` 0/0. WSL 1 fails for a
+host-side reason (Node ≥23 cannot `execve`, microsoft/WSL#8151) — documented,
+not worked around.
 
 ## 2. Ephemeral Ubuntu 24.04 VM (quickemu, 2vCPU/4GB, all under `/tmp`)
 
