@@ -4,6 +4,34 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.7] — 2026-10-30 — Bash 3.2 uninstall fix; fast-path link check
+
+### Fixed
+
+- **`yadr uninstall` no longer aborts under Bash 3.2 when there are no YADR
+  symlinks to remove.** Empty arrays are guarded before expansion; the macOS
+  lane caught this after `v0.8.6` was tagged.
+- **The install fast path now requires a real symlink.** An identical real
+  file or directory is no longer treated as an up-to-date managed link.
+- **`yadr diff` reports every real path as a path that would be replaced by a
+  symlink**, including real files, not only directories.
+
+### Tests
+
+- The shell suite passes under Bash 3.2 (macOS runner) and Bash 5.x.
+- Added coverage for the empty linked array, the fast-path symlink check, and
+  real directories that look identical to the checkout.
+
+### Notes
+
+- `v0.8.6` stays tagged but was not released: its macOS test lane failed on
+  the Bash 3.2 empty-array expansion. `v0.8.7` supersedes it; the published
+  tag was not moved.
+- No commands, options, parsers or dependencies were added.
+- No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
+  `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.8.7`.
+
 ## [0.8.6] — 2026-10-29 — Safe links over existing configs; black lineinfo ink
 
 ### Fixed

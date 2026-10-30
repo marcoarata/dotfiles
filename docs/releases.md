@@ -119,6 +119,11 @@ is empty (checked before tagging). `v0.8.6` fixes installation over existing
 destination paths and changes the statusline lineinfo ink; it changes none of
 the three tracked pin files either:
 `git diff v0.8.5..v0.8.6 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.8.6` was tagged but never released: its
+macOS test lane failed under Bash 3.2. `v0.8.7` fixes that portability bug and
+keeps the same link/statusline changes; the published `v0.8.6` tag was not
+moved. The pin files are still unchanged:
+`git diff v0.8.5..v0.8.7 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). GitHub Actions remain pinned manually.
 
 | Artifact | Pin | Verified by |
