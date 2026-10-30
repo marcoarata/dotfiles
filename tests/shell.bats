@@ -1742,6 +1742,148 @@ EOF
   rm -rf "$x"
 }
 
+@test "install: link_one replaces a real directory without nesting" {
+  local home="$TEST_HOME" backup="$BATS_TMPDIR/link-backup-$$"
+  rm -rf "$backup"; mkdir -p "$backup" "$home/.config/nvim"
+  printf 'old\n' > "$home/.config/nvim/init.lua"
+  cp -Rp "$home/.config/nvim" "$backup/nvim"
+  run bash -c "
+    export HOME='$home' YADR_LAST_BACKUP='$backup'
+    source '$(yadr_funcs)'
+    link_one '${YADR_ROOT}/nvim' \"\$HOME/.config/nvim\""
+  [ "$status" -eq 0 ]
+  [ -L "$home/.config/nvim" ]
+  [ "$(readlink "$home/.config/nvim")" == "${YADR_ROOT}/nvim" ]
+  [ ! -e "$home/.config/nvim/nvim" ]
+  [ -f "$backup/nvim/init.lua" ]
+  [ -f "$backup/displaced/$(printf '%s' "$home/.config/nvim" | tr '/' '_')/init.lua" ]
+  rm -rf "$backup"
+}
+
+@test "install: link_one refuses a real directory without a verified backup" {
+  local home="$TEST_HOME"
+  mkdir -p "$home/.config/nvim"
+  printf 'old\n' > "$home/.config/nvim/init.lua"
+  run bash -c "
+    export HOME='$home'
+    source '$(yadr_funcs)'
+    link_one '${YADR_ROOT}/nvim' \"\$HOME/.config/nvim\""
+  [ "$status" -ne 0 ]
+  [ -d "$home/.config/nvim" ]
+  [ ! -L "$home/.config/nvim" ]
+  [ "$(cat "$home/.config/nvim/init.lua")" == "old" ]
+  [[ "$output" == *"no verified backup"* ]]
+}
+
+@test "install: link_one replaces a real file and a broken symlink" {
+  local home="$TEST_HOME" backup="$BATS_TMPDIR/link-file-backup-$$"
+  rm -rf "$backup"; mkdir -p "$backup" "$home/.config/yadr"
+  printf 'old\n' > "$home/.config/yadr/aliases.zsh"
+  cp -p "$home/.config/yadr/aliases.zsh" "$backup/aliases.zsh"
+  run bash -c "
+    export HOME='$home' YADR_LAST_BACKUP='$backup'
+    source '$(yadr_funcs)'
+    link_one '${YADR_ROOT}/shell/aliases.zsh' \"\$HOME/.config/yadr/aliases.zsh\""
+  [ "$status" -eq 0 ]
+  [ -L "$home/.config/yadr/aliases.zsh" ]
+  [ "$(readlink "$home/.config/yadr/aliases.zsh")" == "${YADR_ROOT}/shell/aliases.zsh" ]
+
+  ln -s /nonexistent/yadr-target "$home/.config/yadr/broken"
+  run bash -c "
+    export HOME='$home' YADR_LAST_BACKUP='$backup'
+    source '$(yadr_funcs)'
+    link_one '${YADR_ROOT}/shell/aliases.zsh' \"\$HOME/.config/yadr/broken\""
+  [ "$status" -eq 0 ]
+  [ -L "$home/.config/yadr/broken" ]
+  [ "$(readlink "$home/.config/yadr/broken")" == "${YADR_ROOT}/shell/aliases.zsh" ]
+  rm -rf "$backup"
+}
+
+@test "install: a pre-existing nvim directory is backed up and linked" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/install-real-dir-repo-$$" plat="$BATS_TMPDIR/install-real-dir-plat-$$.sh"
+  rm -rf "$repo" "$plat"; mkdir -p "$repo" "$home/.config/nvim"
+  printf 'payload\n' > "$repo/pair-src"
+  printf 'old\n' > "$home/.config/nvim/init.lua"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$plat"; chmod +x "$plat"
+  run bash -c "
+    export HOME='$home' PATH='/usr/bin:/bin' YADR_YES=1 SHELL=/bin/zsh
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'pair-src:%s\n' \"\$HOME/.config/nvim\"; }
+    detect_platform_script() { printf '%s\n' '$plat'; }
+    do_install core"
+  [ "$status" -eq 0 ]
+  [ -L "$home/.config/nvim" ]
+  [ "$(readlink "$home/.config/nvim")" == "$repo/pair-src" ]
+  [ ! -e "$home/.config/nvim/nvim" ]
+  local found
+  found="$(find "$home/.local/state/yadr/backups" -maxdepth 3 -path '*/nvim/init.lua' -print -quit)"
+  [ -n "$found" ]
+  [ "$(cat "$found")" == "old" ]
+  rm -rf "$repo" "$plat"
+}
+
+@test "uninstall: restores a directory backup after removing the YADR link" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-nvim-clone-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone/nvim" "$home/.config" "$backup/nvim"
+  printf 'new\n' > "$clone/nvim/init.lua"
+  printf 'old\n' > "$backup/nvim/init.lua"
+  ln -s "$clone/nvim" "$home/.config/nvim"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-backup"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    managed_pairs() { printf 'nvim:%s\n' \"\$HOME/.config/nvim\"; }
+    do_uninstall"
+  [ "$status" -eq 0 ]
+  [ -f "$home/.config/nvim/init.lua" ]
+  [ "$(cat "$home/.config/nvim/init.lua")" == "old" ]
+  [ ! -e "$home/.config/nvim/nvim" ]
+  rm -rf "$clone"
+}
+
+@test "uninstall: keeps a real destination instead of nesting its backup" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/uninstall-real-clone-$$"
+  local backup="$home/.local/state/yadr/backups/20260101-000000"
+  rm -rf "$clone"; mkdir -p "$clone" "$home/.config/nvim" "$backup/nvim"
+  printf 'mine\n' > "$home/.config/nvim/init.lua"
+  printf 'old\n' > "$backup/nvim/init.lua"
+  printf '%s\n' "$backup" > "$home/.local/state/yadr/last-backup"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    managed_pairs() { printf 'nvim:%s\n' \"\$HOME/.config/nvim\"; }
+    do_uninstall"
+  [ "$status" -eq 0 ]
+  [ -d "$home/.config/nvim" ]
+  [ ! -L "$home/.config/nvim" ]
+  [ "$(cat "$home/.config/nvim/init.lua")" == "mine" ]
+  [ ! -e "$home/.config/nvim/nvim" ]
+  rm -rf "$clone"
+}
+
+@test "CLI: diff flags a real directory that should become a symlink" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/diff-real-dir-repo-$$"
+  rm -rf "$repo"; mkdir -p "$repo/nvim" "$home/.config/nvim"
+  printf 'repo\n' > "$repo/nvim/init.lua"
+  printf 'mine\n' > "$home/.config/nvim/init.lua"
+  run bash -c "
+    export HOME='$home'
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'nvim:%s\n' \"\$HOME/.config/nvim\"; }
+    do_diff"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"would replace real directory with symlink"* ]]
+  [[ "$output" == *"diff: 1 with changes"* ]]
+  [ -d "$home/.config/nvim" ]
+  [ ! -L "$home/.config/nvim" ]
+  rm -rf "$repo"
+}
+
 @test "path policy: nvim's own stdpath agrees with the helpers (XDG moved)" {
   command -v nvim >/dev/null 2>&1 || skip "nvim not installed"
   local x="$BATS_TMPDIR/xdg-stdpath-$$"

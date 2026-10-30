@@ -18,10 +18,29 @@ backup_one() {
   printf '%s' "${destdir}/${rel}"
 }
 
+backup_entry_for() {
+  # backup_entry_for <src> <backup-dir>: echo the saved copy, or fail.
+  # Mirrors backup_one's basename/full-path naming so link_one can prove that
+  # the path it is about to replace was actually copied.
+  local src="$1" destdir="$2" rel alt
+  [[ -n "$src" && -n "$destdir" ]] || return 1
+  rel="$(basename "$src")"
+  if [[ -e "${destdir}/${rel}" || -L "${destdir}/${rel}" ]]; then
+    printf '%s' "${destdir}/${rel}"; return 0
+  fi
+  alt="$(printf '%s' "$src" | tr '/' '_')"
+  if [[ -e "${destdir}/${alt}" || -L "${destdir}/${alt}" ]]; then
+    printf '%s' "${destdir}/${alt}"; return 0
+  fi
+  return 1
+}
+
 do_backup() {
   # do_backup: backs up managed pairs. (migrate/legacy use backup_one directly.)
   local ts dest n=0
   ts="$(timestamp)"; dest="${BACKUP_ROOT}/${ts}"
+  # shellcheck disable=SC2034  # consumed by link_one in lib/install.sh
+  YADR_LAST_BACKUP="$dest"
   mkdir -p "$dest"
   while IFS=: read -r _rel dst; do
     [[ -z "$dst" ]] && continue
@@ -126,6 +145,13 @@ do_uninstall() {
       base="$(basename "$dst")"; cand="${last}/${base}"
       [[ -e "$cand" || -L "$cand" ]] || cand="${last}/$(printf '%s' "$dst" | tr '/' '_')"
       if [[ -e "$cand" || -L "$cand" ]]; then
+        # Only restore where the YADR symlink was removed. A real path here
+        # was kept as foreign; copying a directory backup over it would nest
+        # the backup inside (for example ~/.config/nvim/nvim).
+        if [[ -e "$dst" || -L "$dst" ]]; then
+          info "  kept existing: ${dst} (not a YADR symlink)"
+          continue
+        fi
         mkdir -p "$(dirname "$dst")" 2>/dev/null || true
         cp_preserve "$cand" "$dst" && info "  restored: ${dst}" || warn "  could not restore ${dst}"
       fi

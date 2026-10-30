@@ -146,9 +146,14 @@ do_diff() {
       warn "  would create ${dst} (new)"
       changed=$((changed+1)); continue
     fi
-    if [[ -d "$src" && -d "$dst" && ! -L "$src" && ! -L "$dst" ]]; then
-      if diff -r -q "$src" "$dst" >/dev/null 2>&1; then ok "  unchanged"; else changed=$((changed+1)); diff -r -u "$src" "$dst" 2>/dev/null | head -n 80 || true; fi
-    elif [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
+    if [[ -d "$src" && -d "$dst" && ! -L "$dst" ]]; then
+      # A directory source is managed as a symlink. Comparing contents here
+      # would report "unchanged" for an identical real directory and send
+      # install down the fast path without ever creating the link.
+      warn "  would replace real directory with symlink → ${src}"
+      changed=$((changed+1)); continue
+    fi
+    if [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
       if cmp -s "$src" "$dst"; then ok "  unchanged"; else changed=$((changed+1)); diff -u "$dst" "$src" | head -n 80 || true; fi
     else
       # symlink or other type: compare link target

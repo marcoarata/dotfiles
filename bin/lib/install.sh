@@ -82,10 +82,48 @@ handle_legacy_yadr() {
 }
 
 link_one() {
-  local src="$1" dst="$2"
-  mkdir -p "$(dirname "$dst")"
-  if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then ok "  already linked: ${dst}"; return 0; fi
-  ln -sfn "$src" "$dst"
+  local src="$1" dst="$2" backup qdir qdst=""
+  mkdir -p "$(dirname "$dst")" || { warn "  cannot create parent for ${dst}"; return 1; }
+
+  if [[ -L "$dst" ]]; then
+    if [[ "$(readlink "$dst")" == "$src" ]]; then ok "  already linked: ${dst}"; return 0; fi
+    rm -f "$dst" || { warn "  cannot replace symlink: ${dst}"; return 1; }
+    if ! ln -s "$src" "$dst"; then warn "  cannot link ${dst}"; return 1; fi
+  elif [[ -e "$dst" ]]; then
+    # A real file or directory must have a verified backup before it is moved.
+    # ln -sfn treats a real directory as a target directory and would create
+    # the link inside it (for example ~/.config/nvim/nvim), leaving the old
+    # config active while reporting success.
+    backup="${YADR_LAST_BACKUP:-}"
+    if [[ -z "$backup" ]] || ! backup_entry_for "$dst" "$backup" >/dev/null; then
+      warn "  refusing to replace ${dst}: no verified backup (rerun 'yadr install')"
+      return 1
+    fi
+    qdir="${backup}/displaced"
+    mkdir -p "$qdir" || { warn "  cannot create ${qdir}"; return 1; }
+    qdst="${qdir}/$(printf '%s' "$dst" | tr '/' '_')"
+    if [[ -e "$qdst" || -L "$qdst" ]]; then qdst="${qdst}.$(date +%s).$$"; fi
+    if ! mv "$dst" "$qdst"; then
+      warn "  cannot move ${dst} aside; leaving it untouched"
+      return 1
+    fi
+    if ! ln -s "$src" "$dst"; then
+      mv "$qdst" "$dst" 2>/dev/null || warn "  cannot restore ${dst} from ${qdst}"
+      warn "  cannot link ${dst}"
+      return 1
+    fi
+  else
+    if ! ln -s "$src" "$dst"; then warn "  cannot link ${dst}"; return 1; fi
+  fi
+
+  if [[ ! -L "$dst" || "$(readlink "$dst")" != "$src" ]]; then
+    warn "  link verification failed: ${dst}"
+    if [[ -n "$qdst" && ( -e "$qdst" || -L "$qdst" ) ]]; then
+      rm -f "$dst" 2>/dev/null || true
+      mv "$qdst" "$dst" 2>/dev/null || warn "  cannot restore ${dst} from ${qdst}"
+    fi
+    return 1
+  fi
   ok "  linked: ${dst} → ${src}"
 }
 
@@ -447,13 +485,18 @@ do_install() {
   local payload_rc=0
   ensure_profile_payload "$profile" || payload_rc=1
   do_backup
-  local n=0 skipped=0
+  local n=0 skipped=0 failed=0
   while IFS=: read -r rel dst; do
     [[ -z "$rel" ]] && continue
     local src="${YADR_HOME}/${rel}"
     if [[ ! -e "$src" && ! -L "$src" ]]; then warn "  skipping ${rel} (not in checkout)"; skipped=$((skipped+1)); continue; fi
-    link_one "$src" "$dst"; n=$((n+1))
+    if link_one "$src" "$dst"; then n=$((n+1)); else failed=$((failed+1)); fi
   done < <(managed_pairs)
+  if [[ "$failed" -gt 0 ]]; then
+    err "install incomplete: ${failed} link(s) failed (see above; ${n} applied)."
+    next_steps
+    return 1
+  fi
   ensure_completions
   ensure_login_shell
   if [[ "$payload_rc" == "0" ]]; then
