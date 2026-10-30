@@ -9,7 +9,8 @@
 "   NORMAL/COMMAND gray #95A4A6 | INSERT green #33CC63 | VISUAL violet #8D43B3,
 "   all with smoke text #686868. (REPLACE unspecified: neutral gray.)
 " Visual chain: mode-color on yellow | smoke-on-yellow filename | black
-" middle ... blue fileinfo | yellow percent | blue lineinfo, all smoke-inked.
+" middle ... blue fileinfo | yellow percent | blue lineinfo, with black ink
+" on the rightmost lineinfo block.
 " It works because lightline paints each separator with fg=prev-bg and
 " bg=next-bg, so adjacent backgrounds must chain:
 "   mode -> yellow -> black -> blue -> yellow -> blue.
@@ -33,23 +34,24 @@
 " and :verbose hi StatusLine (must show no reverse).
 " =============================================================================
 
-" Named slots. Text on colored blocks is dark warm gray #686868 (single ink:
-" readable on gray/green/violet/yellow/blue alike, no tone drift).
+" Named slots. Most colored blocks use dark warm gray #686868 (readable on
+" gray/green/violet/yellow/blue alike, no tone drift); the rightmost lineinfo
+" block uses black #000000.
 let s:ink    = ['#002b36', 234]   " base03: tabsel + error/warning ink
-let s:black  = ['#000000', 16]    " middle bg, fileinfo ink
+let s:black  = ['#000000', 16]    " middle bg, fileinfo + lineinfo ink
 let s:gray   = ['#93a1a1', 247]   " base1: middle ink
 let s:yellow = ['#fefb67', 227]   " filename + percent bg (the only yellow)
 let s:blue   = ['#277fbd', 32]    " fileinfo + lineinfo bg
 let s:dim    = ['#657b83', 240]   " base00: inactive ink
 let s:deep   = ['#073642', 234]   " base02: inactive bg
-let s:smoke  = ['#686868', 241]   " block text: mode/filename/percent/lineinfo
+let s:smoke  = ['#686868', 241]   " block text: mode/filename/percent
 let s:modegray   = ['#95A4A6', 109]   " NORMAL + COMMAND bg
 let s:modegreen  = ['#33CC63', 77]    " INSERT bg
 let s:modeviolet = ['#8D43B3', 97]    " VISUAL bg
 
 let s:p = {'normal': {}, 'inactive': {}, 'insert': {}, 'replace': {}, 'visual': {}, 'command': {}, 'tabline': {}}
 let s:p.normal.left = [ [ s:smoke, s:modegray ], [ s:smoke, s:yellow ] ]
-let s:p.normal.right = [ [ s:smoke, s:blue ], [ s:smoke, s:yellow ], [ s:black, s:blue ] ]
+let s:p.normal.right = [ [ s:black, s:blue ], [ s:smoke, s:yellow ], [ s:black, s:blue ] ]
 let s:p.inactive.right = [ [ s:dim, s:deep ], [ s:dim, s:deep ] ]
 let s:p.inactive.left =  [ [ s:dim, s:deep ], [ s:dim, s:deep ] ]
 let s:p.insert.left = [ [ s:smoke, s:modegreen ], [ s:smoke, s:yellow ] ]
