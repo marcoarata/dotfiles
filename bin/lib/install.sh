@@ -317,19 +317,16 @@ managed_pair_count() { # number of destinations the install manages
   printf '%s' "$n"
 }
 
-links_uptodate() { # 0 when every managed pair is already as it should be (silent)
+links_uptodate() { # 0 when every managed pair is already linked (silent)
   local rel dst src
   while IFS=: read -r rel dst; do
     [[ -z "$rel" ]] && continue
     src="${YADR_HOME}/${rel}"
     [[ -e "$src" || -L "$src" ]] || return 1
-    if [[ -d "$src" && -d "$dst" && ! -L "$src" && ! -L "$dst" ]]; then
-      diff -r -q "$src" "$dst" >/dev/null 2>&1 || return 1
-    elif [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
-      cmp -s "$src" "$dst" || return 1
-    else
-      [[ -L "$dst" ]] && [[ "$(readlink "$dst")" == "$src" ]] || return 1
-    fi
+    # Content equality is not enough: a real file or directory is not managed
+    # by YADR until it is a symlink to the checkout. Treating an identical copy
+    # as up to date sent the fast path past the link step entirely.
+    [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]] || return 1
   done < <(managed_pairs)
   return 0
 }

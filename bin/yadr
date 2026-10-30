@@ -146,21 +146,16 @@ do_diff() {
       warn "  would create ${dst} (new)"
       changed=$((changed+1)); continue
     fi
-    if [[ -d "$src" && -d "$dst" && ! -L "$dst" ]]; then
-      # A directory source is managed as a symlink. Comparing contents here
-      # would report "unchanged" for an identical real directory and send
-      # install down the fast path without ever creating the link.
-      warn "  would replace real directory with symlink → ${src}"
+    if [[ -e "$dst" && ! -L "$dst" ]]; then
+      # Every managed destination is a symlink. Content equality is not enough:
+      # an identical real file/directory still has to be backed up and linked.
+      warn "  would replace real path with symlink → ${src}"
       changed=$((changed+1)); continue
     fi
-    if [[ -f "$src" && -f "$dst" && ! -L "$dst" ]]; then
-      if cmp -s "$src" "$dst"; then ok "  unchanged"; else changed=$((changed+1)); diff -u "$dst" "$src" | head -n 80 || true; fi
-    else
-      # symlink or other type: compare link target
-      local dlink
-      dlink="$(readlink "$dst" 2>/dev/null || echo "?")"
-      if [[ "$dlink" == "$src" ]]; then ok "  unchanged (symlink → repo)"; else changed=$((changed+1)); warn "  would change: now '${dlink}', would become '${src}'"; fi
-    fi
+    # symlink or other type: compare link target
+    local dlink
+    dlink="$(readlink "$dst" 2>/dev/null || echo "?")"
+    if [[ "$dlink" == "$src" ]]; then ok "  unchanged (symlink → repo)"; else changed=$((changed+1)); warn "  would change: now '${dlink}', would become '${src}'"; fi
   done < <(managed_pairs)
   printf '\n%s\n' "${DIM}diff: ${changed} with changes. Nothing modified (read-only).${RESET}"
 }

@@ -124,7 +124,11 @@ do_uninstall() {
   local last=""; [[ -f "${STATE_DIR}/last-backup" ]] && last="$(cat "${STATE_DIR}/last-backup" 2>/dev/null)"
   local prev=""; [[ -f "${STATE_DIR}/prev-shell" ]] && prev="$(cat "${STATE_DIR}/prev-shell" 2>/dev/null)"
   printf '\n%sWould remove %d symlinks:%s\n' "$BOLD" "${#linked[@]}" "$RESET"
-  printf '  %s\n' "${linked[@]:-(none)}"
+  if [[ ${#linked[@]} -gt 0 ]]; then
+    printf '  %s\n' "${linked[@]}"
+  else
+    printf '  %s\n' '(none)'
+  fi
   if [[ ${#foreign[@]} -gt 0 ]]; then printf '%sKept (not YADR):%s\n' "$DIM" "$RESET"; printf '  %s\n' "${foreign[@]}"; fi
   local comp_files; comp_files="$(completions_inventory)"
   if [[ -n "$comp_files" ]]; then printf '%sWould remove shell completions:%s\n' "$BOLD" "$RESET"; printf '%s\n' "$comp_files"; fi
@@ -136,7 +140,9 @@ do_uninstall() {
   confirm "Uninstall YADR 2027 and restore your previous config?" || { info "uninstall cancelled; nothing modified."; return 0; }
   # 2. Remove symlinks + restore backup.
   local d
-  for d in "${linked[@]}"; do rm -f "$d" && info "  removed: ${d}"; done
+  if [[ ${#linked[@]} -gt 0 ]]; then
+    for d in "${linked[@]}"; do rm -f "$d" && info "  removed: ${d}"; done
+  fi
   remove_completions
   if [[ -n "$last" && -d "$last" ]]; then
     while IFS=: read -r _rel dst; do

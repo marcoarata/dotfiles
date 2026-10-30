@@ -1865,6 +1865,21 @@ EOF
   rm -rf "$clone"
 }
 
+@test "install: links_uptodate requires a symlink, not an identical copy" {
+  local home="$TEST_HOME" repo="$BATS_TMPDIR/links-uptodate-repo-$$"
+  rm -rf "$repo"; mkdir -p "$repo/nvim" "$home/.config/nvim"
+  printf 'same\n' > "$repo/nvim/init.lua"
+  printf 'same\n' > "$home/.config/nvim/init.lua"
+  run bash -c "
+    export HOME='$home'
+    source '$(yadr_funcs)'
+    export YADR_HOME='$repo'
+    managed_pairs() { printf 'nvim:%s\n' \"\$HOME/.config/nvim\"; }
+    links_uptodate"
+  [ "$status" -ne 0 ]
+  rm -rf "$repo"
+}
+
 @test "CLI: diff flags a real directory that should become a symlink" {
   local home="$TEST_HOME" repo="$BATS_TMPDIR/diff-real-dir-repo-$$"
   rm -rf "$repo"; mkdir -p "$repo/nvim" "$home/.config/nvim"
@@ -1877,7 +1892,7 @@ EOF
     managed_pairs() { printf 'nvim:%s\n' \"\$HOME/.config/nvim\"; }
     do_diff"
   [ "$status" -eq 0 ]
-  [[ "$output" == *"would replace real directory with symlink"* ]]
+  [[ "$output" == *"would replace real path with symlink"* ]]
   [[ "$output" == *"diff: 1 with changes"* ]]
   [ -d "$home/.config/nvim" ]
   [ ! -L "$home/.config/nvim" ]
