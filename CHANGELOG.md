@@ -4,6 +4,39 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.8.6] — 2026-10-29 — Safe links over existing configs; black lineinfo ink
+
+### Fixed
+
+- **Installing over a real `~/.config/nvim` directory no longer creates a
+  nested link.** A verified backup is required, the real destination is moved
+  aside, the symlink is created, and the result is checked with `readlink`.
+  If linking fails, the original path is restored.
+- **Uninstall no longer nests a directory backup inside a real destination.**
+  Only paths whose YADR symlink was removed are restored; real paths are kept
+  as foreign files.
+
+### Changed
+
+- **The rightmost statusline component uses black text on blue.** The `1:1`
+  lineinfo block now uses `#000000` instead of `#686868`; the rest of the
+  lightline palette is unchanged.
+
+### Tests
+
+- Added coverage for real directories, real files, broken symlinks, missing
+  backups, full installation over an existing nvim directory, and uninstall
+  restoration without nesting.
+- `yadr diff` now reports a real directory as a path that would be replaced by
+  a symlink instead of comparing its contents.
+
+### Notes
+
+- No commands, options, parsers or dependencies were added.
+- No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
+  `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.8.6`.
+
 ## [0.8.5] — 2026-10-28 — Telescope layout and border colours
 
 ### Changed

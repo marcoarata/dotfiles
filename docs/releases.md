@@ -115,6 +115,10 @@ of the three tracked pin files either:
 is empty (checked before tagging). `v0.8.5` is a Telescope cosmetic release;
 it changes none of the three tracked pin files either:
 `git diff v0.8.2..v0.8.5 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
+is empty (checked before tagging). `v0.8.6` fixes installation over existing
+destination paths and changes the statusline lineinfo ink; it changes none of
+the three tracked pin files either:
+`git diff v0.8.5..v0.8.6 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env`
 is empty (checked before tagging). GitHub Actions remain pinned manually.
 
 | Artifact | Pin | Verified by |
