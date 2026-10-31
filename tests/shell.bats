@@ -2270,3 +2270,23 @@ exit 0" ]
   run grep -q 'completions_inventory' "$YADR_ROOT/bin/lib/recover.sh"
   [ "$status" -eq 0 ]
 }
+
+@test "state: pointer writes do not follow a precreated symlink" {
+  local state="$BATS_TMPDIR/state-symlink-$$" victim="$BATS_TMPDIR/state-victim-$$"
+  rm -rf "$state"; mkdir -p "$state"
+  printf 'keep\n' > "$victim"
+  run bash -c "
+    export HOME='$TEST_HOME' YADR_HOME='$YADR_ROOT'
+    source '$(yadr_funcs)'
+    STATE_DIR='$state'; BACKUP_ROOT='$state/backups'
+    ln -s '$victim' \"\$STATE_DIR/.installed-ref.\$\$\"
+    ln -s '$victim' \"\$STATE_DIR/.last-install-backup.\$\$\"
+    record_installed_ref
+    write_state_pointer last-install-backup '$state/real-backup'"
+  [ "$status" -eq 0 ]
+  [ "$(cat "$victim")" == "keep" ]
+  [ -f "$state/installed-ref" ]
+  [ "$(cat "$state/last-install-backup")" == "$state/real-backup" ]
+  rm -rf "$state" "$victim"
+}
+

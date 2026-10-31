@@ -540,7 +540,8 @@ record_installed_ref() {
   fi
   dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
   mkdir -p "$dir" 2>/dev/null || { warn "cannot create ${dir}; installed ref not recorded."; return 1; }
-  tmp="${dir}/.installed-ref.$$"
+  tmp="$(mktemp "${dir}/.installed-ref.XXXXXX" 2>/dev/null)" \
+    || { warn "cannot create a temporary file in ${dir}; installed ref not recorded."; return 1; }
   {
     printf 'sha=%s\n' "$sha"
     printf 'ref=%s\n' "$ref"

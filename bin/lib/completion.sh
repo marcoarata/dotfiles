@@ -118,7 +118,8 @@ ensure_completions() { # writes all three where each shell reads them (idempoten
   while IFS=$'\t' read -r shell file; do
     [[ -n "$shell" ]] || continue
     mkdir -p "$(dirname "$file")" 2>/dev/null || { warn "cannot create $(dirname "$file")"; continue; }
-    tmp="${file}.tmp.$$"
+    tmp="$(mktemp "${file}.tmp.XXXXXX" 2>/dev/null)" \
+      || { warn "cannot create a temporary file for ${file}"; continue; }
     if completion_script "$shell" > "$tmp" 2>/dev/null; then
       if mv -f "$tmp" "$file"; then n=$((n+1)); else rm -f "$tmp"; warn "cannot write ${file}"; fi
     else

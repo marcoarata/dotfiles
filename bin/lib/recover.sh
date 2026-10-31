@@ -38,7 +38,7 @@ backup_entry_for() {
 write_state_pointer() { # write_state_pointer <name> <value> — atomic, mode 0600
   local name="$1" value="$2" tmp
   mkdir -p "$STATE_DIR" 2>/dev/null || return 1
-  tmp="${STATE_DIR}/.${name}.$$"
+  tmp="$(mktemp "${STATE_DIR}/.${name}.XXXXXX" 2>/dev/null)" || return 1
   printf '%s\n' "$value" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   chmod 600 "$tmp" 2>/dev/null || true
   mv -f "$tmp" "${STATE_DIR}/${name}" 2>/dev/null || { rm -f "$tmp"; return 1; }
