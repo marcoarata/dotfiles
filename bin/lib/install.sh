@@ -67,8 +67,7 @@ handle_legacy_yadr() {
     m|M|migrate)
       info "migrating: backing up the old + importing customs…"
       local b
-      b="${BACKUP_ROOT}/legacy-$(timestamp)"
-      mkdir -p "$b"
+      b="$(new_backup_dir "legacy-")" || { warn "cannot create legacy backup in ${BACKUP_ROOT}."; return 1; }
       backup_one "${HOME}/.yadr" "$b" >/dev/null || true
       local f
       for f in .vimrc.before .vimrc.after .gitconfig.user .tmux.conf.user; do

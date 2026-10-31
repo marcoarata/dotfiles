@@ -5,6 +5,13 @@
 
 timestamp() { date +%Y%m%d-%H%M%S; }
 
+new_backup_dir() { # new_backup_dir <prefix>: create a unique backup directory, echo it
+  local prefix="$1" dest
+  mkdir -p "$BACKUP_ROOT" 2>/dev/null || return 1
+  dest="$(mktemp -d "${BACKUP_ROOT}/${prefix}$(timestamp).XXXXXX" 2>/dev/null)" || return 1
+  printf '%s' "$dest"
+}
+
 # backup_one <src> <destdir>: copies with anti-collision name. Echoes dest.
 backup_one() {
   local src="$1" destdir="$2"
@@ -85,9 +92,8 @@ install_backup_is_first() {
 
 do_backup() {
   # Manual backup: writes last-backup only; never touches the install pointer.
-  local ts dest
-  ts="$(timestamp)"; dest="${BACKUP_ROOT}/${ts}"
-  if ! mkdir -p "$dest" 2>/dev/null; then warn "cannot create backup ${dest}"; return 1; fi
+  local dest
+  dest="$(new_backup_dir "")" || { warn "cannot create backup in ${BACKUP_ROOT}"; return 1; }
   # shellcheck disable=SC2034  # consumed by link_one in lib/install.sh
   YADR_LAST_BACKUP="$dest"
   backup_managed_pairs "$dest"
@@ -100,13 +106,12 @@ do_backup() {
 do_install_backup() {
   # First install writes last-install-backup (and last-backup for compatibility).
   # Reinstall/legacy writes a diagnostic dir only; uninstall pointers stay put.
-  local ts dest first=0 current_install=""
+  local dest first=0 current_install=""
   if install_backup_is_first; then first=1; fi
-  ts="$(timestamp)"; dest="${BACKUP_ROOT}/${ts}"
-  if ! mkdir -p "$dest" 2>/dev/null; then
-    warn "cannot create install backup ${dest}; real paths will not be replaced."
+  dest="$(new_backup_dir "")" || {
+    warn "cannot create install backup in ${BACKUP_ROOT}; real paths will not be replaced."
     return 1
-  fi
+  }
   # shellcheck disable=SC2034  # consumed by link_one in lib/install.sh
   YADR_LAST_BACKUP="$dest"
   backup_managed_pairs "$dest"
@@ -139,9 +144,8 @@ do_install_backup() {
 
 do_update_backup() {
   # Update snapshot: diagnostics only. It must never become uninstall's source.
-  local ts dest
-  ts="$(timestamp)"; dest="${BACKUP_ROOT}/update-${ts}"
-  if ! mkdir -p "$dest" 2>/dev/null; then warn "cannot create update backup ${dest}"; return 1; fi
+  local dest
+  dest="$(new_backup_dir "update-")" || { warn "cannot create update backup in ${BACKUP_ROOT}"; return 1; }
   # shellcheck disable=SC2034  # kept for symmetry with install/manual backups
   YADR_LAST_BACKUP="$dest"
   backup_managed_pairs "$dest"
@@ -164,8 +168,10 @@ do_migrate() {
   # Usage: yadr migrate [--dry-run]
   local dry=0
   [[ "${1:-}" == "--dry-run" ]] && dry=1
-  local dest
-  dest="${BACKUP_ROOT}/migrate-$(timestamp)"
+  local dest=""
+  if [[ "$dry" != "1" ]]; then
+    dest="$(new_backup_dir "migrate-")" || { warn "cannot create migrate backup in ${BACKUP_ROOT}"; return 1; }
+  fi
   local migdir; migdir="$(yadr_config_dir)/migrated"
   info "Classic YADR → 2027 (dry-run=${dry})"
   [[ -d "${HOME}/.yadr" && -f "${HOME}/.yadr/Rakefile" ]] || info "no classic ~/.yadr; migrating loose files if any."

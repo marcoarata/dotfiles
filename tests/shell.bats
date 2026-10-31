@@ -2290,3 +2290,22 @@ exit 0" ]
   rm -rf "$state" "$victim"
 }
 
+
+@test "backup: two backups in the same second use distinct directories" {
+  local home="$TEST_HOME"
+  printf 'current\n' > "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$home'
+    managed_pairs() { printf 'zshrc:%s\n' \"\$HOME/.zshrc\"; }
+    timestamp() { printf '20260101-000000'; }
+    do_backup >/dev/null
+    do_backup >/dev/null
+    find \"\$HOME/.local/state/yadr/backups\" -mindepth 1 -maxdepth 1 -type d | wc -l"
+  [ "$status" -eq 0 ]
+  [ "$output" -ge 2 ]
+  [ "$(ls -1 "$home/.local/state/yadr/backups" | wc -l)" -ge 2 ]
+  [ -f "$home/.local/state/yadr/last-backup" ]
+}
+
