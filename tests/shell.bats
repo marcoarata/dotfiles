@@ -2330,3 +2330,45 @@ EOF
   rm -rf "$fake"
 }
 
+
+@test "macOS: a failed plugin swap keeps the previous checkout" {
+  local data="$BATS_TMPDIR/plugin-swap-$$" fake="$BATS_TMPDIR/fake-git-swap-$$"
+  local count="$BATS_TMPDIR/mv-count-$$"
+  rm -rf "$data" "$fake" "$count"; mkdir -p "$fake"
+  cat > "$fake/git" <<'EOF'
+#!/bin/bash
+case "$1" in
+  clone)
+    shift; dest=""
+    while [ $# -gt 0 ]; do dest="$1"; shift; done
+    mkdir -p "$dest"
+    printf 'new\n' > "$dest/p.zsh"
+    ;;
+  -C)
+    case "$2" in
+      *yadr-plugins/swap*) echo 1111111111111111111111111111111111111111 ;;
+    esac
+    ;;
+esac
+EOF
+  cat > "$fake/mv" <<'EOF'
+#!/bin/bash
+n=0; [ -f "$MV_COUNT" ] && n="$(cat "$MV_COUNT")"
+n=$((n+1)); printf '%s\n' "$n" > "$MV_COUNT"
+[ "$n" -eq 2 ] && exit 1
+exec /bin/mv "$@"
+EOF
+  chmod +x "$fake/git" "$fake/mv"
+  mkdir -p "$data/yadr-plugins/swap"
+  printf 'old\n' > "$data/yadr-plugins/swap/p.zsh"
+  run bash -c "
+    export HOME='$TEST_HOME' XDG_DATA_HOME='$data' PATH='$fake:/usr/bin:/bin'
+    export MV_COUNT='$count' PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs macos.sh)' >/dev/null 2>&1
+    clone_xdg_plugin owner/repo swap p.zsh v1 1111111111111111111111111111111111111111"
+  [ "$status" -ne 0 ]
+  [ -f "$data/yadr-plugins/swap/p.zsh" ]
+  [ "$(cat "$data/yadr-plugins/swap/p.zsh")" == "old" ]
+  rm -rf "$data" "$fake" "$count"
+}
+

@@ -95,8 +95,16 @@ clone_xdg_plugin() { # repo subdir file tag commit
   fi
   have git || { warn "no git for XDG clone."; return 1; }
   mkdir -p "$(dirname "$dest")" 2>/dev/null || return 1
-  tmp="${dest}.yadr-new.$$"
-  rm -rf "$tmp"
+  local old="${dest}.yadr-old"
+  if [[ -e "$old" || -L "$old" ]]; then
+    if [[ ! -e "$dest" && ! -L "$dest" ]]; then
+      mv "$old" "$dest" || { warn "could not recover previous ${dest} from ${old}."; return 1; }
+    else
+      rm -rf "$old" 2>/dev/null || true
+    fi
+  fi
+  tmp="$(mktemp -d "${dest}.yadr-new.XXXXXX" 2>/dev/null)" \
+    || { warn "cannot create a temporary clone directory for ${dest}."; return 1; }
   log "cloning ${repo}@${tag} → ${dest} (no sudo)…"
   git clone --depth 1 --branch "$tag" "https://github.com/${repo}.git" "$tmp" 2>/dev/null \
     || { warn "clone ${repo}@${tag} failed."; rm -rf "$tmp"; return 1; }
@@ -106,8 +114,18 @@ clone_xdg_plugin() { # repo subdir file tag commit
     rm -rf "$tmp"
     return 1
   fi
-  rm -rf "$dest"
-  mv "$tmp" "$dest" || { warn "could not move ${tmp} to ${dest}."; rm -rf "$tmp"; return 1; }
+  rm -rf "$old" 2>/dev/null || true
+  if [[ -e "$dest" || -L "$dest" ]]; then
+    mv "$dest" "$old" || { warn "could not move ${dest} aside."; rm -rf "$tmp"; return 1; }
+  fi
+  if mv "$tmp" "$dest"; then
+    rm -rf "$old" 2>/dev/null || true
+  else
+    warn "could not move ${tmp} to ${dest}."
+    [[ -e "$old" || -L "$old" ]] && mv "$old" "$dest" 2>/dev/null || true
+    rm -rf "$tmp"
+    return 1
+  fi
 }
 
 ensure_zsh_plugins_macos() {
