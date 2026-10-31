@@ -12,152 +12,108 @@ YADR 2027
   └── Platform  # common/ macos/ linux/ wsl/ — package manager abstraction
 ```
 
-- **Core:** minimal SSH-safe guarantee. Works without Nerd Fonts, without Rust tools, without GUI.
-- **CLI:** UX improvement, never breaks. Mandatory pattern:
+- **Core:** minimal SSH-safe guarantee. Works without Nerd Fonts, Rust tools or
+  a GUI.
+- **CLI:** UX improvement, never a hard dependency:
 
   ```zsh
   command -v eza >/dev/null && alias ls='eza' || alias ls='ls --color=auto'
   ```
 
-- **Editor:** single `mappings.md` for Vim and Neovim. Vundle removed → lazy.nvim. 90 plugins → subset: LSP + Treesitter + Git + textobjects + search + project.
-- **Packs:** `packs/<name>/` holds reference bases for optional per-project layers; installing one is a normal profile (`yadr install typescript`), and Core never depends on a pack.
-- **Platform:** YADR declares *what* it needs (`git zsh fzf rg fd`), each platform decides *how* (`brew` / `apt` / `pacman`).
+- **Editor:** one `mappings.md` for Vim and Neovim. lazy.nvim keeps a pinned
+  subset: LSP, Treesitter, Git, text objects, search and project navigation.
+- **Packs:** `packs/<name>/` contains optional per-project layers installed as
+  a normal profile (`yadr install typescript`). Core never depends on a pack.
+- **Platform:** YADR declares what it needs (`git zsh fzf rg fd`); each platform
+  decides how (`brew`, `apt`, `pacman`, MacPorts).
 
-## Runtime Layer abstraction
+## Runtime
 
-```text
-runtime/
-  └── mise.toml        # global pin: node = "24" (LTS bump policy lives there)
-```
-
-The shell assumes no external version managers (`rvm`, `nvm`, `rbenv`). Only:
+`runtime/mise.toml` holds the global pins (`node = "24"`, `python = "3.14"`).
+The shell assumes no other version manager and activates mise only when it is
+present:
 
 ```zsh
-# shell/zshrc (with guard; ~/.local/bin first for upstream mise/zoxide/nvim)
 command -v mise >/dev/null && eval "$(mise activate zsh)"
 ```
 
-- The user never touches mise directly: `yadr runtime current|list|use|doctor`.
-- `yadr runtime use node` installs per the pin without rewriting the repo;
-  `yadr runtime use node@<version>` does set an explicit global version.
-- Per-project versions (`tests/fixtures/typescript-project/mise.toml`), no imposed globals.
-- User-global extras go in `~/.config/mise/conf.d/*.toml`: mise merges them
-  over the managed base (`runtime/mise.toml`), so the tracked file stays clean
-  and `yadr update` keeps fast-forwarding.
-- The prompt follows the same rule: `yadr_runtime_context` shows a runtime only
-  when its active version comes from a project config (mise source not under
-  `~/.config/mise`), not the global one.
-- CI/SSH without mise = shell still loads; `yadr doctor` warns, does not fail.
+Users normally go through `yadr runtime current|list|use|doctor`. Per-project
+versions belong in the project's `mise.toml`; user-wide extras belong in
+`~/.config/mise/conf.d/*.toml`, which mise merges over the managed file. The
+prompt only shows a runtime when its active version comes from a project config.
+Without mise the shell still loads; `yadr doctor` warns.
 
-Why `mise` and not `fnm`/`nvm`, and why Core never requires it: the decisions
-table below.
-
-## Backup and restore model
+## State and backups
 
 `install`, `update`, `backup` and `uninstall` share one state directory but not
 one pointer:
 
 ```text
 $XDG_STATE_HOME/yadr/
+  installed-ref          # last bootstrap/update revision (0600)
   last-install-backup    # first install only; uninstall restores from here
-  last-update-backup     # before an update; diagnostics only
+  last-update-backup     # diagnostic snapshot; uninstall never reads it
   last-backup            # manual backup / compatibility fallback
   backups/
-    <timestamp>/         # install-time, manual and legacy backups
-    update-<timestamp>/  # update snapshots
+    <timestamp>.<suffix>/ # install-time, manual and legacy backups
+    update-<timestamp>.<suffix>/
+    migrate-<timestamp>.<suffix>/
 ```
 
-The install backup is the only restore source for `uninstall`. It is written
-once, on the first install, and preserved across reinstalls and updates. A
-reinstall that finds managed symlinks but no install pointer is legacy: it does
-not turn those symlinks into a fake install backup.
+The install pointer is first-install-wins. Reinstalls and updates preserve it.
+A checkout that already has managed symlinks but no install pointer is treated
+as legacy and does not become a fake install backup. `uninstall --purge` refuses
+to run without a valid install pointer and leaves `backups/` intact. When it
+does run, restored links that point inside `$YADR_HOME` are materialized before
+the checkout is deleted; external links stay links.
 
-The update backup is deliberately not a rollback. v0.9.0 does not record the
-previous SHA, create a bundle or offer `yadr rollback`; those belong to the
-recovery release. It exists so a user can inspect what the update saw, and it is
-never read by `uninstall`.
+## Zsh core (audited Prezto subset)
 
-`uninstall --purge` fails closed when no valid install backup exists: it exits
-before removing links, the checkout or state, and leaves `backups/` intact. When
-it does run, restored links whose target is inside `$YADR_HOME` are materialized
-before the checkout is deleted; external links are kept as links. This is why a
-normal purge no longer leaves `.zshrc` or `.gitconfig` pointing at a deleted
-checkout.
-
-## YADR Zsh Core — audited Prezto subset (frozen v0.1)
-
-Prezto is out as a framework. YADR natively reproduces only what it uses:
+YADR reproduces only the Prezto behaviour it uses:
 
 | Prezto module | YADR 2027 | Location |
 |---|---|---|
 | `editor` (vi mode) | `bindkey -v`, `KEYTIMEOUT=1` | `shell/keybindings.zsh` |
 | `history` | 100k history + `SHARE_HISTORY` + XDG | `shell/zshrc` |
-| `completion` | zsh `compinit` + fuzzy `matcher-list`; `yadr` CLI completions for bash/zsh/fish | `shell/zshrc` + `bin/lib/completion.sh` |
-| `syntax-highlighting` | optional `zsh-syntax-highlighting` with guard | `shell/plugins.zsh` |
-| `autosuggestions` | optional `zsh-autosuggestions` with guard | `shell/plugins.zsh` |
+| `completion` | zsh `compinit` + fuzzy `matcher-list`; bash/zsh/fish CLI completions | `shell/zshrc` + `bin/lib/completion.sh` |
+| `syntax-highlighting` | optional, guarded | `shell/plugins.zsh` |
+| `autosuggestions` | optional, guarded | `shell/plugins.zsh` |
 | `prompt` (damoekri) | reimplemented, runtime-aware | `shell/damoekri.zsh` + `shell/runtime.zsh` |
 | `git`/`utility`/`terminal` | aliases, functions, `LS_COLORS` | `shell/aliases.zsh` |
-| `ruby`/`rvm` | removed from core → Ruby Pack | `packs/ruby/` |
+| `ruby`/`rvm` | moved out of core → Ruby pack | `packs/ruby/` |
 
-Out: everything else from Prezto (themes, `fasd`, `pacman` helpers, etc.).
+## Supply chain
 
-## Supply chain & trust
+Direct downloads carry a version and SHA-256 in the tree (Nerd Font, mise
+installer, zoxide/Neovim tarballs, lazygit fallback). Git fallbacks use a tag
+plus an exact commit, and `nvim/lazy-lock.json` pins plugin commits. Package
+managers remain rolling by design. The bootstrap installs from the release tag
+and the release publishes `SHA256SUMS`. See `docs/supply-chain.md` for the
+inventory, exceptions and bump procedure.
 
-What YADR fetches, and how far it is pinned — so the trade-off is explicit
-rather than accidental:
+`bootstrap` and `yadr update` write `installed-ref`; `yadr doctor` compares it
+with the live checkout. It is local self-reported state, not an attestation.
+`platform/linux.sh` keeps privilege escalation in one `priv()` helper.
 
-- **Direct downloads: pinned and verified.** Every artifact YADR downloads
-  itself has a version and a SHA-256 in the tree: the Nerd Font zip
-  (`terminal/fonts/manifest.env`), the mise installer, the zoxide/Neovim
-  tarballs and the lazygit fallback. `platform/common.sh` provides the hash
-  helpers; a mismatch is a hard failure before `sh` or `tar` runs. Full
-  inventory, exceptions and bump procedure: `docs/supply-chain.md`.
-- **Git fallbacks: tag + commit.** The macOS zsh plugin fallback clones a
-  pinned tag and then verifies `HEAD` against the pinned commit, so a moved
-  tag is refused. `nvim/lazy-lock.json` pins plugin commits separately.
-- **Package managers are rolling by design.** apt/dnf/pacman/Homebrew/MacPorts
-  install vendor builds under their own trust model. The upstream Homebrew
-  installer (only when `brew` is absent) is the one documented unpinned script.
-- **No `curl | sh` is required.** YADR downloads the pinned mise installer to
-  a temporary file, verifies it, and only then runs `sh` on it. The auditable
-  path clones the repo and runs `bootstrap.sh` locally (README "Alternative:
-  manual and auditable install").
-- **Traceability.** `bootstrap` and `yadr update` write
-  `$XDG_STATE_HOME/yadr/installed-ref`; `yadr doctor` compares it with the
-  live checkout and reports a divergence. It is local state, not a signature.
-- **`sudo` only through one helper.** `platform/linux.sh` defines `priv()`
-  (root or `sudo`); there is no bare `sudo` scattered through the code.
+## Conventions
 
-## Conventions (and deliberate non-DRY)
+- `managed_pairs` in `bin/yadr` is the single symlink map consumed by `diff`,
+  `backup` and `uninstall`.
+- `bin/lib/paths.sh` is the single source of truth for destinations
+  (ADR-005). A test rejects hardcoded XDG paths elsewhere.
+- `log`/`warn`/`have` are redefined in each `platform/*.sh` because those files
+  are standalone entrypoints. `platform/common.sh` holds only shared helpers.
+- `shellcheck -S warning` runs on every shipped shell file in CI.
 
-Three things look like duplication but are intentional:
+## Decisions
 
-- **`log`/`warn`/`have` are redefined in each `platform/*.sh`.** Those scripts
-  are standalone entrypoints (`bash platform/linux.sh`) and must run without
-  `bin/yadr`; `platform/common.sh` holds only what genuinely needs sharing
-  (fonts, purge markers, `nvim_version_ok`).
-- **`managed_pairs` is defined once, in `bin/yadr`,** and is the single source
-  of truth for the symlink map; `diff`, `backup` and `uninstall` consume it.
-- **`bin/lib/paths.sh` is the single source of truth for destinations**
-  (ADR-005); `managed_pairs`, the installer, `doctor`, the purge inventory and
-  the theme consume it, so the CLI and the tools cannot disagree. A test rejects
-  hardcoded XDG-derived paths in `bin/`, `platform/` and `bootstrap.sh`.
-
-`shellcheck -S warning` runs over every shipped `bin/`, `platform/` and
-`bootstrap.sh` file in CI as the coupling alarm.
-
-## Decisions (ADRs)
-
-ADR-005 (path policy) and ADR-006 (scope) are maintained as full records:
+ADR-005 (path policy) and ADR-006 (scope) are full records:
 [adr-005-path-policy.md](adr-005-path-policy.md) ·
 [adr-006-scope.md](adr-006-scope.md).
 
-The four core decisions were folded here in v0.6.1 (the ADR files were removed;
-the rationale is unchanged):
-
-| # | Decision | Why | Consequence / evidence |
+| # | Decision | Why | Consequence |
 |---|---|---|---|
-| 001 | Own `bin/yadr` orchestrator, not chezmoi/stow/dotbot | Needs `install/diff/backup/doctor`, classic-YADR coexistence (`parallel/migrate/cancel`), `before/after` hooks and headless SSH; the frameworks cover only part | A framework is adopted only if it covers `diff+backup+doctor+parallel` without a new hard dependency; the CLI stays dependency-free |
-| 002 | `mise` as the runtime backend (`fnm` is the Node alternative) | One backend for node/python/ruby/rust behind `yadr runtime current\|list\|use\|doctor`; Damoekri/Zsh/Neovim never call managers directly | Swappable; explicit pinned LTS (no floating `lts`); Ruby/Node/Python are optional profiles, Core installs without Ruby |
-| 003 | `--purge` deletes only what YADR added | The five data dirs (nvim/lazy, Mason, mise, zoxide/pip caches, nvim state) mix YADR data with the user's | First-install snapshot of the top-level entries (`snapshot_share_dirs`); `purge_dir_keep_preexisting` deletes only non-snapshot entries; refuses a blind wipe; the snapshot is first-install-wins |
-| 004 | Runtime failures are fatal; editor failures are advisory | A promised runtime missing means the environment does not exist; editor state is long-running, network-dependent and recoverable with `:Lazy restore`/`:Mason` | Failed runtime → non-zero and no success banner; editor step warns with the recovery command; `update` never claims a pull that failed; enforced by `tests/fault.bats` |
+| 001 | Own `bin/yadr` instead of chezmoi/stow/dotbot | Needs install/diff/backup/doctor, classic-YADR coexistence and hooks without a new dependency | Framework only if it covers the same contract |
+| 002 | `mise` as runtime backend | One backend for node/python/ruby/rust; editor and prompt never call managers directly | Optional; Core installs without Ruby or mise |
+| 003 | `--purge` deletes only what YADR added | Shared data dirs mix YADR data with user data | First-install snapshot; refuses a blind wipe |
+| 004 | Runtime failures are fatal; editor failures are advisory | A promised runtime missing is a broken environment; editor state is recoverable | Failed runtime exits non-zero; editor warns with the recovery command |

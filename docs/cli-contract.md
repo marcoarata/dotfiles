@@ -1,115 +1,97 @@
-# CLI contract — why `bin/yadr` stays dependency-free (`bin/` + `bin/lib/`)
+# CLI contract — dependency-free `bin/yadr`
 
-`bin/yadr` (dispatcher, bash 3.2-compatible) + `bin/lib/*.sh` (one file per
-area: paths, install, recover, doctor, runtime, benchmark, completion) stay dependency-free:
-they must run from `curl | sh` bootstraps, ancient macOS bash, and minimal
-Linux boxes with zero dependencies beyond bash/git. `lib/` is sourced via
-a `BIN_DIR`-resolved absolute path (symlink-aware, `YADR_LIB_DIR` override
-only for tests), so there is no load-path fragility. Split is mechanical
-only — same shell, same behavior. `shellcheck -S warning` is enforced in CI
-as the coupling alarm.
+`bin/yadr` (bash 3.2-compatible dispatcher) and `bin/lib/*.sh` (paths, install,
+recover, doctor, runtime, benchmark, completion) must run from a minimal Linux
+box, a `curl | sh` bootstrap and ancient macOS bash with nothing beyond
+bash/git. The library directory is resolved from the script's own path; the
+split is mechanical and shares one shell and one behavior. `shellcheck -S
+warning` runs on every shipped shell file in CI.
 
-## Where files live (ADR-005)
+## Destinations (ADR-005)
 
-`bin/lib/paths.sh` is the only place that computes a destination, and it is
-loaded before any other module. Every helper follows the environment variable of
-the program that reads the file, falling back to the XDG spec default
-(`$HOME/.config`, `$HOME/.local/share`, `$HOME/.cache`, `$HOME/.local/state`):
+`bin/lib/paths.sh` is the only place that computes a destination. Each helper
+follows the variable of the program that reads the file, falling back to the
+XDG default:
 
-| Destination | Follows | Why |
-|---|---|---|
-| Neovim config / plugin-Mason data / cache / state | `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, `XDG_STATE_HOME` | Neovim resolves them with `stdpath()` |
-| `mise` config and data | `XDG_CONFIG_HOME`, `XDG_DATA_HOME` | `mise` honours both |
-| theme, migrated classic files, gitsigns marker | `XDG_CONFIG_HOME` (`/yadr`) | YADR's own state; the marker is read by the Lua side from the same variable |
-| backups, purge snapshots, `provides-*` markers | `XDG_STATE_HOME` (`/yadr`) | YADR's own state |
-| `installed-ref` | `XDG_STATE_HOME` (`/yadr`) | last bootstrap/update revision; read by `doctor` |
-| bash / zsh completion files | `XDG_DATA_HOME` (`/bash-completion/completions`, `/zsh/site-functions`) | bash-completion and zsh's `$fpath` read them there |
-| fish completion file | `XDG_CONFIG_HOME` (`/fish/completions`) | fish loads its completions from there |
-| zsh rc | `ZDOTDIR` when set | zsh reads `$ZDOTDIR/.zshrc` instead of `~/.zshrc` |
-| `~/.gitconfig`, `~/.tmux.conf`, `~/.local/bin` | nothing (HOME) | git and tmux always read them; XDG defines no binary directory |
+| Destination | Follows |
+|---|---|
+| Neovim config, plugin/Mason data, cache, state | `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, `XDG_STATE_HOME` |
+| mise config and data | `XDG_CONFIG_HOME`, `XDG_DATA_HOME` |
+| theme, migrated files, gitsigns marker | `XDG_CONFIG_HOME/yadr` |
+| backups, purge snapshots, `provides-*` markers, `installed-ref` | `XDG_STATE_HOME/yadr` |
+| bash/zsh completions | `XDG_DATA_HOME` (`bash-completion/completions`, `zsh/site-functions`) |
+| fish completions | `XDG_CONFIG_HOME/fish/completions` |
+| zsh rc | `ZDOTDIR` when set |
+| `.gitconfig`, `.tmux.conf`, `~/.local/bin` | `$HOME` (git/tmux/XDG have no alternative) |
 
-`install`, `doctor`, `diff`, `backup`, `uninstall --purge` and `theme` all
-consume these helpers, and `share_dirs()` feeds the purge snapshot and the
-purge itself from one list. `platform/*.sh` compose the same defaults
-inline because they run standalone; a test fails if `bin/`, `platform/` or
-`bootstrap.sh` hardcode one of these paths again. See
-`docs/adr-005-path-policy.md`.
+`platform/*.sh` compose the same defaults inline because they run standalone. A
+test rejects hardcoded XDG-derived paths in `bin/`, `platform/` and
+`bootstrap.sh`.
 
-## Installed revision (R5)
+## Installed revision
 
 `$XDG_STATE_HOME/yadr/installed-ref` (default
-`~/.local/state/yadr/installed-ref`) is written by `bootstrap.sh` before it
-hands off to `yadr install`, and by `yadr update` after its pull attempt —
-including a failed pull, so the file describes the revision actually on disk.
-`yadr install` does not write it. The file is atomic and mode `0600`.
+`~/.local/state/yadr/installed-ref`) is written by `bootstrap.sh` and by
+`yadr update` after its pull attempt, including a failed pull. `yadr install`
+does not write it. The file is written through an exclusive temporary file and
+moved into place (mode `0600`).
 
-Keys, one `key=value` per line: `sha` (full commit; empty for a non-git copy),
-`ref` (tag, branch, `detached` or `local`), `branch`, `tag`, `version`,
-`origin` (credentials stripped) and `recorded` (UTC ISO-8601).
+Keys, one `key=value` per line: `sha`, `ref`, `branch`, `tag`, `version`,
+`origin` (credentials stripped) and `recorded` (UTC ISO-8601). `yadr doctor`
+prints the recorded revision; a missing file is informational and a recorded
+SHA that differs from live `HEAD` is a warning with the recovery command. This
+is local state, not an attestation.
 
-`yadr doctor` prints the recorded commit/tag/version. A missing file is
-informational; a recorded `sha` that differs from the live `HEAD` is a warning
-with the recovery command. `installed-ref` is local self-reported state, not a
-signed attestation; see `docs/supply-chain.md` for the threat model.
-
-## Backups and restore source
-
-The state dir keeps three pointers, each with one job:
+## Backups
 
 | Pointer | Written by | Used by |
 |---|---|---|
-| `last-install-backup` | the first `yadr install` on a HOME | `yadr uninstall` (normal and `--purge`) |
-| `last-update-backup` | `yadr update`, before the pull | diagnostics only; `uninstall` never reads it |
+| `last-install-backup` | first `yadr install` on a HOME | `yadr uninstall` |
+| `last-update-backup` | `yadr update`, before the pull | diagnostics only |
 | `last-backup` | `yadr backup`; first install keeps the compatibility pointer | legacy fallback when `last-install-backup` is absent |
 
-The install pointer is first-install-wins. A reinstall or an update does not
-overwrite it, and a checkout that already has managed symlinks but no install
-pointer is treated as legacy: v0.9.0 does not create a fake install backup from
-those symlinks. The update backup records the current topology for inspection;
-it is **not** a rollback and is never a restore source.
+The install pointer is first-install-wins. A reinstall or update does not
+overwrite it. An existing checkout with managed symlinks but no install pointer
+is legacy and does not create a fake install backup. The update snapshot records
+topology for inspection and is never a restore source.
 
-`uninstall --purge` requires a valid `last-install-backup`. Without one it
-refuses before removing anything and preserves `${XDG_STATE_HOME}/yadr/backups`.
-When the purge does proceed, managed symlinks restored from the install backup
-that point inside `$YADR_HOME` are materialized before the checkout is deleted,
-so no managed path is left dangling. External symlinks are preserved.
+`uninstall --purge` requires a valid `last-install-backup`; without one it
+refuses before removing anything and preserves the backups. Restored links that
+point inside `$YADR_HOME` are materialized before the checkout is deleted;
+external symlinks are preserved.
 
 ## Shell completions
 
-`yadr completion bash|zsh|fish` prints that shell's completion script to stdout
-(no side effects); `yadr completion --install` writes all three where each
-shell reads them; `yadr install` writes them too. The zsh script is a site
-function (`_yadr`) and `shell/zshrc` adds its directory to `$fpath` before
-`compinit`; bash-completion and fish discover theirs from their XDG
-directories. `uninstall` removes exactly those three files. The scripts are
-static text on purpose (small, human-readable, one syntax per shell); a test
-compares the command list in each against `yadr --help`, so a command added
-without a completion fails the build.
+`yadr completion bash|zsh|fish` prints a script to stdout with no side effects.
+`yadr completion --install` and `yadr install` write all three where each shell
+reads them. `uninstall` removes exactly those files. A test compares each
+script's command list with `yadr --help`, so a new command without completion
+fails the suite.
 
-Failure taxonomy used throughout:
+## Failure taxonomy
 
-- **required** → `die` / exit non-zero (bad profile name, unknown command,
-  missing `nvim` where mandatory). The command reports FAILURE.
-- **optional** → `warn`, exit still 0 (missing font, lsp servers, pnpm).
-  The command reports success with warnings.
-- **best-effort** → `warn` + state recorded (platform script errored but
-  symlinks still linked; offline `git pull` fallback). `doctor` re-checks it.
+- **Required:** `die` / non-zero (bad profile, unknown command, missing
+  mandatory `nvim`). The command reports failure.
+- **Optional:** `warn`, exit 0 (missing font, LSP servers, pnpm). Success with
+  warnings.
+- **Best-effort:** `warn` plus recorded state (platform script error but links
+  still applied; offline update fallback). `doctor` re-checks it.
 
 ## Per-command contract
 
-| Command | Preconditions | Modifies | Exit codes |
+| Command | Preconditions | Modifies | Exit |
 |---|---|---|---|
-| `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), symlinks, first-install backup, login shell, toolchains — **only after the confirmation** | 0 ok (warnings allowed); 1 on a bad profile, a failed optional profile (`lazygit`/`tools`/`macos-extras`) or an unwritable backup dir |
-| `plan [profile]` | checkout present | nothing (alias of `install --dry-run`) | 0; 1 on a bad profile |
-| `update` | git checkout | repo pull, update backup (`last-update-backup`), plugins, `installed-ref`; runtimes only when the pull moved | 0; 1 when the pull or the runtime phase failed (reported separately) |
-| `doctor` | nothing | nothing (read-only; first nvim start installs plugins once; reads `installed-ref`) | 1 when any FAIL row, else 0 |
-| `diff` | nothing | nothing, always | 0 |
-| `backup` | nothing | new dir under `backups/` + `last-backup` pointer; never touches the install pointer | 0; 1 if a backup copy failed |
-| `uninstall` | nothing | removes own symlinks, restores `last-install-backup`, optional purge | 0; 0 on cancel; 1 when `--purge` has no valid install backup |
-| `migrate` | nothing | one-shot classic-YADR import: copies into `~/.config/yadr/migrated/` + backup | 0 |
+| `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), links, first-install backup, login shell, toolchains — only after confirmation | 0 ok; 1 bad profile, failed optional profile or unwritable backup |
+| `plan [profile]` | checkout present | nothing (alias of `install --dry-run`) | 0; 1 bad profile |
+| `update` | git checkout | pull, update snapshot, plugins, `installed-ref`; runtimes only when the pull moved | 0; 1 failed pull or runtime phase |
+| `doctor` | nothing | read-only (first nvim start installs plugins once) | 1 on any FAIL row |
+| `diff` | nothing | nothing | 0 |
+| `backup` | nothing | unique dir under `backups/` + `last-backup`; install pointer untouched | 0; 1 copy failure |
+| `uninstall` | nothing | removes own links, restores `last-install-backup`, optional purge | 0; 0 on cancel; 1 when purge has no valid install backup |
+| `migrate` | nothing | copies classic customization into `~/.config/yadr/migrated/` + backup | 0 |
 | `runtime *` | mise for use/list/current | global tool versions (`use`) | 1 without backend/spec |
-| `theme *` | nothing | `~/.config/yadr/solarized-bg` (use) | 1 on unknown name |
-| `gitsigns *` | nothing | marker file (on/off) | 1 on unknown subcommand |
-| `benchmark *` | zsh/nvim present | temp dirs only (removed) | 1 on unknown target/missing tool |
-| `completion <shell>` | nothing | nothing (prints to stdout); `--install` writes the three files into the XDG dirs above | 1 on an unknown shell |
+| `theme *` | nothing | `~/.config/yadr/solarized-bg` | 1 unknown name |
+| `gitsigns *` | nothing | marker file | 1 unknown subcommand |
+| `benchmark *` | zsh/nvim present | temporary dirs only | 1 unknown target/missing tool |
+| `completion <shell>` | nothing | prints; `--install` writes the three files | 1 unknown shell |
 | `version` | nothing | nothing | 0 |

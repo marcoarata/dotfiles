@@ -45,7 +45,7 @@ brew install curl git zsh
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.0/bootstrap.sh | bash -s -- --ref v0.9.0
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.5/bootstrap.sh | bash -s -- --ref v0.9.5
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -66,11 +66,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.9.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.5 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.9.0
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.5
 ```
 
 ```bash
@@ -108,7 +108,7 @@ sudo apt install zsh curl git -y
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.0/bootstrap.sh | bash -s -- --ref v0.9.0
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.5/bootstrap.sh | bash -s -- --ref v0.9.5
 ```
 
 For checksum verification before running the script, see “Pin a release” below.
@@ -129,11 +129,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.9.0 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.5 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.9.0
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.5
 ```
 
 ```bash
@@ -147,10 +147,10 @@ yadr doctor
 ### 3) Pin a release (recommended, especially for servers)
 
 `main` is development; installs should name the release they want. The commands
-above use `v0.9.0`. To verify the bootstrap before running it:
+above use `v0.9.5`. To verify the bootstrap before running it:
 
 ```bash
-V=v0.9.0
+V=v0.9.5
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS
@@ -264,7 +264,7 @@ links are already up to date — then they take the fast path with no prompts
 - Automatic backup to `~/.local/state/yadr/backups/<timestamp>/`.
 - Install and update backups are separate: `uninstall` restores
   `last-install-backup`; the update snapshot is for inspection only and is
-  never used as a rollback.
+  never read by `uninstall`.
 - On classic YADR detection (`~/.yadr` + `Rakefile`), prompts: `migrate / parallel / cancel` (default: `parallel`).
 - Nothing destructive without confirmation.
 
