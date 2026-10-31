@@ -81,13 +81,29 @@ handle_legacy_yadr() {
 }
 
 link_one() {
-  local src="$1" dst="$2" backup qdir qdst=""
+  local src="$1" dst="$2" backup qdir qdst="" lold="" restore_symlink=""
   mkdir -p "$(dirname "$dst")" || { warn "  cannot create parent for ${dst}"; return 1; }
+  lold="${dst}.yadr-old"
+  if [[ -e "$lold" || -L "$lold" ]]; then
+    if [[ -L "$lold" && ! -e "$dst" && ! -L "$dst" ]]; then
+      mv "$lold" "$dst" 2>/dev/null || { warn "  cannot recover previous symlink: ${dst}"; return 1; }
+    elif [[ -L "$lold" ]]; then
+      rm -f "$lold" 2>/dev/null || true
+    else
+      warn "  refusing to replace ${dst}: ${lold} exists and is not a symlink"
+      return 1
+    fi
+  fi
 
   if [[ -L "$dst" ]]; then
     if [[ "$(readlink "$dst")" == "$src" ]]; then ok "  already linked: ${dst}"; return 0; fi
-    rm -f "$dst" || { warn "  cannot replace symlink: ${dst}"; return 1; }
-    if ! ln -s "$src" "$dst"; then warn "  cannot link ${dst}"; return 1; fi
+    mv "$dst" "$lold" 2>/dev/null || { warn "  cannot move aside symlink: ${dst}"; return 1; }
+    if ! ln -s "$src" "$dst"; then
+      mv "$lold" "$dst" 2>/dev/null || warn "  cannot restore ${dst} from ${lold}"
+      warn "  cannot link ${dst}"
+      return 1
+    fi
+    restore_symlink="$lold"
   elif [[ -e "$dst" ]]; then
     # A real file or directory must have a verified backup before it is moved.
     # ln -sfn treats a real directory as a target directory and would create
@@ -117,12 +133,16 @@ link_one() {
 
   if [[ ! -L "$dst" || "$(readlink "$dst")" != "$src" ]]; then
     warn "  link verification failed: ${dst}"
-    if [[ -n "$qdst" && ( -e "$qdst" || -L "$qdst" ) ]]; then
+    if [[ -n "$restore_symlink" && ( -e "$restore_symlink" || -L "$restore_symlink" ) ]]; then
+      rm -f "$dst" 2>/dev/null || true
+      mv "$restore_symlink" "$dst" 2>/dev/null || warn "  cannot restore ${dst} from ${restore_symlink}"
+    elif [[ -n "$qdst" && ( -e "$qdst" || -L "$qdst" ) ]]; then
       rm -f "$dst" 2>/dev/null || true
       mv "$qdst" "$dst" 2>/dev/null || warn "  cannot restore ${dst} from ${qdst}"
     fi
     return 1
   fi
+  [[ -n "$restore_symlink" ]] && rm -f "$restore_symlink" 2>/dev/null || true
   ok "  linked: ${dst} → ${src}"
 }
 

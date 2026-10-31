@@ -2309,3 +2309,24 @@ exit 0" ]
   [ -f "$home/.local/state/yadr/last-backup" ]
 }
 
+
+@test "install: a failed symlink replacement keeps the previous link" {
+  local home="$TEST_HOME" fake="$BATS_TMPDIR/fake-ln-$$"
+  rm -rf "$fake"; mkdir -p "$fake"
+  cat > "$fake/ln" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+  chmod +x "$fake/ln"
+  ln -s /old/yadr-target "$home/.zshrc"
+  run bash -c "
+    export HOME='$home' PATH='$fake:/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    link_one '$YADR_ROOT/shell/aliases.zsh' \"\$HOME/.zshrc\""
+  [ "$status" -ne 0 ]
+  [ -L "$home/.zshrc" ]
+  [ "$(readlink "$home/.zshrc")" == "/old/yadr-target" ]
+  [ ! -e "$home/.zshrc.yadr-old" ]
+  rm -rf "$fake"
+}
+
