@@ -4,6 +4,42 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.9.5] — 2026-10-31 — Maintenance: safer writes and replacements
+
+### Fixed
+
+- **State pointers and completion files no longer use predictable temporary
+  names.** `installed-ref`, the backup pointers and the generated completion
+  files are written to exclusive `mktemp` files before being moved into place,
+  so a pre-existing symlink cannot redirect or truncate the write.
+- **Backup directories are collision-safe.** Two installs, manual backups,
+  updates or migrations in the same second now use distinct directories instead
+  of sharing one path.
+- **A failed managed-symlink replacement keeps the previous link.** `link_one`
+  moves the old symlink aside and restores it if creating or verifying the new
+  link fails, instead of leaving the destination missing.
+- **macOS plugin replacement keeps the previous checkout.** The XDG plugin
+  clone swaps directories through a temporary backup and restores the old
+  checkout if the final move fails.
+
+### Changed
+
+- Documentation was consolidated and pruned; filenames and README links are
+  unchanged. No commands, options, state files or dependencies were added.
+
+### Tests
+
+- Added regressions for pre-created symlink targets, same-second backup
+  collisions, failed symlink replacement and failed macOS plugin swaps.
+- Added a documentation guard for the current version and removed scope.
+- The macOS CI lane exercises the suite under Bash 3.2; Linux uses Bash 5.x.
+
+### Notes
+
+- No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
+  `terminal/fonts/manifest.env`).
+- The documented install commands are pinned to `v0.9.5`.
+
 ## [0.9.0] — 2026-10-30 — Install/update backup separation; safe purge
 
 ### Fixed
@@ -29,9 +65,8 @@ command behind every claim is in `docs/evaluation.md`.
 
 - `last-backup` remains the manual `yadr backup` pointer and the legacy
   fallback; it is no longer the primary source for `uninstall`.
-- `yadr update` records an update snapshot for inspection only. v0.9.0 still
-  has no `yadr rollback` and does not record the previous SHA, a repository
-  bundle or a manifest.
+- `yadr update` records an update snapshot for inspection only; `uninstall`
+  never reads it.
 
 ### Tests
 
@@ -39,7 +74,7 @@ command behind every claim is in `docs/evaluation.md`.
   install-vs-update-restore coverage.
 - Added purge coverage for internal and external symlinks, missing targets,
   legacy refusal and preservation of backups.
-- The shell suite passes under Bash 3.2 (macOS runner) and Bash 5.x.
+- The macOS CI lane exercises the suite under Bash 3.2; Linux uses Bash 5.x.
 
 ### Notes
 
@@ -62,7 +97,7 @@ command behind every claim is in `docs/evaluation.md`.
 
 ### Tests
 
-- The shell suite passes under Bash 3.2 (macOS runner) and Bash 5.x.
+- The macOS CI lane exercises the suite under Bash 3.2; Linux uses Bash 5.x.
 - Added coverage for the empty linked array, the fast-path symlink check, and
   real directories that look identical to the checkout.
 
@@ -217,8 +252,7 @@ command behind every claim is in `docs/evaluation.md`.
   longer installs from `main`; it names `v0.8.0`, verifies `VERSION`, and
   explains the checksum path. `main` remains the development branch.
 - **Releases publish `SHA256SUMS`.** It is generated from the tagged
-  `bootstrap.sh` and attached to the GitHub release. It is an integrity check,
-  not a signature; tags remain annotated but unsigned.
+  `bootstrap.sh` and attached to the GitHub release. It is an integrity check.
 - **GitHub Actions are pinned by full commit SHA.** `actions/checkout` is pinned
   to `v4.4.0` and Dependabot is configured for GitHub Actions. A static test
   rejects any workflow `uses:` that is not a 40-character lowercase SHA.
@@ -237,14 +271,14 @@ command behind every claim is in `docs/evaluation.md`.
 ### Docs
 
 - `docs/supply-chain.md` documents the bootstrap trust model, the Actions pins,
-  the checksum limits, and the fact that v0.8.0 does not ship an SBOM.
+  the checksum limits.
 - `docs/releases.md` records the exact-tag install and `SHA256SUMS` release
   step.
 
 ### Notes
 
-- No new commands, options or interfaces. `doctor --json`, CycloneDX SBOM,
-  new distro CI lanes and GPG signing remain out of scope for this release.
+- No new commands, options or interfaces. `doctor --json` and new distro CI
+  lanes remain out of scope for this release.
 - No pinned artifact changed (`runtime/mise.toml`, `nvim/lazy-lock.json`,
   `terminal/fonts/manifest.env`).
 
@@ -299,8 +333,7 @@ command behind every claim is in `docs/evaluation.md`.
 
 - Package managers (apt/dnf/pacman/Homebrew/MacPorts), Homebrew's own installer
   when `brew` is absent, and `pnpm = "latest"` remain documented rolling
-  exceptions. No GPG key is configured in this release; tags are annotated but
-  unsigned, and `git tag -v` is the future signed-tag check.
+  exceptions.
 - Tests: 125. Coverage: 56.7% (floor 50%). Pinned artifacts unchanged
   (`runtime/mise.toml`, `nvim/lazy-lock.json`, `terminal/fonts/manifest.env`).
 

@@ -40,7 +40,7 @@ The release fixes four failure modes and adds regressions for each:
 
 The shell suite runs on Bash 3.2 in the macOS CI lane and Bash 5.x on Linux.
 Local Linux verification for this release: smoke 90/90, shell 131/131,
-bootstrap 10/10, fault 19/19, core coverage 62.1% (floor 50%), shellcheck clean,
+bootstrap 10/10, fault 19/19, core coverage 62.0% (floor 50%), shellcheck clean,
 and both Neovim harness scripts print `ok`.
 
 ```sh

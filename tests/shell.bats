@@ -2290,7 +2290,6 @@ exit 0" ]
   rm -rf "$state" "$victim"
 }
 
-
 @test "backup: two backups in the same second use distinct directories" {
   local home="$TEST_HOME"
   printf 'current\n' > "$home/.zshrc"
@@ -2308,7 +2307,6 @@ exit 0" ]
   [ "$(ls -1 "$home/.local/state/yadr/backups" | wc -l)" -ge 2 ]
   [ -f "$home/.local/state/yadr/last-backup" ]
 }
-
 
 @test "install: a failed symlink replacement keeps the previous link" {
   local home="$TEST_HOME" fake="$BATS_TMPDIR/fake-ln-$$"
@@ -2329,7 +2327,6 @@ EOF
   [ ! -e "$home/.zshrc.yadr-old" ]
   rm -rf "$fake"
 }
-
 
 @test "macOS: a failed plugin swap keeps the previous checkout" {
   local data="$BATS_TMPDIR/plugin-swap-$$" fake="$BATS_TMPDIR/fake-git-swap-$$"
@@ -2372,3 +2369,17 @@ EOF
   rm -rf "$data" "$fake" "$count"
 }
 
+@test "docs: version references are current and no post-release scope is mentioned" {
+  local v; v="$(cat "$YADR_ROOT/VERSION")"
+  run grep -q "v$v" "$YADR_ROOT/README.md"
+  [ "$status" -eq 0 ]
+  run grep -q "## \[$v\]" "$YADR_ROOT/CHANGELOG.md"
+  [ "$status" -eq 0 ]
+  run grep -q "v$v" "$YADR_ROOT/docs/supply-chain.md"
+  [ "$status" -eq 0 ]
+  run grep -n 'v0\.9\.0' "$YADR_ROOT/README.md"
+  [ "$status" -ne 0 ]
+  run grep -RInE 'v1\.0\.0|yadr rollback|repo\.bundle|manifest\.tsv|selective restore|roadmap' \
+    "$YADR_ROOT/README.md" "$YADR_ROOT/docs" "$YADR_ROOT/CHANGELOG.md"
+  [ "$status" -ne 0 ]
+}
