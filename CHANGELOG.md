@@ -4,6 +4,14 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.9.7] — 2026-10-31 — Piped quick start
+
+### Fixed
+
+- The documented `curl | bash` quick start now passes `--yes`, because stdin is
+  consumed by the script and the install would otherwise cancel at the
+  confirmation prompt. The manual install path remains interactive.
+
 ## [0.9.6] — 2026-10-31 — Pinned updates and purge safety
 
 ### Fixed

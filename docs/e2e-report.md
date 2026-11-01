@@ -72,10 +72,10 @@ Each release is installed from its tag, never from `main`:
 E=/tmp/opencode/verify
 YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
   XDG_DATA_HOME=$E/data XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state \
-  bash bootstrap.sh --ref v0.9.6 --yes
+  bash bootstrap.sh --ref v0.9.7 --yes
 ```
 
-The tag must print `0.9.6` from `yadr version`, report 0 errors from
+The tag must print `0.9.7` from `yadr version`, report 0 errors from
 `yadr doctor`, and record the tag in `installed-ref`. Tag verification and the
 CI run for the release commit are recorded in the release notes.
 

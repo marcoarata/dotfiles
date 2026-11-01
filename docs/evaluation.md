@@ -1,7 +1,7 @@
 # Quality ledger — rubric and re-executable evidence
 
 An evaluation that cannot be re-run is an opinion. This file keeps the rubric,
-the current verification commands and the limits of the v0.9.6 release. A score
+the current verification commands and the limits of the v0.9.7 release. A score
 without a command is not evidence.
 
 ## Rubric
@@ -31,7 +31,7 @@ Every command runs from the repository root and touches only an isolated
 | `bats tests/bootstrap.bats` | installer flags, `curl \| bash -s` stdin path, tag/VERSION agreement, usage errors | 0 failures |
 | `bats tests/fault.bats` | injected failures fail loudly and never print success for work not done | 0 failures |
 | `bash tests/coverage.sh` | line coverage of `bin/` against the floor | `core >= floor`, exit 0 |
-| `bootstrap.sh --ref v0.9.6` from a fresh `HOME` | the published tag installs detached and its `VERSION` matches | `yadr version` prints `0.9.6`; `yadr doctor` reports 0 errors |
+| `bootstrap.sh --ref v0.9.7` from a fresh `HOME` | the published tag installs detached and its `VERSION` matches | `yadr version` prints `0.9.7`; `yadr doctor` reports 0 errors |
 | `bats tests/shell.bats -f "pinned update"` | a detached release checkout advances to the latest tag, never `main` | 0 failures |
 | `shellcheck -S warning bin/yadr bin/lib/*.sh bootstrap.sh platform/*.sh tests/smoke.sh tests/coverage.sh tests/coverage-hook.sh tests/helpers.bash` | shell hygiene of shipped and test bash | no output, exit 0 |
 | `bats tests/shell.bats -f "path policy"` | destinations follow the variables the tools read, with no hardcoded XDG paths | 0 failures |
