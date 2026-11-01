@@ -70,8 +70,9 @@ by hand as part of step 3.
 Package managers (apt/dnf/pacman/Homebrew/MacPorts) and Homebrew's own installer
 are documented rolling exceptions in `docs/supply-chain.md`.
 
-Before tagging, verify that `v0.9.5` changes none of the tracked pin files:
+Before tagging, verify the release changes none of the tracked pin files:
 
 ```sh
-git diff v0.9.0..v0.9.5 -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env
+prev="$(git describe --tags --abbrev=0)"
+git diff "${prev}..HEAD" -- runtime/mise.toml nvim/lazy-lock.json terminal/fonts/manifest.env
 ```

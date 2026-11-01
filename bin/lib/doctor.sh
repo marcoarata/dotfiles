@@ -104,7 +104,11 @@ do_doctor() {
   if have fd || have fdfind; then dc_ok "fd ($(command -v fd || command -v fdfind))"; else dc_fail "fd missing" "sudo apt install fd-find (+ln -s fdfind→fd) / brew install fd"; fi
   if have zoxide; then dc_ok "zoxide ($(zoxide --version 2>/dev/null | head -n1 || echo in PATH))";
   else dc_warn "zoxide missing" "yadr install core / brew install zoxide"; fi
-  dc_cmd "mise (runtime backend)" mise "yadr install core / brew install mise"
+  if have mise; then
+    dc_ok "mise ($(mise --version 2>/dev/null | head -n1 || echo 'in PATH'))"
+  else
+    dc_warn "mise missing (runtime backend is optional)" "yadr install core / brew install mise"
+  fi
   # zsh plugins (advisory only: shell degrades gracefully without them, but
   # silent degradation is a bug — see Intel Mac Tier 3 report).
   for _plug in "zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" "zsh-autosuggestions/zsh-autosuggestions.zsh"; do
@@ -123,7 +127,7 @@ do_doctor() {
   if have lazygit; then dc_ok "lazygit ($(lazygit --version 2>/dev/null | head -n1))"; else dc_warn "lazygit missing" "yadr install lazygit"; fi
   # lsp: server on PATH or installed by Mason (<nvim data dir>/mason/bin)
   if have rust-analyzer || have typescript-language-server || have pyright || have lua-language-server || have gopls || have clangd; then
-    dc_ok "lsp (server en PATH)"
+    dc_ok "lsp (server on PATH)"
   elif [[ -n "$(ls "${_nvdata}/mason/bin" 2>/dev/null)" ]]; then
     dc_ok "lsp (servers Mason: $(ls "${_nvdata}/mason/bin" 2>/dev/null | tr '\n' ' '))"
   else dc_warn "lsp without servers" "yadr install typescript (installs the 5 servers via Mason)"; fi
@@ -176,7 +180,7 @@ do_doctor() {
   # yadr CLI on PATH (self-check: the binary itself must resolve).
   local _yv; _yv="$(command -v yadr 2>/dev/null || true)"
   if [[ "$_yv" == "${YADR_HOME}/bin/yadr" ]] || [[ "$_yv" == "${HOME}/.local/bin/yadr" ]]; then
-    dc_ok "yadr CLI en PATH (${_yv})"
+    dc_ok "yadr CLI on PATH (${_yv})"
   else dc_fail "yadr CLI not on PATH" "run: yadr install (links ~/.local/bin/yadr) and add ~/.local/bin to PATH"; fi
   # current theme (informational; nvim reads it at startup).
   info "theme: $(theme_effective) (yadr theme use light|dark|none; applies when reopening nvim)"

@@ -243,6 +243,24 @@ do_uninstall() {
   done
   info "YADR 2027 $(version_str) — uninstall (dry-run=${dry} purge=${purge})"
 
+  if [[ "$purge" == "1" ]]; then
+    # A checkout at HOME (or a corrupted/empty path) must never turn purge into
+    # `rm -rf "$HOME"`. Check both roots before the inventory or any deletion.
+    case "${YADR_HOME%/}" in
+      ""|"/"|"${HOME%/}")
+        err "refusing --purge: unsafe YADR_HOME '${YADR_HOME:-<empty>}'."
+        info "YADR_HOME must be a checkout directory, not the home directory or filesystem root."
+        return 1
+        ;;
+    esac
+    case "${STATE_DIR%/}" in
+      ""|"/"|"${HOME%/}")
+        err "refusing --purge: unsafe STATE_DIR '${STATE_DIR:-<empty>}'."
+        return 1
+        ;;
+    esac
+  fi
+
   local install_backup=""
   install_backup="$(install_backup_path 2>/dev/null || true)"
   if [[ "$purge" == "1" && -z "$install_backup" ]]; then

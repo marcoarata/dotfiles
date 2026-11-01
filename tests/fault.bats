@@ -204,6 +204,19 @@ load helpers
   rm -rf "$clone"
 }
 
+@test "fault: uninstall --purge refuses YADR_HOME equal to HOME" {
+  local home="$TEST_HOME"
+  printf 'keep\n' > "$home/keep-me"
+  run bash -c "
+    export HOME='$home' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$home'
+    do_uninstall --purge"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"unsafe YADR_HOME"* ]]
+  [ -f "$home/keep-me" ]
+}
+
 @test "fault: uninstall --purge refuses without an install backup" {
   local home="$TEST_HOME" clone="$BATS_TMPDIR/fault-legacy-purge-$$"
   local state backup
@@ -271,6 +284,26 @@ load helpers
   [ ! -e "$dir" ]
   find "$home/.local/state/yadr/backups" -name keep-me -type f | grep -q .
   [[ "$output" == *"not installed by YADR"* ]]
+  rm -rf "$home"
+}
+
+@test "fault: unowned directories get distinct backup directories" {
+  local home="$BATS_TMPDIR/fault-own2-$$"
+  local d1="$home/a/nvim-upstream" d2="$home/b/nvim-upstream"
+  rm -rf "$home"; mkdir -p "$d1" "$d2"
+  printf 'one\n' > "$d1/keep-me"
+  printf 'two\n' > "$d2/keep-me"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    date() { printf '20260101-000000'; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_dir '$d1' nvim-upstream
+    claim_owned_dir '$d2' nvim-upstream"
+  [ "$status" -eq 0 ]
+  [ ! -e "$d1" ] && [ ! -e "$d2" ]
+  [ "$(find "$home/.local/state/yadr/backups" -name keep-me -type f | wc -l)" -eq 2 ]
+  [ "$(find "$home/.local/state/yadr/backups" -maxdepth 1 -type d -name 'nvim-upstream-*' | wc -l)" -eq 2 ]
   rm -rf "$home"
 }
 

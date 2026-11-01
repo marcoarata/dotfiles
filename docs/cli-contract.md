@@ -32,7 +32,7 @@ test rejects hardcoded XDG-derived paths in `bin/`, `platform/` and
 
 `$XDG_STATE_HOME/yadr/installed-ref` (default
 `~/.local/state/yadr/installed-ref`) is written by `bootstrap.sh` and by
-`yadr update` after its pull attempt, including a failed pull. `yadr install`
+`yadr update` after its repo attempt, including a failed pull/tag checkout. `yadr install`
 does not write it. The file is written through an exclusive temporary file and
 moved into place (mode `0600`).
 
@@ -83,7 +83,7 @@ fails the suite.
 |---|---|---|---|
 | `install [profile] [--dry-run]` | checkout present | nothing with `--dry-run`; otherwise platform packages (sudo), links, first-install backup, login shell, toolchains — only after confirmation | 0 ok; 1 bad profile, failed optional profile or unwritable backup |
 | `plan [profile]` | checkout present | nothing (alias of `install --dry-run`) | 0; 1 bad profile |
-| `update` | git checkout | pull, update snapshot, plugins, `installed-ref`; runtimes only when the pull moved | 0; 1 failed pull or runtime phase |
+| `update` | git checkout | pull on a branch, latest release tag on a detached `--ref` checkout; update snapshot, plugins, `installed-ref`; runtimes only when the repo phase succeeds | 0; 1 failed repo or runtime phase |
 | `doctor` | nothing | read-only (first nvim start installs plugins once) | 1 on any FAIL row |
 | `diff` | nothing | nothing | 0 |
 | `backup` | nothing | unique dir under `backups/` + `last-backup`; install pointer untouched | 0; 1 copy failure |

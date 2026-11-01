@@ -4,6 +4,24 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.9.6] — 2026-10-31 — Pinned updates and purge safety
+
+### Fixed
+
+- **`yadr update` follows a pinned release.** A checkout created with
+  `bootstrap.sh --ref` is detached; update now fetches tags, verifies the
+  target `VERSION`, and moves to the latest release tag, never `main`. A dirty
+  checkout, failed fetch or mislabelled tag leaves the checkout unchanged.
+- **`uninstall --purge` refuses unsafe roots.** `YADR_HOME` or `STATE_DIR`
+  equal to `$HOME` or `/` is rejected before any deletion.
+- **Platform directory backups are collision-safe.** `claim_owned_dir` uses
+  `mktemp -d` like the other backup paths.
+- **`doctor` treats a missing `mise` as the optional runtime backend** instead
+  of counting it as an error, matching the documented scope.
+- **Documentation drift removed.** The stale `mise` checksum limit, the
+  hardcoded release checklist and the remaining Spanish diagnostics are gone.
+- The documented install commands are pinned to `v0.9.6`.
+
 ## [0.9.5] — 2026-10-31 — Maintenance: safer writes and replacements
 
 ### Fixed

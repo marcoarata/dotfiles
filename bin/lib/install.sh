@@ -582,20 +582,85 @@ dirty_tree_list() { # prints up to 5 dirty paths of the live checkout, empty whe
   git -C "$YADR_HOME" status --porcelain 2>/dev/null | head -n 5 || true
 }
 
+head_is_detached() {
+  [[ -d "${YADR_HOME}/.git" ]] || return 1
+  ! git -C "$YADR_HOME" symbolic-ref -q HEAD >/dev/null 2>&1
+}
+
+latest_release_tag() {
+  # Sets YADR_LATEST_TAG instead of echoing: the caller runs under set -e and
+  # command substitution would swallow the warning text along with the tag.
+  local tag
+  YADR_LATEST_TAG=""
+  git -C "$YADR_HOME" fetch --quiet --tags origin 2>/dev/null || {
+    warn "fetch failed (offline or remote unavailable); checkout unchanged."
+    return 1
+  }
+  # Keep the whole pipeline alive under pipefail: sed reads all input, unlike
+  # head, which can make git exit with SIGPIPE when the tag list is long.
+  tag="$(git -C "$YADR_HOME" tag --list 'v[0-9]*' --sort=-v:refname 2>/dev/null | sed -n '1p')"
+  [[ -n "$tag" ]] || { warn "no release tags found; checkout unchanged."; return 1; }
+  YADR_LATEST_TAG="$tag"
+}
+
+update_pinned_checkout() {
+  # A --ref install is detached on purpose. Move it to the latest release tag,
+  # never to main, and verify the tag's VERSION before touching the working tree.
+  local latest current want got
+  latest_release_tag || return 1
+  latest="$YADR_LATEST_TAG"
+  current="$(git -C "$YADR_HOME" describe --tags --exact-match HEAD 2>/dev/null || true)"
+  if [[ "$current" == "$latest" ]]; then
+    ok "already on latest release (${latest})."
+    return 0
+  fi
+  want="${latest#v}"
+  got="$(git -C "$YADR_HOME" show "${latest}:VERSION" 2>/dev/null | tr -d ' \t\n' || true)"
+  if [[ "$got" != "$want" ]]; then
+    warn "release ${latest} has VERSION '${got:-missing}' (expected ${want}); checkout unchanged."
+    return 1
+  fi
+  if ! git -C "$YADR_HOME" checkout --quiet --detach "$latest" 2>/dev/null; then
+    warn "could not check out ${latest}; checkout unchanged."
+    return 1
+  fi
+  ok "repo updated to ${latest}."
+  return 0
+}
+
 do_update() {
   info "updating YADR 2027…"
   local rc=0 has_repo=0 repo_updated=0
   if [[ -d "${YADR_HOME}/.git" ]]; then
     has_repo=1
     local _dirty; _dirty="$(dirty_tree_list)"
+    local _detached=0
+    head_is_detached && _detached=1
     if [[ -n "$_dirty" ]]; then
-      warn "live checkout has local modifications (pull --ff-only may refuse):"
+      warn "live checkout has local modifications (update may refuse):"
       printf '%s\n' "$_dirty" >&2
       info "stash, commit or discard them in ${YADR_HOME} first (often just nvim/lazy-lock.json from Lazy sync)."
     fi
-    confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
+    if [[ "$_detached" == "1" ]]; then
+      confirm "Update pinned checkout to the latest release tag?" || { info "update cancelled."; return 0; }
+    else
+      confirm "Update repo (git pull --ff-only in ${YADR_HOME})?" || { info "update cancelled."; return 0; }
+    fi
     do_update_backup || warn "continuing update without a complete update backup."
-    if git -C "$YADR_HOME" pull --ff-only; then
+    if [[ "$_detached" == "1" && -n "$_dirty" ]]; then
+      # A checkout with local changes can carry them onto the new tag when Git
+      # does not see a conflict. Refuse rather than silently rewrite the tree.
+      warn "pinned update requires a clean checkout; the checkout is unchanged."
+      rc=1
+    elif [[ "$_detached" == "1" ]]; then
+      if update_pinned_checkout; then
+        repo_updated=1
+        ensure_nvim_plugins || true
+      else
+        warn "pinned update failed; the checkout is unchanged."
+        rc=1
+      fi
+    elif git -C "$YADR_HOME" pull --ff-only; then
       ok "repo updated."
       repo_updated=1
       # Editor sync only makes sense on a checkout that actually moved; when the

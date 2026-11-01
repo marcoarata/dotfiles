@@ -29,18 +29,18 @@ font source (no leftovers), `do_update` without a checkout (warns, exit 0), and
 lines). WSL is covered at the logic level (platform selection + clipboard
 branches); `platform/wsl.sh` delegates to `linux.sh`.
 
-## 2. v0.9.5 maintenance coverage
+## 2. v0.9.6 maintenance coverage
 
-The release fixes four failure modes and adds regressions for each:
+The release fixes the pinned-update lifecycle and hardens deletion/backup paths:
 
-- state pointers and completion writes use exclusive `mktemp` files;
-- install, manual, update and migrate backups use unique directories;
-- a failed managed-symlink replacement restores the previous link;
-- a failed macOS plugin swap restores the previous checkout.
+- a detached `--ref` checkout advances to the latest release tag, never `main`;
+- a dirty checkout, offline fetch or mislabelled target tag leaves the checkout unchanged;
+- `uninstall --purge` refuses `YADR_HOME`/`STATE_DIR` equal to `$HOME` or `/`;
+- `claim_owned_dir` backups use unique `mktemp` directories.
 
 The shell suite runs on Bash 3.2 in the macOS CI lane and Bash 5.x on Linux.
-Local Linux verification for this release: smoke 90/90, shell 131/131,
-bootstrap 10/10, fault 19/19, core coverage 62.0% (floor 50%), shellcheck clean,
+Local Linux verification for this release: smoke 90/90, shell 136/136,
+bootstrap 10/10, fault 21/21, core coverage 63.2% (floor 50%), shellcheck clean,
 and both Neovim harness scripts print `ok`.
 
 ```sh
@@ -72,10 +72,10 @@ Each release is installed from its tag, never from `main`:
 E=/tmp/opencode/verify
 YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
   XDG_DATA_HOME=$E/data XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state \
-  bash bootstrap.sh --ref v0.9.5 --yes
+  bash bootstrap.sh --ref v0.9.6 --yes
 ```
 
-The tag must print `0.9.5` from `yadr version`, report 0 errors from
+The tag must print `0.9.6` from `yadr version`, report 0 errors from
 `yadr doctor`, and record the tag in `installed-ref`. Tag verification and the
 CI run for the release commit are recorded in the release notes.
 

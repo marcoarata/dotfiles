@@ -64,8 +64,8 @@ If `~/.local/nvim-upstream` exists and YADR cannot prove it created it (no
 `provides-nvim-upstream` marker), the installer moves it to the state backups
 instead of deleting it. Move it back if it was yours.
 
-`yadr update` reports two phases. A failed pull skips the runtime upgrade on
-purpose; fix the checkout and rerun.
+`yadr update` reports two phases. A failed pull or pinned tag checkout skips the
+runtime upgrade on purpose; fix the checkout and rerun.
 
 ## Backups: install, update, and legacy
 

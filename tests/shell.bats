@@ -16,6 +16,17 @@ setup() {
 
 load helpers
 
+make_pinned_repo() { # make_pinned_repo <dir> <version>: throwaway tagged release
+  local dir="$1" ver="$2"
+  rm -rf "$dir"; mkdir -p "$dir"
+  printf '%s\n' "$ver" > "$dir/VERSION"
+  printf 'payload\n' > "$dir/file"
+  git -C "$dir" init -q
+  git -C "$dir" -c user.email=t@e -c user.name=t add -A
+  git -C "$dir" -c user.email=t@e -c user.name=t commit -qm "release ${ver}"
+  git -C "$dir" tag "v${ver}"
+}
+
 @test "aliases load without eza/bat/rg/fd/zoxide" {
   run load_aliases
   [ "$status" -eq 0 ]
@@ -1569,6 +1580,105 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"no .git"* ]]
   rm -rf "$d"
+}
+
+@test "pinned update: detached checkout advances to the latest release tag" {
+  local remote="$BATS_TMPDIR/pinned-remote-$$" clone="$BATS_TMPDIR/pinned-clone-$$"
+  make_pinned_repo "$remote" 0.9.5
+  # Match bootstrap --ref: a shallow clone of the tag, not the full history.
+  git clone -q --branch v0.9.5 --depth 1 "file://$remote" "$clone" 2>/dev/null
+  [ "$(git -C "$clone" rev-parse --is-shallow-repository)" = "true" ]
+  printf '0.9.6\n' > "$remote/VERSION"
+  git -C "$remote" -c user.email=t@e -c user.name=t commit -qam "release 0.9.6"
+  git -C "$remote" tag v0.9.6
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"repo updated to v0.9.6"* ]]
+  [ "$output" != *"repo updated."* ]
+  [ "$(git -C "$clone" describe --tags --exact-match HEAD)" = "v0.9.6" ]
+  run git -C "$clone" symbolic-ref -q HEAD
+  [ "$status" -ne 0 ]
+  grep -qx 'tag=v0.9.6' "$TEST_HOME/.local/state/yadr/installed-ref"
+  rm -rf "$remote" "$clone"
+}
+
+@test "pinned update: already on the latest release is a successful no-op" {
+  local remote="$BATS_TMPDIR/pinned-latest-remote-$$" clone="$BATS_TMPDIR/pinned-latest-clone-$$"
+  make_pinned_repo "$remote" 0.9.6
+  git clone -q "$remote" "$clone"
+  git -C "$clone" checkout -q --detach v0.9.6 2>/dev/null
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_update"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already on latest release (v0.9.6)"* ]]
+  [[ "$output" != *"repo updated"* ]]
+  [ "$(git -C "$clone" describe --tags --exact-match HEAD)" = "v0.9.6" ]
+  rm -rf "$remote" "$clone"
+}
+
+@test "pinned update: fetch failure leaves the checkout unchanged" {
+  local remote="$BATS_TMPDIR/pinned-offline-remote-$$" clone="$BATS_TMPDIR/pinned-offline-clone-$$"
+  make_pinned_repo "$remote" 0.9.5
+  git clone -q "$remote" "$clone"
+  git -C "$clone" checkout -q --detach v0.9.5 2>/dev/null
+  git -C "$clone" remote set-url origin "$BATS_TMPDIR/pinned-no-such-remote-$$"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"fetch failed"* ]]
+  [[ "$output" != *"repo updated"* ]]
+  [ "$(git -C "$clone" describe --tags --exact-match HEAD)" = "v0.9.5" ]
+  rm -rf "$remote" "$clone"
+}
+
+@test "pinned update: dirty checkout is refused before moving" {
+  local remote="$BATS_TMPDIR/pinned-dirty-remote-$$" clone="$BATS_TMPDIR/pinned-dirty-clone-$$"
+  make_pinned_repo "$remote" 0.9.5
+  git clone -q "$remote" "$clone"
+  git -C "$clone" checkout -q --detach v0.9.5 2>/dev/null
+  printf 'dirty\n' > "$clone/file"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"local modifications"* ]]
+  [[ "$output" == *"pinned update requires a clean checkout"* ]]
+  [[ "$output" != *"repo updated"* ]]
+  [ "$(cat "$clone/file")" = "dirty" ]
+  [ "$(git -C "$clone" describe --tags --exact-match HEAD)" = "v0.9.5" ]
+  rm -rf "$remote" "$clone"
+}
+
+@test "pinned update: tag VERSION mismatch is refused before checkout" {
+  local remote="$BATS_TMPDIR/pinned-badver-remote-$$" clone="$BATS_TMPDIR/pinned-badver-clone-$$"
+  make_pinned_repo "$remote" 0.9.5
+  git clone -q "$remote" "$clone"
+  git -C "$clone" checkout -q --detach v0.9.5 2>/dev/null
+  printf '0.9.7\n' > "$remote/VERSION"
+  git -C "$remote" -c user.email=t@e -c user.name=t commit -qam "mislabelled release"
+  git -C "$remote" tag v0.9.6
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='/usr/bin:/bin' YADR_YES=1
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_update"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"expected 0.9.6"* ]]
+  [[ "$output" != *"repo updated"* ]]
+  [ "$(git -C "$clone" describe --tags --exact-match HEAD)" = "v0.9.5" ]
+  rm -rf "$remote" "$clone"
 }
 
 @test "detect_platform_script maps OS and WSL detection" {
