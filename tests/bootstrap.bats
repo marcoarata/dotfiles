@@ -63,6 +63,15 @@ EOF
   local path="$BATS_TMPDIR/bs-pacman-path-$$"
   rm -rf "$path"
   fake_path_without "$path" apt-get >/dev/null
+  # The test exercises the Linux/pacman branch on every runner. Keep the real
+  # uname out of it: on macOS bootstrap would correctly take the macos branch
+  # and the fake pacman would never be called.
+  rm -f "$path/uname"
+  cat > "$path/uname" <<'EOF'
+#!/bin/bash
+case "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac
+EOF
+  chmod +x "$path/uname"
   cat > "$path/pacman" <<'EOF'
 #!/bin/bash
 printf 'pacman %s\n' "$*" >> "$FAKE_LOG"
