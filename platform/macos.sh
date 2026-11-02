@@ -66,7 +66,7 @@ install_fonts_macos() {
     return 0
   fi
   log "downloading ${YADR_FONT_FAMILY} ${YADR_FONT_VERSION}..."
-  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${HOME}/Library/Fonts" '*.ttf' '*.otf' || return 0
+  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${HOME}/Library/Fonts" '*.ttf' '*.otf' || return 1
   log "font installed in ~/Library/Fonts."
 }
 
@@ -170,8 +170,8 @@ ensure_vim_macos() {
   local ver
   if ver="$(nvim_version_ok "$nvim_bin")"; then
     mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
-    ln -sfn "$nvim_bin" "${HOME}/.local/bin/vim"
-    yadr_marker vim
+    claim_owned_binary "${HOME}/.local/bin/vim" "$nvim_bin" vim link \
+      || { warn "vim shim failed."; return 1; }
     log "vim -> ${nvim_bin} (shim; purge removes it)."
   else
     warn "nvim ${ver} <0.11; skipping vim shim."

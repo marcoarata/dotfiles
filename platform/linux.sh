@@ -87,10 +87,9 @@ install_zoxide() {
   tar -xzf "$tmp/zoxide.tar.gz" -C "$tmp" zoxide \
     || { warn "zoxide extraction failed."; rm -rf "$tmp"; return 1; }
   mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
-  cp -f "$tmp/zoxide" "${HOME}/.local/bin/zoxide" && chmod +x "${HOME}/.local/bin/zoxide" \
+  claim_owned_binary "${HOME}/.local/bin/zoxide" "$tmp/zoxide" zoxide copy \
     || { warn "zoxide install failed."; rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
-  yadr_marker zoxide
   log "zoxide ${ZOXIDE_VERSION} in ~/.local/bin."
 }
 
@@ -123,9 +122,9 @@ ensure_nvim() {
   # relative to its real location (resolves the symlink).
   claim_owned_dir "${HOME}/.local/nvim-upstream" nvim-upstream || { rm -rf "$tmp"; return 1; }
   cp -a "$tmp"/nvim-linux-*/ "${HOME}/.local/nvim-upstream/" || { warn "copy failed."; rm -rf "$tmp"; return 1; }
-  ln -sfn "${HOME}/.local/nvim-upstream/bin/nvim" "${HOME}/.local/bin/nvim"
+  claim_owned_binary "${HOME}/.local/bin/nvim" "${HOME}/.local/nvim-upstream/bin/nvim" nvim-upstream link \
+    || { warn "nvim shim failed."; rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
-  yadr_marker nvim-upstream
   "${HOME}/.local/bin/nvim" --version >/dev/null 2>&1 && log "neovim ready: $("${HOME}/.local/bin/nvim" --version 2>/dev/null | head -n1)." || warn "nvim installed but does not start."
 }
 
@@ -141,8 +140,8 @@ ensure_vim() {
   local ver
   if ver="$(nvim_version_ok "$nvim_bin")"; then
     mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
-    ln -sfn "$nvim_bin" "${HOME}/.local/bin/vim" || { warn "vim shim failed."; return 1; }
-    yadr_marker vim
+    claim_owned_binary "${HOME}/.local/bin/vim" "$nvim_bin" vim link \
+      || { warn "vim shim failed."; return 1; }
     log "vim -> upstream Neovim ($ver) ready (shim; purge removes it)."
   else
     warn "upstream nvim ${ver} <0.11; skipping vim shim."
@@ -163,7 +162,8 @@ main() {
     priv dnf install -y "${DNF_PKGS[@]}" || warn "some dnf packages failed."
   elif have pacman; then
     log "manager: pacman"
-    priv pacman -Sy --noconfirm "${PAC_PKGS[@]}" || warn "some pacman packages failed."
+    priv pacman -S --needed --noconfirm "${PAC_PKGS[@]}" \
+      || { warn "pacman install failed; if the package database is stale, run 'sudo pacman -Syu' and retry."; return 1; }
   else
     warn "no apt/dnf/pacman. Install manually: git zsh tmux nvim rg fd fzf zoxide mise."
   fi
@@ -194,7 +194,7 @@ install_fonts() {
   fi
   have curl unzip fc-cache || { warn "missing curl/unzip/fontconfig; install the font manually (${YADR_FONT_URL})."; return 0; }
   log "downloading ${YADR_FONT_FAMILY} ${YADR_FONT_VERSION}..."
-  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" '*.ttf' '*.otf' || return 0
+  fetch_verified_zip "$YADR_FONT_URL" "${YADR_FONT_SHA256:-}" "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" '*.ttf' '*.otf' || return 1
   fc-cache -f "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" >/dev/null 2>&1 || true
   yadr_marker font
   [[ -n "$(fc-list 2>/dev/null | grep -i "$YADR_FONT_FAMILY")" ]] && log "font installed." || warn "installed but fc-list cannot see it (graphical session?)."

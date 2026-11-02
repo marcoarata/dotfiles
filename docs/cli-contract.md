@@ -19,6 +19,7 @@ XDG default:
 | mise config and data | `XDG_CONFIG_HOME`, `XDG_DATA_HOME` |
 | theme, migrated files, gitsigns marker | `XDG_CONFIG_HOME/yadr` |
 | backups, purge snapshots, `provides-*` markers, `installed-ref` | `XDG_STATE_HOME/yadr` |
+| foreign binaries moved before replacement | `XDG_STATE_HOME/yadr-binary-backups` |
 | bash/zsh completions | `XDG_DATA_HOME` (`bash-completion/completions`, `zsh/site-functions`) |
 | fish completions | `XDG_CONFIG_HOME/fish/completions` |
 | zsh rc | `ZDOTDIR` when set |

@@ -64,10 +64,9 @@ install_tarball() {
   tar -xzf "$tmp/lazygit.tar.gz" -C "$tmp" lazygit \
     || { warn "tar failed."; rm -rf "$tmp"; return 1; }
   mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
-  cp -f "$tmp/lazygit" "${HOME}/.local/bin/lazygit" && chmod +x "${HOME}/.local/bin/lazygit" \
+  claim_owned_binary "${HOME}/.local/bin/lazygit" "$tmp/lazygit" lazygit copy \
     || { warn "lazygit install failed."; rm -rf "$tmp"; return 1; }
   rm -rf "$tmp"
-  yadr_marker lazygit
   log "lazygit v${LAZYGIT_VERSION} in ~/.local/bin."
 }
 
@@ -97,10 +96,11 @@ main() {
     # Debian >=13 / Ubuntu >=25.10 ship it in repos (ID/VERSION_ID informational only).
     have lazygit && { log "lazygit via apt (ID=$(os_id) $(os_ver))."; return 0; }
   elif have pacman; then
-    if [[ "$(id -u)" -eq 0 ]]; then pacman -Sy --noconfirm lazygit 2>/dev/null || true
-    elif command -v sudo >/dev/null 2>&1; then sudo pacman -Sy --noconfirm lazygit 2>/dev/null || true
+    if [[ "$(id -u)" -eq 0 ]]; then pacman -S --needed --noconfirm lazygit 2>/dev/null || true
+    elif command -v sudo >/dev/null 2>&1; then sudo pacman -S --needed --noconfirm lazygit 2>/dev/null || true
     fi
     have lazygit && { log "lazygit via pacman."; return 0; }
+    warn "pacman did not provide lazygit; if the package database is stale, run 'sudo pacman -Syu' and retry."
   elif have dnf; then
     if [[ "$(id -u)" -eq 0 ]]; then dnf install -y lazygit 2>/dev/null || true
     elif command -v sudo >/dev/null 2>&1; then sudo dnf install -y lazygit 2>/dev/null || true

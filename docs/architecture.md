@@ -67,6 +67,12 @@ to run without a valid install pointer and leaves `backups/` intact. When it
 does run, restored links that point inside `$YADR_HOME` are materialized before
 the checkout is deleted; external links stay links.
 
+Foreign executables under `~/.local/bin` (`nvim`, `vim`, `zoxide`, `lazygit`)
+are moved to `$XDG_STATE_HOME/yadr-binary-backups/`, a sibling of `yadr/`.
+`uninstall --purge` therefore removes the managed binary and `yadr/`, but keeps
+the pre-existing executable for inspection. `mise` is installed by its upstream
+installer and is outside this ownership rule.
+
 ## Zsh core (audited Prezto subset)
 
 YADR reproduces only the Prezto behaviour it uses:

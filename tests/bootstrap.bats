@@ -59,6 +59,32 @@ EOF
   rm -rf "$checkout"
 }
 
+@test "bootstrap fails a stale pacman DB with a -Syu instruction and never syncs" {
+  local path="$BATS_TMPDIR/bs-pacman-path-$$"
+  rm -rf "$path"
+  fake_path_without "$path" apt-get >/dev/null
+  cat > "$path/pacman" <<'EOF'
+#!/bin/bash
+printf 'pacman %s\n' "$*" >> "$FAKE_LOG"
+exit 1
+EOF
+  cat > "$path/sudo" <<'EOF'
+#!/bin/bash
+[[ "$1" == "-n" ]] && shift
+printf 'sudo %s\n' "$*" >> "$FAKE_LOG"
+"$@"
+EOF
+  chmod +x "$path/pacman" "$path/sudo"
+  run env HOME="$TEST_HOME" PATH="$path" FAKE_LOG="$path/calls.log" \
+    bash "$YADR_ROOT/bootstrap.sh" --yes
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"sudo pacman -Syu"* ]]
+  grep -q '^pacman -S --needed --noconfirm' "$path/calls.log"
+  ! grep -q -- '-Sy' "$path/calls.log"
+  [ ! -e "$TEST_HOME/.yadr-2027" ]
+  rm -rf "$path"
+}
+
 @test "bootstrap --help documents --local and --ref" {
   run env HOME="$TEST_HOME" PATH="/usr/bin:/bin" bash "$YADR_ROOT/bootstrap.sh" --help
   [ "$status" -eq 0 ]

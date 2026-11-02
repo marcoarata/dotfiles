@@ -80,6 +80,21 @@ If `~/.local/nvim-upstream` exists and YADR cannot prove it created it (no
 `provides-nvim-upstream` marker), the installer moves it to the state backups
 instead of deleting it. Move it back if it was yours.
 
+The managed executables (`nvim`, `vim`, `zoxide`, `lazygit`) use the same
+ownership rule. A foreign `~/.local/bin/<tool>` is moved to
+`${XDG_STATE_HOME:-$HOME/.local/state}/yadr-binary-backups/` and reported
+before YADR installs its link or copy. A `provides-<tool>` marker makes
+reinstalls and updates idempotent; a link that no longer points at the expected
+source is treated as foreign again. These binary backups are a sibling of the
+`yadr/` state directory, so `yadr uninstall --purge` can remove managed
+binaries and state without discarding them. `mise` is the exception: its
+upstream installer owns that binary.
+
+On Arch, YADR runs `pacman -S --needed` only: it never syncs or upgrades the
+system on its own. If the package database is stale, the step fails with the
+exact repair command (`sudo pacman -Syu`) and the installer retries after you
+run it.
+
 `yadr update` reports two phases. A failed pull or pinned tag checkout skips the
 runtime upgrade on purpose; fix the checkout and rerun.
 

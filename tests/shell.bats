@@ -738,6 +738,108 @@ macos_funcs() {
   [ -f "$TEST_HOME/.local/state/yadr/provides-font" ]
 }
 
+@test "claim_owned_binary backs up a foreign file and is idempotent" {
+  local home="$BATS_TMPDIR/claim-bin-$$" target source
+  target="$home/.local/bin/tool"; source="$home/source-tool"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")"
+  printf 'user file\n' > "$target"
+  printf '#!/bin/sh\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' tool link
+    claim_owned_binary '$target' '$source' tool link"
+  [ "$status" -eq 0 ]
+  [ -L "$target" ]
+  [ "$(readlink "$target")" = "$source" ]
+  [ -f "$home/.local/state/yadr/provides-tool" ]
+  [[ "$output" == *"moved to"* ]]
+  [ "$(find "$home/.local/state/yadr-binary-backups" -type f -name tool | wc -l)" -eq 1 ]
+  [ "$(cat "$home"/.local/state/yadr-binary-backups/*/tool)" = "user file" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary backs up a foreign symlink without following it" {
+  local home="$BATS_TMPDIR/claim-symlink-$$" target source userbin
+  target="$home/.local/bin/tool"; source="$home/source-tool"; userbin="$home/user-tool"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")"
+  printf 'user target\n' > "$userbin"
+  ln -s "$userbin" "$target"
+  printf '#!/bin/sh\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' tool link"
+  [ "$status" -eq 0 ]
+  [ -L "$target" ]
+  [ "$(readlink "$target")" = "$source" ]
+  [ -f "$userbin" ]
+  [ "$(find "$home/.local/state/yadr-binary-backups" -type l -name tool | wc -l)" -eq 1 ]
+  [ "$(readlink "$home"/.local/state/yadr-binary-backups/*/tool)" = "$userbin" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary adopts the v0.9.8 link layout without a backup" {
+  local home="$BATS_TMPDIR/claim-adopt-$$" target source
+  target="$home/.local/bin/nvim"; source="$home/.local/nvim-upstream/bin/nvim"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")" "$(dirname "$source")" "$home/.local/state/yadr"
+  printf '#!/bin/sh\nexit 0\n' > "$source"; chmod +x "$source"
+  ln -s "$source" "$target"
+  : > "$home/.local/state/yadr/provides-nvim-upstream"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' nvim-upstream link"
+  [ "$status" -eq 0 ]
+  [ "$(readlink "$target")" = "$source" ]
+  [ ! -e "$home/.local/state/yadr-binary-backups" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary backs up a foreign file even with a stale marker" {
+  local home="$BATS_TMPDIR/claim-stale-$$" target source
+  target="$home/.local/bin/nvim"; source="$home/.local/nvim-upstream/bin/nvim"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")" "$(dirname "$source")" "$home/.local/state/yadr"
+  printf '#!/bin/sh\nexit 0\n' > "$source"; chmod +x "$source"
+  printf 'user replaced the shim\n' > "$target"
+  : > "$home/.local/state/yadr/provides-nvim-upstream"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' nvim-upstream link"
+  [ "$status" -eq 0 ]
+  [ -L "$target" ]
+  [ "$(readlink "$target")" = "$source" ]
+  [ "$(cat "$home"/.local/state/yadr-binary-backups/*/nvim)" = "user replaced the shim" ]
+  rm -rf "$home"
+}
+
+
+@test "ensure_vim backs up a pre-existing ~/.local/bin/vim shim" {
+  local home="$BATS_TMPDIR/ensure-vim-backup-$$"
+  rm -rf "$home"
+  mkdir -p "$home/.local/nvim-upstream/bin" "$home/.local/state/yadr" "$home/.local/bin"
+  printf '#!/usr/bin/env bash\necho "NVIM v0.12.5"\n' > "$home/.local/nvim-upstream/bin/nvim"
+  chmod +x "$home/.local/nvim-upstream/bin/nvim"
+  : > "$home/.local/state/yadr/provides-nvim-upstream"
+  printf 'user vim\n' > "$home/.local/bin/vim"
+  run bash -c "
+    export HOME='$home'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    ensure_vim"
+  [ "$status" -eq 0 ]
+  [ -L "$home/.local/bin/vim" ]
+  [ -f "$home/.local/state/yadr/provides-vim" ]
+  [ "$(cat "$home"/.local/state/yadr-binary-backups/*/vim)" = "user vim" ]
+  rm -rf "$home"
+}
+
+
 @test "fetch_verified_zip extracts verified zips, rejects bad sha" {
   # The zip is a committed fixture (109 bytes) instead of something built at
   # test time with python3: the suite must run on a minimal machine, and the
@@ -797,6 +899,53 @@ macos_funcs() {
   [[ "$output" == *"fetched-ok"* ]]
   [ -f "$dest/f.ttf" ]
 }
+
+@test "fetch_verified_zip tolerates an optional glob that matches nothing" {
+  local z="$YADR_ROOT/tests/fixtures/font-sample.zip" dest="$TEST_HOME/fonts-optional"
+  [ -f "$z" ] || fail "missing fixture: tests/fixtures/font-sample.zip"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$z' '' '$dest' '*.ttf' '*.otf' && echo fetched-ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"fetched-ok"* ]]
+  [ -f "$dest/f.ttf" ]
+}
+
+@test "fetch_verified_zip fails when extraction selects no font and cleans its temp dir" {
+  local z="$YADR_ROOT/tests/fixtures/font-sample.zip" dest="$TEST_HOME/fonts-no-match" tmp="$TEST_HOME/tmp"
+  [ -f "$z" ] || fail "missing fixture: tests/fixtures/font-sample.zip"
+  rm -rf "$dest" "$tmp"; mkdir -p "$tmp"
+  run bash -c "
+    export HOME='$TEST_HOME' TMPDIR='$tmp'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    fetch_verified_zip 'file://$z' '' '$dest' '*.otf'"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"font extraction failed"* ]]
+  [ -z "$(find "$tmp" -mindepth 1 -print -quit)" ]
+  ! find "$dest" -type f 2>/dev/null | grep -q .
+}
+
+@test "install_fonts propagates extraction failure and writes no font marker" {
+  local root="$BATS_TMPDIR/font-install-$$"
+  rm -rf "$root"; mkdir -p "$root/platform" "$root/terminal/fonts" "$TEST_HOME/.local/state/yadr"
+  awk '/^main "\$@"$/{exit} {print}' "$YADR_ROOT/platform/linux.sh" > "$root/platform/linux.sh"
+  cp "$YADR_ROOT/terminal/fonts/manifest.env" "$root/terminal/fonts/manifest.env"
+  run bash -c "
+    export HOME='$TEST_HOME'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$root/platform/linux.sh'
+    have() { return 0; }
+    fc-list() { :; }
+    fetch_verified_zip() { return 1; }
+    install_fonts"
+  [ "$status" -ne 0 ]
+  [ ! -f "$TEST_HOME/.local/state/yadr/provides-font" ]
+  rm -rf "$root"
+}
+
 
 @test "install_mise runs the pinned versioned installer, marker only on success" {
   local fb="$BATS_TMPDIR/mise-pin-$$" payload="$BATS_TMPDIR/mise-payload-$$"
@@ -1819,12 +1968,38 @@ EOF
   [ "$status" -eq 0 ]
   [[ "$output" == *"manager: pacman"* ]]
   [[ "$output" != *"manager: apt"* ]]
-  grep -q '^pacman -Sy --noconfirm' "$fb/calls.log"
+  grep -q '^pacman -S --needed --noconfirm' "$fb/calls.log"
+  ! grep -q 'pacman -Sy' "$fb/calls.log"
   grep -q '\bzsh\b' "$fb/calls.log"
   grep -q '\bbase-devel\b' "$fb/calls.log"          # Arch name for build tools
   grep -q '\bfd\b' "$fb/calls.log"                  # Arch does not ship fd-find
   [[ "$output" == *"linux ready (headless OK)"* ]]  # optional installers may fail
   rm -rf "$fb"
+}
+
+@test "platform/linux.sh fails a stale pacman DB with a -Syu instruction and never syncs" {
+  local fb="$BATS_TMPDIR/pm-pacman-stale-$$"
+  rm -rf "$fb"; mkdir -p "$fb"
+  printf '#!/bin/bash\ncase "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac\n' > "$fb/uname"
+  printf '#!/bin/bash\nprintf "pacman %%s\\n" "$*" >> "$FAKE_LOG"\nexit 1\n' > "$fb/pacman"
+  printf '#!/bin/bash\nprintf "sudo %%s\\n" "$*" >> "$FAKE_LOG"\n"$@"\n' > "$fb/sudo"
+  chmod +x "$fb/uname" "$fb/pacman" "$fb/sudo"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb' FAKE_LOG='$fb/calls.log'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)'
+    main"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"sudo pacman -Syu"* ]]
+  grep -q '^pacman -S --needed --noconfirm' "$fb/calls.log"
+  ! grep -q -- '-Sy' "$fb/calls.log"
+  ! grep -q -- '-Syu' "$fb/calls.log"
+  rm -rf "$fb"
+}
+
+@test "static arch policy: no script or workflow syncs the pacman DB with -Sy" {
+  ! grep -REq -- 'pacman[[:space:]]+-Sy([[:space:]]|$)' \
+    "$YADR_ROOT/bootstrap.sh" "$YADR_ROOT/platform" "$YADR_ROOT/.github/workflows/ci.yml"
 }
 
 @test "platform/linux.sh selects apt and installs the Debian package set" {
@@ -2561,6 +2736,66 @@ EOF
   rm -rf "$data" "$fake" "$count"
 }
 
+@test "install_zoxide backs up a foreign ~/.local/bin/zoxide" {
+  local fb="$BATS_TMPDIR/zoxide-foreign-$$" src="$BATS_TMPDIR/zoxide-foreign-src-$$" payload="$BATS_TMPDIR/zoxide-foreign-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src" "$TEST_HOME/.local/bin"
+  printf '#!/bin/sh\necho zoxide 0.10.0\n' > "$src/zoxide"; chmod +x "$src/zoxide"
+  tar -czf "$payload" -C "$src" zoxide
+  printf 'user zoxide\n' > "$TEST_HOME/.local/bin/zoxide"
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    install_zoxide"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/bin/zoxide" ]
+  [ "$(cat "$TEST_HOME/.local/bin/zoxide")" != "user zoxide" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-zoxide" ]
+  [ "$(cat "$TEST_HOME"/.local/state/yadr-binary-backups/*/zoxide)" = "user zoxide" ]
+  rm -rf "$fb" "$src" "$payload"
+}
+
+@test "lazygit fallback backs up a foreign ~/.local/bin/lazygit" {
+  local fb="$BATS_TMPDIR/lazygit-foreign-$$" src="$BATS_TMPDIR/lazygit-foreign-src-$$" payload="$BATS_TMPDIR/lazygit-foreign-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src" "$TEST_HOME/.local/bin"
+  printf '#!/bin/sh\necho "lazygit 0.66.2"\n' > "$src/lazygit"; chmod +x "$src/lazygit"
+  tar -czf "$payload" -C "$src" lazygit
+  printf 'user lazygit\n' > "$TEST_HOME/.local/bin/lazygit"
+  cat > "$fb/uname" <<'EOF'
+#!/bin/bash
+case "$1" in -s) echo Linux ;; -m) echo x86_64 ;; *) echo Linux ;; esac
+EOF
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/uname" "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs lazygit.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    install_tarball"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/bin/lazygit" ]
+  [ "$(cat "$TEST_HOME/.local/bin/lazygit")" != "user lazygit" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-lazygit" ]
+  [ "$(cat "$TEST_HOME"/.local/state/yadr-binary-backups/*/lazygit)" = "user lazygit" ]
+  rm -rf "$fb" "$src" "$payload"
+}
+
 @test "docs: version references are current and no post-release scope is mentioned" {
   local v; v="$(cat "$YADR_ROOT/VERSION")"
   run grep -q "v$v" "$YADR_ROOT/README.md"
@@ -2568,6 +2803,10 @@ EOF
   run grep -q "## \[$v\]" "$YADR_ROOT/CHANGELOG.md"
   [ "$status" -eq 0 ]
   run grep -q "v$v" "$YADR_ROOT/docs/supply-chain.md"
+  [ "$status" -eq 0 ]
+  run grep -q "v$v" "$YADR_ROOT/docs/evaluation.md"
+  [ "$status" -eq 0 ]
+  run grep -q "v$v" "$YADR_ROOT/docs/e2e-report.md"
   [ "$status" -eq 0 ]
   run grep -n 'v0\.9\.0' "$YADR_ROOT/README.md"
   [ "$status" -ne 0 ]

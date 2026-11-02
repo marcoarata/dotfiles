@@ -136,7 +136,8 @@ ensure_minimal_deps() {
       elif have dnf; then
         run_priv dnf install -y "${missing[@]}" || warn "dnf failed."
       elif have pacman; then
-        run_priv pacman -Sy --noconfirm "${missing[@]}" || warn "pacman failed."
+        run_priv pacman -S --needed --noconfirm "${missing[@]}" \
+          || { warn "pacman failed; if the package database is stale, run 'sudo pacman -Syu' and retry."; return 1; }
       else
         warn "no apt/dnf/pacman. Install manually: ${missing[*]}"
       fi

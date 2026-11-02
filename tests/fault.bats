@@ -323,7 +323,75 @@ load helpers
   rm -rf "$home"
 }
 
-# --- update: report both phases, never mix them silently -------------------
+@test "fault: a failed binary link restores the foreign file and writes no marker" {
+  local home="$BATS_TMPDIR/fault-bin-link-$$" target source
+  target="$home/.local/bin/tool"; source="$home/source-tool"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")"
+  printf 'user file\n' > "$target"
+  printf '#!/bin/sh\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    ln() { return 1; }
+    claim_owned_binary '$target' '$source' tool link"
+  [ "$status" -ne 0 ]
+  [ -f "$target" ] && [ ! -L "$target" ]
+  [ "$(cat "$target")" = "user file" ]
+  [ ! -f "$home/.local/state/yadr/provides-tool" ]
+  [ -z "$(find "$home/.local/state/yadr-binary-backups" -type f -o -type l 2>/dev/null)" ]
+  rm -rf "$home"
+}
+
+@test "fault: a failed binary copy restores the foreign file and leaves no temp file" {
+  local home="$BATS_TMPDIR/fault-bin-copy-$$" target source
+  target="$home/.local/bin/tool"; source="$home/source-tool"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")"
+  printf 'user file\n' > "$target"
+  printf '#!/bin/sh\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    cp() { return 1; }
+    claim_owned_binary '$target' '$source' tool copy"
+  [ "$status" -ne 0 ]
+  [ -f "$target" ] && [ ! -L "$target" ]
+  [ "$(cat "$target")" = "user file" ]
+  [ ! -f "$home/.local/state/yadr/provides-tool" ]
+  ! find "$home/.local/bin" -maxdepth 1 -name '*.yadr-new.*' | grep -q .
+  [ -z "$(find "$home/.local/state/yadr-binary-backups" -type f -o -type l 2>/dev/null)" ]
+  rm -rf "$home"
+}
+
+@test "fault: purge removes a managed binary but preserves its binary backup" {
+  local home="$TEST_HOME" clone="$BATS_TMPDIR/fault-bin-purge-$$"
+  local state="$home/.local/state/yadr" backup="$home/.local/state/yadr-binary-backups/nvim-20260101-000000.abcd"
+  rm -rf "$clone"; mkdir -p "$clone/bin" "$clone/shell" "$state/backups/20260101-000000" \
+    "$home/.local/bin" "$backup"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$clone/bin/yadr"
+  printf '0.9.8\n' > "$clone/VERSION"
+  ln -s "$clone/bin/yadr" "$home/.local/bin/yadr"
+  ln -s /bin/true "$home/.local/bin/nvim"
+  : > "$state/provides-nvim-upstream"
+  printf 'old nvim\n' > "$backup/nvim"
+  printf '%s\n' "$state/backups/20260101-000000" > "$state/last-install-backup"
+  run bash -c "
+    export HOME='$home' YADR_YES=1 SHELL=/bin/bash
+    source '$(yadr_funcs)'
+    export YADR_HOME='$clone'
+    do_uninstall --purge"
+  [ "$status" -eq 0 ]
+  [ ! -e "$home/.local/bin/nvim" ]
+  [ ! -e "$home/.local/bin/yadr" ]
+  [ -f "$backup/nvim" ]
+  [ "$(cat "$backup/nvim")" = "old nvim" ]
+  [ ! -e "$clone" ]
+  [ ! -e "$state" ]
+  rm -rf "$clone"
+}
+
+
 
 @test "update asks before mise: Enter accepts, n and EOF skip" {
   local repo="$BATS_TMPDIR/fault-upd-prompt-$$" bin="$BATS_TMPDIR/fault-upd-prompt-bin-$$"
