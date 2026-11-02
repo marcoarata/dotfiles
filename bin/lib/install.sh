@@ -146,27 +146,61 @@ link_one() {
   ok "  linked: ${dst} → ${src}"
 }
 
+has_controlling_tty() {
+  # stdin may be the bootstrap pipe even when the user is at a terminal.
+  # Opening /dev/tty is the reliable check; -r/-w are true for the device
+  # node even in a session that has no controlling terminal.
+  { : </dev/tty; } 2>/dev/null
+}
+
+registered_login_shell() {
+  # $SHELL is inherited and can be stale. Prefer the account database, with a
+  # macOS fallback because getent is not available there.
+  local uid user shell=""
+  uid="$(id -u 2>/dev/null || true)"
+  user="$(id -un 2>/dev/null || true)"
+  if command -v getent >/dev/null 2>&1 && [[ -n "$uid" ]]; then
+    shell="$(getent passwd "$uid" 2>/dev/null | cut -d: -f7 | tr -d '[:space:]')"
+  fi
+  if [[ -z "$shell" ]] && command -v dscl >/dev/null 2>&1 && [[ -n "$user" ]]; then
+    shell="$(dscl . -read "/Users/${user}" UserShell 2>/dev/null | awk 'NR==1 {print $2}')"
+  fi
+  printf '%s\n' "$shell"
+}
+
 ensure_login_shell() {
-  # Faithful to classic YADR (Rakefile install_prezto): sets zsh as login shell
-  # with no extra prompt. Without TTY (CI/headless) skipped with notice.
-  local zsh_path
+  # Faithful to classic YADR (Rakefile install_prezto): sets zsh as login shell.
+  # Use the controlling terminal for chsh because stdin may contain the
+  # bootstrap pipe. Without one (CI/headless) keep the manual fallback.
+  local zsh_path current after
   zsh_path="$(command -v zsh 2>/dev/null || true)"
   [[ -n "$zsh_path" ]] || { warn "no zsh installed; skipping login shell."; return 0; }
-  if [[ "${SHELL:-}" == *zsh* ]]; then
-    info "zsh is already your default shell (${SHELL}). Restart your session to load changes."
+  current="$(registered_login_shell)"
+  [[ -n "$current" ]] || current="${SHELL:-}"
+  if [[ -n "$current" && "$current" == "$zsh_path" ]]; then
+    info "zsh is already your default login shell (${current}). Restart your session to load changes."
     return 0
   fi
   info "setting zsh as default shell…"
   if ! grep -qxF "$zsh_path" /etc/shells 2>/dev/null; then
     info "adding ${zsh_path} to /etc/shells (only step with sudo)…"
-    echo "$zsh_path" | sudo tee -a /etc/shells >/dev/null \
+    printf '%s\n' "$zsh_path" | sudo tee -a /etc/shells >/dev/null \
       || { warn "could not update /etc/shells. Manual: echo ${zsh_path} | sudo tee -a /etc/shells && chsh -s ${zsh_path}"; return 0; }
   fi
-  if [[ -t 0 ]]; then
-    chsh -s "$zsh_path" \
-      || warn "chsh failed. Manual: chsh -s ${zsh_path}"
+  if ! has_controlling_tty; then
+    warn "no controlling TTY: chsh needs your password."
+    warn "Manual: chsh -s ${zsh_path}"
+    return 0
+  fi
+  if chsh -s "$zsh_path" </dev/tty; then
+    after="$(registered_login_shell)"
+    if [[ -n "$after" && "$after" != "$zsh_path" ]]; then
+      warn "chsh returned success but the login shell is ${after}. Manual: chsh -s ${zsh_path}"
+    else
+      ok "default login shell changed to zsh (${zsh_path})."
+    fi
   else
-    warn "no TTY: chsh needs your password. Manual: chsh -s ${zsh_path}"
+    warn "chsh failed. Manual: chsh -s ${zsh_path}"
   fi
 }
 
@@ -181,7 +215,7 @@ success_msg() {
   (_______\_____|\____|_|
 
 EOF
-  ok "YADR 2027 installed. Reboot to load zsh by default (or run 'exec zsh' to try now; and restart vim)."
+  ok "YADR 2027 installed. Log out and back in to load zsh by default (or run 'exec zsh' now; restart vim)."
 }
 
 next_steps() {

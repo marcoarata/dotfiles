@@ -4,6 +4,15 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [0.9.8] — 2026-11-01 — Interactive login shell
+
+### Fixed
+
+- `ensure_login_shell` now uses the controlling terminal (`/dev/tty`) instead
+  of testing stdin, so the documented `curl | bash` install can prompt for the
+  password and run `chsh` on Linux, macOS and WSL2. Headless/CI installs keep
+  the manual fallback. `--yes` still does not bypass the password prompt.
+
 ## [0.9.7] — 2026-10-31 — Piped quick start
 
 ### Fixed

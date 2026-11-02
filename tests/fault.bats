@@ -4,8 +4,8 @@
 # two things at once — the right part reports the failure, and nothing prints a
 # success line for work that did not happen. Policy under test: ADR-004 (runtime
 # failures fatal, editor failures advisory, update never destroys anything).
-# Requires: bats-core, git (zsh is not needed: SHELL is forced to /bin/zsh so the
-# login-shell step short-circuits instead of calling chsh).
+# Requires: bats-core, git. Bats has no controlling TTY, so the login-shell
+# step takes the manual fallback instead of calling chsh.
 
 setup() {
   export YADR_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"

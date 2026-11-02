@@ -1278,6 +1278,88 @@ EOF
   rm -rf "$repo" "$plat" "$marker"
 }
 
+@test "login shell: no controlling TTY keeps the manual fallback" {
+  command -v zsh >/dev/null 2>&1 || skip "zsh not available"
+  local zsh_path; zsh_path="$(command -v zsh)"
+  grep -qxF "$zsh_path" /etc/shells 2>/dev/null || skip "zsh not in /etc/shells"
+  local bin="$BATS_TMPDIR/chsh-no-tty-$$" log="$BATS_TMPDIR/chsh-no-tty.log-$$"
+  rm -rf "$bin" "$log"; mkdir -p "$bin"
+  cat > "$bin/chsh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> '$log'
+exit 0
+EOF
+  chmod +x "$bin/chsh"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    registered_login_shell() { printf '/bin/bash\n'; }
+    has_controlling_tty() { return 1; }
+    ensure_login_shell"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no controlling TTY"* ]]
+  [ ! -e "$log" ]
+  rm -rf "$bin" "$log"
+}
+
+@test "login shell: already zsh does not call chsh" {
+  command -v zsh >/dev/null 2>&1 || skip "zsh not available"
+  local zsh_path; zsh_path="$(command -v zsh)"
+  grep -qxF "$zsh_path" /etc/shells 2>/dev/null || skip "zsh not in /etc/shells"
+  local bin="$BATS_TMPDIR/chsh-already-$$" log="$BATS_TMPDIR/chsh-already.log-$$"
+  rm -rf "$bin" "$log"; mkdir -p "$bin"
+  cat > "$bin/chsh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> '$log'
+exit 0
+EOF
+  chmod +x "$bin/chsh"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+    source '$(yadr_funcs)'
+    registered_login_shell() { printf '%s\n' '$zsh_path'; }
+    has_controlling_tty() { return 0; }
+    ensure_login_shell"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"already your default login shell"* ]]
+  [ ! -e "$log" ]
+  rm -rf "$bin" "$log"
+}
+
+@test "login shell: chsh reads the controlling TTY when stdin is not a tty" {
+  command -v script >/dev/null 2>&1 || skip "script not available"
+  script -qec true /dev/null >/dev/null 2>&1 || skip "script lacks -qec support"
+  command -v zsh >/dev/null 2>&1 || skip "zsh not available"
+  local zsh_path; zsh_path="$(command -v zsh)"
+  grep -qxF "$zsh_path" /etc/shells 2>/dev/null || skip "zsh not in /etc/shells"
+  local bin="$BATS_TMPDIR/chsh-pty-$$" log="$BATS_TMPDIR/chsh-pty.log-$$"
+  local runner="$BATS_TMPDIR/chsh-pty-run-$$.sh"
+  rm -rf "$bin" "$log" "$runner"; mkdir -p "$bin"
+  cat > "$bin/chsh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> '$log'
+if [[ -t 0 ]]; then printf 'stdin=tty\n' >> '$log'; else printf 'stdin=notty\n' >> '$log'; fi
+exit 0
+EOF
+  chmod +x "$bin/chsh"
+  cat > "$runner" <<EOF
+exec 0</dev/null
+export HOME='$TEST_HOME' PATH='$bin:/usr/bin:/bin'
+source '$(yadr_funcs)'
+registered_login_shell() {
+  if [[ -f '$log' ]]; then printf '%s\n' '$zsh_path'; else printf '/bin/bash\n'; fi
+}
+ensure_login_shell
+EOF
+  run script -qec "bash '$runner'" /dev/null
+  [ "$status" -eq 0 ]
+  grep -Fq -- "-s $zsh_path" "$log"
+  grep -qx 'stdin=tty' "$log"
+  [[ "$output" == *"default login shell changed to zsh"* ]]
+  [[ "$output" != *"no controlling TTY"* ]]
+  rm -rf "$bin" "$log" "$runner"
+}
+
 @test "typescript payload runs Lazy! restore once, not twice" {
   # ensure_nvim_plugins already syncs the lockfile; ensure_lsp_servers used to
   # launch nvim a second time for the same restore (harmless, pure waste).

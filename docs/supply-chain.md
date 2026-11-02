@@ -29,7 +29,7 @@ manager. A floating download is a decision, not an accident.
 ## Bootstrap trust
 
 ```sh
-V=v0.9.7
+V=v0.9.8
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS          # macOS: shasum -a 256 -c SHA256SUMS
@@ -42,7 +42,7 @@ asset and the tagged file are the same bytes; the checksum proves integrity, not
 publisher identity. The manual alternative — clone the tag and run
 `bootstrap.sh --local --ref "$V"` — avoids `curl | sh` entirely.
 
-## Inventory (v0.9.7)
+## Inventory (v0.9.8)
 
 Checksums are the SHA-256 of the exact asset named in the URL. The full hashes
 live in the source constants; this is the human index.

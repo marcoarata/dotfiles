@@ -45,8 +45,11 @@ brew install curl git zsh
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.7/bootstrap.sh | bash -s -- --ref v0.9.7 --yes
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.8/bootstrap.sh | bash -s -- --ref v0.9.8 --yes
 ```
+
+The installer may ask for your password once to set zsh as the login shell.
+`--yes` skips installer confirmations, not that password prompt.
 
 For checksum verification before running the script, see “Pin a release” below.
 
@@ -66,11 +69,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.9.7 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.8 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.9.7
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.8
 ```
 
 ```bash
@@ -108,8 +111,11 @@ sudo apt install zsh curl git -y
 The install is pinned to the release tag, not to the moving `main` branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.7/bootstrap.sh | bash -s -- --ref v0.9.7 --yes
+curl -fsSL https://raw.githubusercontent.com/marcoarata/dotfiles/v0.9.8/bootstrap.sh | bash -s -- --ref v0.9.8 --yes
 ```
+
+The installer may ask for your password once to set zsh as the login shell.
+`--yes` skips installer confirmations, not that password prompt.
 
 For checksum verification before running the script, see “Pin a release” below.
 
@@ -129,11 +135,11 @@ yadr doctor
 steps 1-5 above; it is not a step after them.
 
 ```bash
-git clone --branch v0.9.7 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
+git clone --branch v0.9.8 https://github.com/marcoarata/dotfiles.git ~/.yadr-2027
 ```
 
 ```bash
-~/.yadr-2027/bootstrap.sh --local --ref v0.9.7
+~/.yadr-2027/bootstrap.sh --local --ref v0.9.8
 ```
 
 ```bash
@@ -147,10 +153,10 @@ yadr doctor
 ### 3) Pin a release (recommended, especially for servers)
 
 `main` is development; installs should name the release they want. The commands
-above use `v0.9.7`. To verify the bootstrap before running it:
+above use `v0.9.8`. To verify the bootstrap before running it:
 
 ```bash
-V=v0.9.7
+V=v0.9.8
 curl -fsSLO "https://raw.githubusercontent.com/marcoarata/dotfiles/${V}/bootstrap.sh"
 curl -fsSLO "https://github.com/marcoarata/dotfiles/releases/download/${V}/SHA256SUMS"
 sha256sum -c SHA256SUMS

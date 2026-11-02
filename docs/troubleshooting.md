@@ -22,6 +22,22 @@ Neovim follows `stdpath()`; `~/.gitconfig`, `~/.tmux.conf` and `~/.local/bin`
 stay HOME-based; with the variables unset everything falls back to the XDG
 defaults. Policy: `docs/adr-005-path-policy.md`.
 
+## Login shell: `chsh` asks for your password
+
+The installer sets zsh as the login shell through `chsh`. When `curl | bash`
+is used, stdin contains the script, so the installer talks to the controlling
+terminal through `/dev/tty` instead. This is why it can still ask for your
+password. `--yes` skips installer confirmations; it does not bypass `chsh`.
+
+After a successful change, `exec zsh` starts zsh in the current session; log out
+and back in for new sessions. A reboot is not required. In CI or a genuinely
+headless session there is no controlling terminal; the installer warns and
+prints the manual command:
+
+```sh
+chsh -s "$(command -v zsh)"
+```
+
 ## `yadr doctor`: `foreign symlink` / `rogue checkout`
 
 A managed link or a second clone points outside `YADR_HOME` — usually a config
