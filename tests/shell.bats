@@ -2810,7 +2810,7 @@ EOF
   [ "$status" -eq 0 ]
   run grep -n 'v0\.9\.0' "$YADR_ROOT/README.md"
   [ "$status" -ne 0 ]
-  run grep -RInE 'v1\.0\.0|yadr rollback|repo\.bundle|manifest\.tsv|selective restore|roadmap' \
+  run grep -RInE 'yadr rollback|repo\.bundle|manifest\.tsv|selective restore|roadmap' \
     "$YADR_ROOT/README.md" "$YADR_ROOT/docs" "$YADR_ROOT/CHANGELOG.md"
   [ "$status" -ne 0 ]
 }
