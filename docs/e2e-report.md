@@ -1,7 +1,7 @@
 # E2E evidence report
 
 How YADR 2027 is proven to work. Every claim below maps to a reproducible
-command. Last local verification: 2026-10-31.
+command. Last local verification: 2026-11-03.
 
 ## 1. CI matrix (`.github/workflows/ci.yml`)
 
@@ -29,19 +29,24 @@ font source (no leftovers), `do_update` without a checkout (warns, exit 0), and
 lines). WSL is covered at the logic level (platform selection + clipboard
 branches); `platform/wsl.sh` delegates to `linux.sh`.
 
-## 2. v0.9.6 maintenance coverage
+## 2. v1.0.0 hardening coverage
 
-The release fixes the pinned-update lifecycle and hardens deletion/backup paths:
+The final stability release hardens the install boundary:
 
-- a detached `--ref` checkout advances to the latest release tag, never `main`;
-- a dirty checkout, offline fetch or mislabelled target tag leaves the checkout unchanged;
-- `uninstall --purge` refuses `YADR_HOME`/`STATE_DIR` equal to `$HOME` or `/`;
-- `claim_owned_dir` backups use unique `mktemp` directories.
+- foreign `nvim`, `vim`, `zoxide` and `lazygit` binaries are moved to
+  `yadr-binary-backups/` before replacement; v0.9.8 markers still migrate;
+- binary backups survive `uninstall --purge`;
+- Arch installs use `pacman -S --needed`, never `-Sy`, and a stale database
+  fails with the `sudo pacman -Syu` instruction;
+- font extraction failures return failure, clean their temporary directory and
+  write no `provides-font` marker;
+- deterministic fault tests cover failed link/copy installs and purge.
 
 The shell suite runs on Bash 3.2 in the macOS CI lane and Bash 5.x on Linux.
-Local Linux verification for this release: smoke 90/90, shell 136/136,
-bootstrap 10/10, fault 21/21, core coverage 63.2% (floor 50%), shellcheck clean,
-and both Neovim harness scripts print `ok`.
+Local Linux verification for this release: smoke 90/90, shell 151/151,
+bootstrap 11/11, fault 35/35, core coverage 63.7% (floor 50%), shellcheck clean.
+Debian 13 verified the foreign-binary backup, reinstall, font and purge paths;
+Arch verified the stale-database failure and a real pacman install.
 
 ```sh
 bash tests/smoke.sh
@@ -72,14 +77,14 @@ Each release is installed from its tag, never from `main`:
 E=/tmp/opencode/verify
 YADR_HOME=$E/home/.yadr-2027 HOME=$E/home XDG_CONFIG_HOME=$E/config \
   XDG_DATA_HOME=$E/data XDG_CACHE_HOME=$E/cache XDG_STATE_HOME=$E/state \
-  bash bootstrap.sh --ref v0.9.8 --yes
+  bash bootstrap.sh --ref v1.0.0 --yes
 ```
 
-The tag must print `0.9.8` from `yadr version`, report 0 errors from
+The tag must print `1.0.0` from `yadr version`, report 0 errors from
 `yadr doctor`, and record the tag in `installed-ref`. Tag verification and the
 CI run for the release commit are recorded in the release notes.
 
-For v0.9.8, the login-shell tests also prove that `chsh` reads the controlling
+For v1.0.0, the login-shell tests also prove that `chsh` reads the controlling
 TTY when stdin is the bootstrap pipe, and that the no-TTY path remains a safe
 warning:
 

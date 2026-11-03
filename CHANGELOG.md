@@ -4,6 +4,30 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [1.0.0] — 2026-11-03 — Stable managed-install release
+
+### Changed
+
+- **Managed executables are claimed safely.** `nvim`, `vim`, `zoxide` and
+  `lazygit` now go through one helper that moves a foreign
+  `~/.local/bin/<tool>` to `yadr-binary-backups/` and reports it before
+  replacing it. Existing v0.9.8 markers remain valid, reinstalls are
+  idempotent, and binary backups survive `uninstall --purge`. `mise` remains
+  owned by its upstream installer.
+- **Arch package installs never sync implicitly.** YADR uses
+  `pacman -S --needed --noconfirm`, never `pacman -Sy`, and fails with the
+  exact `sudo pacman -Syu` repair instruction when the package database is
+  stale. The ephemeral Arch CI container syncs only its own image.
+- **Font extraction failures are no longer silent.** `fetch_verified_zip`
+  returns failure, removes its temporary directory, and `install_fonts` writes
+  no `provides-font` marker. Optional globs are filtered against the archive,
+  so a `*.ttf`-only font zip with an unused `*.otf` pattern still installs.
+- **Failure windows are covered deterministically.** Link and copy install
+  failures restore the previous file and leave no marker; purge removes the
+  managed binary while keeping its binary backup.
+- **Documentation checks include the evaluation and E2E reports**, so release
+  commands and version claims cannot drift silently.
+
 ## [0.9.8] — 2026-11-01 — Interactive login shell
 
 ### Fixed
