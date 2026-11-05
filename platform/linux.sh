@@ -105,7 +105,7 @@ ensure_nvim() {
   else
     log "neovim missing; installing upstream into ~/.local/bin..."
   fi
-  local arch sha url tmp
+  local arch sha url tmp extracted dest stage state old="" backup="" owned=0
   case "$(uname -m)" in
     x86_64|amd64) arch="x86_64"; sha="$NVIM_SHA256_X86_64" ;;
     arm64|aarch64) arch="arm64"; sha="$NVIM_SHA256_ARM64" ;;
@@ -117,15 +117,92 @@ ensure_nvim() {
   verify_sha256 "$tmp/nvim.tar.gz" "$sha" \
     || { warn "neovim sha256 mismatch."; rm -rf "$tmp"; return 1; }
   tar -xzf "$tmp/nvim.tar.gz" -C "$tmp" || { warn "extraction failed."; rm -rf "$tmp"; return 1; }
-  mkdir -p "${HOME}/.local/bin" 2>/dev/null || true
-  # Full relocatable install: the binary resolves its runtime
-  # relative to its real location (resolves the symlink).
-  claim_owned_dir "${HOME}/.local/nvim-upstream" nvim-upstream || { rm -rf "$tmp"; return 1; }
-  cp -a "$tmp"/nvim-linux-*/ "${HOME}/.local/nvim-upstream/" || { warn "copy failed."; rm -rf "$tmp"; return 1; }
-  claim_owned_binary "${HOME}/.local/bin/nvim" "${HOME}/.local/nvim-upstream/bin/nvim" nvim-upstream link \
-    || { warn "nvim shim failed."; rm -rf "$tmp"; return 1; }
+  extracted="${tmp}/nvim-linux-${arch}"
+  [[ -x "${extracted}/bin/nvim" ]] \
+    || { warn "neovim archive layout unexpected."; rm -rf "$tmp"; return 1; }
+  nvim_version_ok "${extracted}/bin/nvim" >/dev/null 2>&1 \
+    || { warn "staged neovim does not report >=0.11."; rm -rf "$tmp"; return 1; }
+
+  # Build the complete replacement before touching the live install. The old
+  # tree stays in a sibling rollback directory until the new directory, shim
+  # and final smoke check all succeed.
+  dest="${HOME}/.local/nvim-upstream"
+  mkdir -p "$(dirname "$dest")" 2>/dev/null \
+    || { warn "cannot create $(dirname "$dest")."; rm -rf "$tmp"; return 1; }
+  stage="$(mktemp -d "${dest}.new.XXXXXX" 2>/dev/null)" \
+    || { warn "cannot create staging directory for ${dest}."; rm -rf "$tmp"; return 1; }
+  if ! cp -a "${extracted}/." "${stage}/"; then
+    warn "staging copy failed; keeping the previous neovim."
+    rm -rf "$tmp" "$stage"
+    return 1
+  fi
+  nvim_version_ok "${stage}/bin/nvim" >/dev/null 2>&1 \
+    || { warn "staged neovim does not start; keeping the previous installation."; rm -rf "$tmp" "$stage"; return 1; }
+
+  state="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
+  if [[ -e "$dest" || -L "$dest" ]]; then
+    if [[ -f "${state}/provides-nvim-upstream" ]]; then
+      owned=1
+      old="$(mktemp -d "${dest}.old.XXXXXX" 2>/dev/null)" \
+        || { warn "cannot create rollback directory for ${dest}."; rm -rf "$tmp" "$stage"; return 1; }
+    else
+      mkdir -p "${state}/backups" 2>/dev/null \
+        || { warn "cannot create ${state}/backups; refusing to overwrite ${dest}."; rm -rf "$tmp" "$stage"; return 1; }
+      old="$(mktemp -d "${state}/backups/nvim-upstream-$(date +%Y%m%d-%H%M%S).XXXXXX" 2>/dev/null)" \
+        || { warn "cannot create a backup for ${dest}; refusing to overwrite."; rm -rf "$tmp" "$stage"; return 1; }
+      backup="$old"
+    fi
+    if ! mv "$dest" "${old}/nvim-upstream" 2>/dev/null; then
+      warn "cannot move ${dest} aside; keeping the previous neovim."
+      [[ -n "$backup" ]] && rmdir "$backup" 2>/dev/null || true
+      rm -rf "$tmp" "$stage"
+      return 1
+    fi
+  fi
+  if ! mv "$stage" "$dest" 2>/dev/null; then
+    warn "cannot activate staged neovim; restoring the previous installation."
+    if [[ -n "$old" && -e "${old}/nvim-upstream" ]]; then
+      mv "${old}/nvim-upstream" "$dest" 2>/dev/null || warn "could not restore ${dest}."
+      [[ -n "$backup" ]] && rmdir "$backup" 2>/dev/null || true
+    fi
+    rm -rf "$tmp" "$stage"
+    return 1
+  fi
+
+  # Full relocatable install: the binary resolves its runtime relative to its
+  # real location (resolves the shim symlink).
+  if ! claim_owned_binary "${HOME}/.local/bin/nvim" "${dest}/bin/nvim" nvim-upstream link; then
+    warn "nvim shim failed; restoring the previous installation."
+    rm -rf "$dest"
+    if [[ -n "$old" && -e "${old}/nvim-upstream" ]]; then
+      mv "${old}/nvim-upstream" "$dest" 2>/dev/null || warn "could not restore ${dest}."
+    fi
+    [[ -n "$backup" ]] && rmdir "$backup" 2>/dev/null || true
+    rm -rf "$tmp"
+    return 1
+  fi
+  if ! "${HOME}/.local/bin/nvim" --version >/dev/null 2>&1; then
+    warn "nvim installed but does not start; restoring the previous installation."
+    rm -rf "$dest"
+    if [[ -n "$old" && -e "${old}/nvim-upstream" ]]; then
+      mv "${old}/nvim-upstream" "$dest" 2>/dev/null || warn "could not restore ${dest}."
+    else
+      rm -f "${HOME}/.local/bin/nvim" "${state}/provides-nvim-upstream" 2>/dev/null || true
+    fi
+    [[ -n "$backup" ]] && rmdir "$backup" 2>/dev/null || true
+    rm -rf "$tmp"
+    return 1
+  fi
+
+  if [[ -n "$old" ]]; then
+    if [[ "$owned" == "1" ]]; then
+      rm -rf "$old"
+    else
+      warn "existing ${dest} was not installed by YADR; moved to ${old}/nvim-upstream"
+    fi
+  fi
   rm -rf "$tmp"
-  "${HOME}/.local/bin/nvim" --version >/dev/null 2>&1 && log "neovim ready: $("${HOME}/.local/bin/nvim" --version 2>/dev/null | head -n1)." || warn "nvim installed but does not start."
+  log "neovim ready: $("${HOME}/.local/bin/nvim" --version 2>/dev/null | head -n1)."
 }
 
 # ensure_vim: guarantees `vim` resolves to a YADR-managed Neovim >=0.11.

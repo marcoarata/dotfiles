@@ -738,6 +738,99 @@ macos_funcs() {
   [ -f "$TEST_HOME/.local/state/yadr/provides-font" ]
 }
 
+@test "yadr_marker fails when the state directory cannot be created" {
+  local home="$BATS_TMPDIR/marker-fail-$$" blocker="$BATS_TMPDIR/marker-fail-$$/not-a-dir"
+  rm -rf "$home"; mkdir -p "$home"; printf 'blocker\n' > "$blocker"
+  run bash -c "
+    export HOME='$home' STATE_DIR='$blocker/state'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    yadr_marker font"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"cannot create"* ]]
+  [ ! -e "$blocker/state" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary refuses to replace a target when the marker cannot be written" {
+  local home="$BATS_TMPDIR/claim-marker-fail-$$" target source
+  local blocker="$home/not-a-dir"
+  target="$home/.local/bin/tool"; source="$home/source-tool"
+  rm -rf "$home"; mkdir -p "$home" "$(dirname "$target")"
+  printf 'blocker\n' > "$blocker"
+  printf 'user file\n' > "$target"
+  printf '#!/bin/sh\necho managed\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home' STATE_DIR='$blocker/state'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' tool copy"
+  [ "$status" -ne 0 ]
+  [ -f "$target" ] && [ ! -L "$target" ]
+  [ "$(cat "$target")" = "user file" ]
+  [ ! -e "$blocker/state" ]
+  [ -z "$(find "$home/.local/state/yadr-binary-backups" -type f 2>/dev/null)" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary refuses a non-file ownership marker before touching the target" {
+  local home="$BATS_TMPDIR/claim-marker-dir-$$" target source
+  target="$home/.local/bin/tool"; source="$home/source-tool"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")" "$home/.local/state/yadr/provides-tool"
+  printf 'user file\n' > "$target"
+  printf '#!/bin/sh\necho managed\n' > "$source"; chmod +x "$source"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' tool copy"
+  [ "$status" -ne 0 ]
+  [ -f "$target" ] && [ ! -L "$target" ]
+  [ "$(cat "$target")" = "user file" ]
+  [ -d "$home/.local/state/yadr/provides-tool" ]
+  [ -z "$(find "$home/.local/state/yadr-binary-backups" -type f 2>/dev/null)" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary backs up a managed copy whose contents changed" {
+  local home="$BATS_TMPDIR/claim-copy-changed-$$" target source
+  target="$home/.local/bin/zoxide"; source="$home/source-zoxide"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")" "$home/.local/state/yadr"
+  printf '#!/bin/sh\necho managed\n' > "$source"; chmod +x "$source"
+  printf 'user replaced the managed copy\n' > "$target"
+  : > "$home/.local/state/yadr/provides-zoxide"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' zoxide copy"
+  [ "$status" -eq 0 ]
+  [ -f "$target" ] && [ ! -L "$target" ]
+  [ "$(cat "$target")" = "$(cat "$source")" ]
+  [ "$(cat "$home"/.local/state/yadr-binary-backups/*/zoxide)" = "user replaced the managed copy" ]
+  [ -f "$home/.local/state/yadr/provides-zoxide" ]
+  rm -rf "$home"
+}
+
+@test "claim_owned_binary does not back up an identical managed copy" {
+  local home="$BATS_TMPDIR/claim-copy-same-$$" target source
+  target="$home/.local/bin/zoxide"; source="$home/source-zoxide"
+  rm -rf "$home"; mkdir -p "$(dirname "$target")" "$home/.local/state/yadr"
+  printf '#!/bin/sh\necho managed\n' > "$source"; chmod +x "$source"
+  cp "$source" "$target"
+  : > "$home/.local/state/yadr/provides-zoxide"
+  run bash -c "
+    export HOME='$home'
+    warn() { printf 'WARN: %s\n' \"\$*\"; }
+    source '$YADR_ROOT/platform/common.sh'
+    claim_owned_binary '$target' '$source' zoxide copy"
+  [ "$status" -eq 0 ]
+  [ -f "$target" ]
+  [ "$(cat "$target")" = "$(cat "$source")" ]
+  [ ! -e "$home/.local/state/yadr-binary-backups" ]
+  rm -rf "$home"
+}
+
 @test "claim_owned_binary backs up a foreign file and is idempotent" {
   local home="$BATS_TMPDIR/claim-bin-$$" target source
   target="$home/.local/bin/tool"; source="$home/source-tool"
@@ -1336,7 +1429,7 @@ EOF
   mkdir -p "$fake"
   printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/mise"
   chmod +x "$fake/mise"
-  run bash -c "export HOME='$TEST_HOME' PATH='$fake:/usr/bin:/bin'; source '$(platform_funcs tools.sh)'; install_mise"
+  run bash -c "export HOME='$TEST_HOME' PATH='$fake:/usr/bin:/bin' PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'; source '$(platform_funcs tools.sh)'; install_mise"
   [ "$status" -eq 0 ]
   local conf="$TEST_HOME/.config/mise/conf.d/yadr-tools.toml"
   [ -f "$conf" ]
@@ -1344,6 +1437,33 @@ EOF
   grep -q '^bat = "latest"' "$conf"
   grep -q '^delta = "latest"' "$conf"
   [ -f "$TEST_HOME/.local/state/yadr/provides-tools" ]
+}
+
+@test "tools.sh uses the shared marker helper instead of a duplicate" {
+  run bash -c "
+    grep -q 'PLATFORM_COMMON' '$YADR_ROOT/platform/tools.sh' || exit 1
+    ! grep -q '^yadr_marker()' '$YADR_ROOT/platform/tools.sh' || exit 1
+    echo ok"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"ok"* ]]
+}
+
+@test "tools profile fails when the shared marker cannot be recorded" {
+  local fake="$BATS_TMPDIR/mise-tools-fail-$$"
+  local home="$BATS_TMPDIR/tools-marker-fail-$$" blocker="$BATS_TMPDIR/tools-marker-fail-$$/not-a-dir"
+  rm -rf "$fake" "$home"; mkdir -p "$fake" "$home"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$fake/mise"; chmod +x "$fake/mise"
+  printf 'blocker\n' > "$blocker"
+  run bash -c "
+    export HOME='$home' STATE_DIR='$blocker/state' PATH='$fake:/usr/bin:/bin'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs tools.sh)'
+    install_mise"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"cannot record provides-tools"* ]]
+  [ ! -e "$home/.config/mise/conf.d/yadr-tools.toml" ]
+  [ ! -e "$blocker/state" ]
+  rm -rf "$fake" "$home"
 }
 
 @test "purge cleans YADR tools conf.d (marker-gated)" {

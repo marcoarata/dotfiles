@@ -12,6 +12,20 @@ log()  { printf '[yadr:tools] %s\n' "$*"; }
 warn() { printf '[yadr:tools] WARN: %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Shared marker contract from platform/common.sh. Resolve it next to this
+# script; PLATFORM_COMMON exists only for tests that source a copied script.
+if [[ -z "${PLATFORM_COMMON:-}" ]]; then
+  if _yadr_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"; then
+    PLATFORM_COMMON="${_yadr_dir}/common.sh"
+  else
+    PLATFORM_COMMON=""
+  fi
+  unset _yadr_dir
+fi
+# shellcheck disable=SC1090
+if [[ -f "$PLATFORM_COMMON" ]]; then source "$PLATFORM_COMMON" || { warn "cannot load platform/common.sh."; exit 1; }
+else warn "platform/common.sh missing; shared helpers unavailable."; exit 1; fi
+
 CONF_D="${XDG_CONFIG_HOME:-$HOME/.config}/mise/conf.d/yadr-tools.toml"
 TOOLS=(eza bat delta)
 
@@ -21,20 +35,20 @@ missing_tools() # prints each tool not on PATH, one per line
   for t in "${TOOLS[@]}"; do have "$t" || printf '%s\n' "$t"; done
 }
 
-yadr_marker() { # records provides-tools for purge (same name as platform/common.sh)
-  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
-  mkdir -p "$dir" 2>/dev/null || true
-  touch "${dir}/provides-tools" 2>/dev/null || true
-}
-
 install_macos() {
   # `delta` ships as git-delta in Homebrew/MacPorts; eza/bat keep their names.
   if have brew; then
-    brew install eza bat git-delta 2>/dev/null && { yadr_marker; return 0; }
+    if brew install eza bat git-delta 2>/dev/null; then
+      yadr_marker tools || { warn "cannot record provides-tools."; return 1; }
+      return 0
+    fi
     warn "brew install failed."
   fi
   if have port; then
-    port install eza bat git-delta 2>/dev/null && { yadr_marker; return 0; }
+    if port install eza bat git-delta 2>/dev/null; then
+      yadr_marker tools || { warn "cannot record provides-tools."; return 1; }
+      return 0
+    fi
     warn "MacPorts install failed."
   fi
   warn "no brew/MacPorts (or install failed). Manual: https://github.com/eza-community/eza https://github.com/sharkdp/bat https://github.com/dandavison/delta"
@@ -43,6 +57,8 @@ install_macos() {
 
 install_mise() { # Linux/WSL: user-global via conf.d, so the checkout stays clean
   have mise || return 1
+  yadr_marker_writable tools \
+    || { warn "cannot record provides-tools; refusing to install tools."; return 1; }
   mkdir -p "$(dirname "$CONF_D")" 2>/dev/null || true
   {
     printf '# YADR 2027 — optional modern CLI tools (managed by: yadr install tools).\n'
@@ -55,7 +71,7 @@ install_mise() { # Linux/WSL: user-global via conf.d, so the checkout stays clea
   log "pinned eza/bat/delta in ${CONF_D}"
   mise install 2>&1 | tail -n 8 || { warn "mise install failed."; return 1; }
   mise reshim 2>/dev/null || true
-  yadr_marker
+  yadr_marker tools || { warn "cannot record provides-tools."; return 1; }
   return 0
 }
 

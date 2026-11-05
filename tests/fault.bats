@@ -269,6 +269,89 @@ load helpers
   rm -rf "$repo"
 }
 
+# --- platform: neovim replacement is staged and rollback-safe ---------------
+
+@test "fault: failed neovim staging keeps the previous installation intact" {
+  local home="$BATS_TMPDIR/fault-nvim-stage-$$"
+  local fb="$BATS_TMPDIR/fault-nvim-stage-fb-$$" src="$BATS_TMPDIR/fault-nvim-stage-src-$$"
+  local payload="$BATS_TMPDIR/fault-nvim-stage-payload-$$"
+  rm -rf "$home" "$fb" "$src" "$payload"
+  mkdir -p "$fb" "$src/nvim-linux-x86_64/bin" "$home/.local/nvim-upstream/bin" \
+    "$home/.local/bin" "$home/.local/state/yadr"
+  printf '#!/bin/sh\necho "NVIM v0.11.0"\n' > "$home/.local/nvim-upstream/bin/nvim"
+  chmod +x "$home/.local/nvim-upstream/bin/nvim"
+  printf '#!/bin/sh\necho "NVIM v0.12.6"\n' > "$src/nvim-linux-x86_64/bin/nvim"
+  chmod +x "$src/nvim-linux-x86_64/bin/nvim"
+  tar -czf "$payload" -C "$src" nvim-linux-x86_64
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  : > "$home/.local/state/yadr/provides-nvim-upstream"
+  ln -s "$home/.local/nvim-upstream/bin/nvim" "$home/.local/bin/nvim"
+  run bash -c "
+    export HOME='$home' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    cp() { return 1; }
+    ensure_nvim"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"staging copy failed"* ]]
+  [ -f "$home/.local/nvim-upstream/bin/nvim" ]
+  [ "$(cat "$home/.local/nvim-upstream/bin/nvim")" = '#!/bin/sh
+echo "NVIM v0.11.0"' ]
+  [ -L "$home/.local/bin/nvim" ]
+  [ "$(readlink "$home/.local/bin/nvim")" = "$home/.local/nvim-upstream/bin/nvim" ]
+  [ -f "$home/.local/state/yadr/provides-nvim-upstream" ]
+  [ -z "$(find "$home/.local" -maxdepth 1 -name 'nvim-upstream.new.*' -o -name 'nvim-upstream.old.*' 2>/dev/null)" ]
+  rm -rf "$home" "$fb" "$src" "$payload"
+}
+
+@test "fault: nvim that fails its final smoke check restores the previous install" {
+  local home="$BATS_TMPDIR/fault-nvim-final-$$"
+  local fb="$BATS_TMPDIR/fault-nvim-final-fb-$$" src="$BATS_TMPDIR/fault-nvim-final-src-$$"
+  local payload="$BATS_TMPDIR/fault-nvim-final-payload-$$" calls="$BATS_TMPDIR/fault-nvim-final-calls-$$"
+  rm -rf "$home" "$fb" "$src" "$payload" "$calls"
+  mkdir -p "$fb" "$src/nvim-linux-x86_64/bin"
+  cat > "$src/nvim-linux-x86_64/bin/nvim" <<EOF
+#!/bin/sh
+n=0
+[ -f "$calls" ] && n=\$(cat "$calls")
+n=\$((n + 1))
+printf '%s\n' "\$n" > "$calls"
+if [ "\$n" -lt 3 ]; then echo "NVIM v0.12.6"; exit 0; fi
+echo "nvim: boom" >&2
+exit 1
+EOF
+  chmod +x "$src/nvim-linux-x86_64/bin/nvim"
+  tar -czf "$payload" -C "$src" nvim-linux-x86_64
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  run bash -c "
+    export HOME='$home' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload' PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    verify_sha256() { return 0; }
+    ensure_nvim"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"does not start"* ]]
+  [[ "$output" != *"neovim ready"* ]]
+  [ ! -e "$home/.local/nvim-upstream" ]
+  [ ! -e "$home/.local/bin/nvim" ]
+  [ ! -f "$home/.local/state/yadr/provides-nvim-upstream" ]
+  [ -z "$(find "$home/.local" -maxdepth 1 -name 'nvim-upstream.new.*' -o -name 'nvim-upstream.old.*' 2>/dev/null)" ]
+  rm -rf "$home" "$fb" "$src" "$payload" "$calls"
+}
+
 # --- platform: never delete a directory YADR does not own ------------------
 
 @test "fault: an unowned nvim-upstream is moved aside, not deleted" {

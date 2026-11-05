@@ -4,6 +4,26 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
+## [Unreleased]
+
+### Fixed
+
+- **Managed copies are checked by content, not only by marker.** In `copy`
+  mode, a regular file that differs from the managed payload is treated as
+  foreign and moved to `yadr-binary-backups/` before replacement. An identical
+  file is reinstalled without a needless backup.
+- **Neovim replacement is staged and rollback-safe.** The complete new tree is
+  built and checked in a sibling staging directory before the live
+  `~/.local/nvim-upstream` is replaced. A failed copy, activation, shim or
+  final smoke check restores the previous installation and keeps the ownership
+  marker.
+- **A Neovim that does not start now returns failure.** `ensure_nvim` no longer
+  ends with a warning whose zero exit status made the caller report success.
+- **Ownership markers are mandatory for managed installs.** `yadr_marker`
+  returns non-zero when the state directory or marker cannot be written;
+  `claim_owned_binary` fails its preflight before touching the target, and
+  `tools.sh` reuses the shared marker helper instead of duplicating it.
+
 ## [1.0.0] — 2026-11-03 — Stable managed-install release
 
 ### Changed

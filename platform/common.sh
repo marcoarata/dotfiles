@@ -8,9 +8,29 @@
 yadr_marker() { # $1 = short name: records provides-<name> for purge
   # STATE_DIR wins when the CLI exported it; else the XDG-aware default that
   # mirrors bin/lib/paths.sh (platform scripts also run standalone).
-  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
-  mkdir -p "$dir" 2>/dev/null || true
-  touch "${dir}/provides-$1" 2>/dev/null || true
+  # This is the ownership proof used by update and uninstall --purge, so a
+  # marker that cannot be written is an installation failure, never silence.
+  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}" name="${1:-}"
+  [[ -n "$name" ]] || { warn "yadr_marker: marker name is required."; return 1; }
+  mkdir -p "$dir" 2>/dev/null \
+    || { warn "cannot create ${dir}; ownership marker not recorded."; return 1; }
+  touch "${dir}/provides-${name}" 2>/dev/null \
+    || { warn "cannot write ${dir}/provides-${name}."; return 1; }
+}
+
+yadr_marker_writable() { # $1 = short name: preflight before touching a target
+  # Check the real marker write path without creating the ownership marker.
+  # The temp file proves the state directory is writable even on filesystems
+  # where a permission bit alone is misleading.
+  local dir="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}" name="${1:-}" probe
+  [[ -n "$name" ]] || return 1
+  mkdir -p "$dir" 2>/dev/null || return 1
+  [[ -d "$dir" && -w "$dir" ]] || return 1
+  if [[ -e "${dir}/provides-${name}" ]]; then
+    [[ -f "${dir}/provides-${name}" && -w "${dir}/provides-${name}" ]] || return 1
+  fi
+  probe="$(mktemp "${dir}/.marker-check.XXXXXX" 2>/dev/null)" || return 1
+  rm -f "$probe" 2>/dev/null || true
 }
 
 claim_owned_dir() { # <dir> <marker-name>: 0 when safe to (re)create the dir
@@ -48,9 +68,10 @@ claim_owned_binary() { # <target> <source> <marker-name> [link|copy]
   # proof (same markers v0.9.8 already wrote). A foreign target is moved to
   # yadr-binary-backups/ and reported; a managed one is replaced in place.
   # The marker is written only after the link/copy succeeds, so a failed
-  # install leaves no claim behind.
+  # install leaves no claim behind. Its write path is checked before the
+  # target is touched: a successful install must be purgeable.
   local target="$1" source="$2" name="$3" mode="${4:-link}"
-  local state root bak saved="" tmp="" owned=0 foreign=0
+  local state root bak saved="" tmp="" owned=0 foreign=0 target_sha source_sha
   state="${STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/yadr}"
   [[ -f "${state}/provides-${name}" ]] && owned=1
   [[ -n "$target" && -n "$source" && -n "$name" ]] \
@@ -62,22 +83,32 @@ claim_owned_binary() { # <target> <source> <marker-name> [link|copy]
     warn "existing ${target} is a directory; refusing to replace it."
     return 1
   fi
+  yadr_marker_writable "$name" \
+    || { warn "cannot record ownership marker ${name}; refusing to install ${target}."; return 1; }
   # Already the managed target: idempotent reinstall/update. Adopt targets that
   # point at the expected source even if an older marker is missing.
   if [[ -L "$target" && "$(readlink "$target" 2>/dev/null || true)" == "$source" ]]; then
-    yadr_marker "$name"
+    yadr_marker "$name" \
+      || { warn "cannot record ownership marker ${name} for ${target}."; return 1; }
     return 0
   fi
   if [[ -e "$target" || -L "$target" ]]; then
     # A marker proves the default path belongs to YADR, but not that the user
     # left YADR's object there. Link targets that are no longer our symlink,
-    # and copy targets replaced by a symlink, are foreign again.
+    # copy targets replaced by a symlink, and copy targets whose contents no
+    # longer match the managed payload are foreign again.
     if [[ "$owned" == "0" ]]; then
       foreign=1
     elif [[ "$mode" == "link" ]]; then
       foreign=1
     elif [[ -L "$target" ]]; then
       foreign=1
+    elif [[ "$mode" == "copy" ]]; then
+      if ! target_sha="$(sha256_of "$target" 2>/dev/null)" \
+        || ! source_sha="$(sha256_of "$source" 2>/dev/null)" \
+        || [[ "$target_sha" != "$source_sha" ]]; then
+        foreign=1
+      fi
     fi
     if [[ "$foreign" == "1" ]]; then
       root="$(binary_backup_root)"
@@ -131,7 +162,8 @@ claim_owned_binary() { # <target> <source> <marker-name> [link|copy]
       return 1
     fi
   fi
-  yadr_marker "$name"
+  yadr_marker "$name" \
+    || { warn "installed ${target}, but could not record ownership marker ${name}."; return 1; }
   return 0
 }
 
