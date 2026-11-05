@@ -105,7 +105,7 @@ ensure_nvim() {
   else
     log "neovim missing; installing upstream into ~/.local/bin..."
   fi
-  local arch sha url tmp extracted dest stage state old="" backup="" owned=0
+  local arch sha url tmp extracted="" dest stage state old="" backup="" owned=0 candidate
   case "$(uname -m)" in
     x86_64|amd64) arch="x86_64"; sha="$NVIM_SHA256_X86_64" ;;
     arm64|aarch64) arch="arm64"; sha="$NVIM_SHA256_ARM64" ;;
@@ -117,8 +117,15 @@ ensure_nvim() {
   verify_sha256 "$tmp/nvim.tar.gz" "$sha" \
     || { warn "neovim sha256 mismatch."; rm -rf "$tmp"; return 1; }
   tar -xzf "$tmp/nvim.tar.gz" -C "$tmp" || { warn "extraction failed."; rm -rf "$tmp"; return 1; }
-  extracted="${tmp}/nvim-linux-${arch}"
-  [[ -x "${extracted}/bin/nvim" ]] \
+  # The official tarballs use nvim-linux-<arch>, but tests and mirrors may
+  # extract the same layout under a different top-level name. Locate the tree
+  # by its payload instead of assuming the host architecture.
+  for candidate in "${tmp}"/nvim-linux-*/; do
+    [[ -x "${candidate}bin/nvim" ]] || continue
+    extracted="${candidate%/}"
+    break
+  done
+  [[ -n "$extracted" ]] \
     || { warn "neovim archive layout unexpected."; rm -rf "$tmp"; return 1; }
   nvim_version_ok "${extracted}/bin/nvim" >/dev/null 2>&1 \
     || { warn "staged neovim does not report >=0.11."; rm -rf "$tmp"; return 1; }

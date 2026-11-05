@@ -1163,6 +1163,36 @@ EOF
   rm -rf "$fb" "$src" "$payload"
 }
 
+@test "ensure_nvim accepts an archive whose top-level name differs from uname" {
+  local fb="$BATS_TMPDIR/nvim-arch-fb-$$" src="$BATS_TMPDIR/nvim-arch-src-$$"
+  local payload="$BATS_TMPDIR/nvim-arch-payload-$$"
+  rm -rf "$fb" "$src"; mkdir -p "$fb" "$src/nvim-linux-x86_64/bin"
+  printf '#!/bin/sh\necho "NVIM v0.12.6"\n' > "$src/nvim-linux-x86_64/bin/nvim"
+  chmod +x "$src/nvim-linux-x86_64/bin/nvim"
+  tar -czf "$payload" -C "$src" nvim-linux-x86_64
+  cat > "$fb/curl" <<'EOF'
+#!/bin/bash
+out=""
+while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift 2 ;; *) shift ;; esac; done
+cp "$FAKE_PAYLOAD" "$out"
+EOF
+  chmod +x "$fb/curl"
+  run bash -c "
+    export HOME='$TEST_HOME' PATH='$fb:/usr/bin:/bin'
+    export FAKE_PAYLOAD='$payload'
+    export PLATFORM_COMMON='$YADR_ROOT/platform/common.sh'
+    source '$(platform_funcs linux.sh)' >/dev/null 2>&1
+    uname() { printf 'arm64\n'; }
+    verify_sha256() { return 0; }
+    ensure_nvim"
+  [ "$status" -eq 0 ]
+  [ -x "$TEST_HOME/.local/nvim-upstream/bin/nvim" ]
+  [ -L "$TEST_HOME/.local/bin/nvim" ]
+  [ -f "$TEST_HOME/.local/state/yadr/provides-nvim-upstream" ]
+  [[ "$output" == *"neovim ready"* ]]
+  rm -rf "$fb" "$src" "$payload"
+}
+
 @test "lazygit fallback uses the pinned lowercase asset and verifies its hash" {
   local fb="$BATS_TMPDIR/lazygit-pin-$$" src="$BATS_TMPDIR/lazygit-src-$$" payload="$BATS_TMPDIR/lazygit-payload-$$"
   rm -rf "$fb" "$src"; mkdir -p "$fb" "$src"

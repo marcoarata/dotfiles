@@ -19,6 +19,10 @@ command behind every claim is in `docs/evaluation.md`.
   marker.
 - **A Neovim that does not start now returns failure.** `ensure_nvim` no longer
   ends with a warning whose zero exit status made the caller report success.
+- **Neovim staging is independent of the host architecture.** The extracted
+  `nvim-linux-*` tree is located by its payload, so the arm64 macOS test can
+  use the same x86_64 fixture as Linux without assuming a matching top-level
+  directory name.
 - **Ownership markers are mandatory for managed installs.** `yadr_marker`
   returns non-zero when the state directory or marker cannot be written;
   `claim_owned_binary` fails its preflight before touching the target, and
