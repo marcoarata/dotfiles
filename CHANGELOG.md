@@ -4,7 +4,7 @@ Newest first. Each date is the day its tag was cut. The process (pin sync,
 local green, tag, post-tag verification) lives in `docs/releases.md`, and the
 command behind every claim is in `docs/evaluation.md`.
 
-## [Unreleased]
+## [1.0.2] — 2026-11-05 — Final hardening release
 
 ### Fixed
 
